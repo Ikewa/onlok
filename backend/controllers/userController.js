@@ -75,14 +75,14 @@ const registerUser = async (req, res) => {
 // @access  Public
 const loginUser = async (req, res) => {
     try {
-        const { email, password } = req.body;
+        const { vendor_id, password } = req.body;
 
-        if (!email || !password) {
-            return res.status(400).json({ message: 'Please provide email and password' });
+        if (!vendor_id || !password) {
+            return res.status(400).json({ message: 'Please provide your Onlok ID and password' });
         }
 
-        // Find User
-        const [rows] = await pool.query('SELECT * FROM users WHERE email = ?', [email]);
+        // Find User by vendor_id
+        const [rows] = await pool.query('SELECT * FROM users WHERE vendor_id = ?', [vendor_id]);
         const user = rows[0];
 
         // Check password
@@ -99,7 +99,7 @@ const loginUser = async (req, res) => {
                 token: generateToken(user.id, user.role, user.vendor_id)
             });
         } else {
-            res.status(401).json({ message: 'Invalid credentials' });
+            res.status(401).json({ message: 'Invalid Onlok ID or password' });
         }
 
     } catch (error) {

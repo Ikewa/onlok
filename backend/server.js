@@ -12,7 +12,19 @@ const app = express();
 
 // Middlewares
 app.use(helmet());
-app.use(cors());
+app.use(cors({
+    origin: (origin, callback) => {
+        // Allow requests with no origin (Postman, curl, mobile apps)
+        if (!origin) return callback(null, true);
+        // In development, allow any localhost port
+        if (/^http:\/\/localhost:\d+$/.test(origin)) return callback(null, true);
+        // In production, match the configured origin
+        const allowed = process.env.CORS_ORIGIN || 'http://localhost:5173';
+        if (origin === allowed) return callback(null, true);
+        callback(new Error(`CORS blocked: ${origin}`));
+    },
+    credentials: true,
+}));
 app.use(express.json());
 app.use(morgan('dev'));
 
@@ -23,10 +35,14 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 const userRoutes = require('./routes/userRoute');
 const verificationRoutes = require('./routes/verificationRoute');
 const dashboardRoutes = require('./routes/dashboardRoute');
+const reportRoutes = require('./routes/reportRoute');
+const adminRoutes = require('./routes/adminRoute');
 
 app.use('/api/users', userRoutes);
 app.use('/api/verifications', verificationRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/reports', reportRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Test Route
 app.get('/api/health', (req, res) => {

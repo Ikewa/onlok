@@ -8,7 +8,7 @@ const getVendorDashboard = async (req, res) => {
         const userId = req.user.id;
 
         // Fetch User Info
-        const [users] = await pool.query('SELECT id, vendor_id, full_name, business_name, email, phone_number, role, status FROM users WHERE id = ?', [userId]);
+        const [users] = await pool.query('SELECT id, vendor_id, first_name, last_name, business_name, email, phone_number, role, status FROM users WHERE id = ?', [userId]);
 
         if (users.length === 0) {
             return res.status(404).json({ message: 'User not found' });
@@ -57,7 +57,7 @@ const searchVendor = async (req, res) => {
 
         const searchQuery = `%${q}%`;
         const query = `
-            SELECT id, vendor_id, full_name, business_name, status, created_at 
+            SELECT id, vendor_id, first_name, last_name, business_name, status, created_at 
             FROM users 
             WHERE (vendor_id LIKE ? OR business_name LIKE ?) AND role = 'vendor'
             LIMIT ? OFFSET ?
@@ -68,17 +68,20 @@ const searchVendor = async (req, res) => {
              return res.status(404).json({ message: 'No vendors found matching your query.' });
         }
 
-        // Fetch badges for found vendors
+        // Fetch badges and verification info for found vendors
         for (let vendor of vendors) {
             const [badges] = await pool.query('SELECT badge_type FROM badges WHERE user_id = ?', [vendor.id]);
             vendor.badges = badges.map(b => b.badge_type);
+            
+            const [verifications] = await pool.query('SELECT reviewed_at FROM verifications WHERE user_id = ? AND status = "approved" ORDER BY reviewed_at DESC LIMIT 1', [vendor.id]);
+            vendor.last_verified = verifications.length > 0 ? verifications[0].reviewed_at : null;
         }
 
         res.status(200).json(vendors);
 
     } catch (error) {
         console.error('Vendor Search Error:', error);
-        res.status(500).json({ message: 'Server error searching for vendors' });
+        res.status(500).json({ message: 'Server error searching for vendors', error: error.message });
     }
 };
 
