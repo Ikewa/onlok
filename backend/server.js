@@ -11,7 +11,9 @@ const PORT = process.env.PORT || 5000;
 const app = express();
 
 // Middlewares
-app.use(helmet());
+app.use(helmet({
+    crossOriginResourcePolicy: false, 
+}));
 app.use(cors({
     origin: (origin, callback) => {
         // Allow requests with no origin (Postman, curl, mobile apps)

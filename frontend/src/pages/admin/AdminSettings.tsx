@@ -1,0 +1,201 @@
+import { useState, useEffect } from 'react';
+import { Box, Typography, Paper, Grid, Switch, Button, CircularProgress, Divider, Slider, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material';
+import { getSettings, updateSettings } from '../../api/admin';
+import toast from 'react-hot-toast';
+
+export default function AdminSettings() {
+  const [settings, setSettings] = useState<Record<string, string>>({
+    face_match_threshold: '85',
+    doc_quality_threshold: '75',
+    biz_verification_threshold: '90',
+    require_face_match: 'true',
+    require_biz_docs: 'true',
+    auto_approve_high: 'false',
+    flag_low_scores: 'true',
+  });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const data = await getSettings();
+        setSettings(prev => ({ ...prev, ...data }));
+      } catch (err) {
+        console.error(err);
+        toast.error('Failed to load settings');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchSettings();
+  }, []);
+
+  const handleChange = (key: string, value: string) => {
+    setSettings(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await updateSettings(settings);
+      toast.success('Settings saved successfully');
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to save settings');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', py: 10 }}>
+        <CircularProgress sx={{ color: '#1A1FE8' }} />
+      </Box>
+    );
+  }
+
+  const renderThreshold = (label: string, key: string, color: string) => (
+    <Box sx={{ mb: 3 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+        <Typography variant="body2" fontWeight={600} color="#0F172A">{label}</Typography>
+        <Typography variant="body2" fontWeight={700} color={color}>{settings[key] || 0}%</Typography>
+      </Box>
+      <Slider 
+        value={Number(settings[key] || 0)} 
+        onChange={(_, val) => handleChange(key, String(val))}
+        sx={{
+          color: color,
+          height: 8,
+          '& .MuiSlider-thumb': {
+            width: 16,
+            height: 16,
+            backgroundColor: '#fff',
+            border: `2px solid ${color}`,
+            boxShadow: '0px 2px 4px rgba(0,0,0,0.1)'
+          },
+          '& .MuiSlider-track': { border: 'none' }
+        }}
+      />
+    </Box>
+  );
+
+  const renderRule = (label: string, key: string) => (
+    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 1.5 }}>
+      <Typography variant="body1" fontWeight={500} color="#334155">{label}</Typography>
+      <Switch 
+        checked={settings[key] === 'true'}
+        onChange={(e) => handleChange(key, String(e.target.checked))}
+        sx={{
+          '& .MuiSwitch-switchBase.Mui-checked': { color: '#10B981' },
+          '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': { backgroundColor: '#10B981' }
+        }}
+      />
+    </Box>
+  );
+
+  // Hardcoded audit log to match design
+  const auditLogs = [
+    { action: 'Updated face match threshold to 85%', admin: 'Admin User', timestamp: '1/15/2024, 2:30:00 PM' },
+    { action: 'Enabled "Require Business Documents"', admin: 'Admin User', timestamp: '1/14/2024, 10:15:00 AM' },
+    { action: 'Updated business verification threshold to 90%', admin: 'System', timestamp: '1/10/2024, 9:00:00 AM' },
+  ];
+
+  return (
+    <Box sx={{ maxWidth: 1200 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 4 }}>
+        <Box>
+          <Typography variant="h4" fontWeight={800} color="#0F172A" mb={0.5}>
+            Admin Settings
+          </Typography>
+          <Typography variant="body1" color="#64748B">
+            Global platform configurations
+          </Typography>
+        </Box>
+        <Button 
+          variant="contained" 
+          onClick={handleSave} 
+          disabled={saving}
+          sx={{ 
+            bgcolor: '#1A1FE8', 
+            '&:hover': { bgcolor: '#0F14B0' }, 
+            px: 3, 
+            py: 1, 
+            borderRadius: 2,
+            fontWeight: 700,
+            textTransform: 'none'
+          }}
+        >
+          {saving ? <CircularProgress size={24} color="inherit" /> : 'Save Changes'}
+        </Button>
+      </Box>
+
+      <Grid container spacing={3} mb={4}>
+        <Grid item xs={12} md={6}>
+          <Paper elevation={0} sx={{ p: 4, borderRadius: 3, border: '1px solid #E2E8F0', bgcolor: '#fff', height: '100%' }}>
+            <Typography variant="h6" fontWeight={700} color="#0F172A" mb={4}>
+              Trust Level Thresholds
+            </Typography>
+            {renderThreshold('Face Match Threshold', 'face_match_threshold', '#3B82F6')}
+            {renderThreshold('Document Quality Threshold', 'doc_quality_threshold', '#F59E0B')}
+            {renderThreshold('Business Verification Threshold', 'biz_verification_threshold', '#10B981')}
+          </Paper>
+        </Grid>
+        
+        <Grid item xs={12} md={6}>
+          <Paper elevation={0} sx={{ p: 4, borderRadius: 3, border: '1px solid #E2E8F0', bgcolor: '#fff', height: '100%' }}>
+            <Typography variant="h6" fontWeight={700} color="#0F172A" mb={3}>
+              Verification Rules
+            </Typography>
+            {renderRule('Require Face Match', 'require_face_match')}
+            <Divider sx={{ borderColor: '#F1F5F9' }} />
+            {renderRule('Require Business Documents', 'require_biz_docs')}
+            <Divider sx={{ borderColor: '#F1F5F9' }} />
+            {renderRule('Auto-Approve High Scores', 'auto_approve_high')}
+            <Divider sx={{ borderColor: '#F1F5F9' }} />
+            {renderRule('Flag Low Scores', 'flag_low_scores')}
+          </Paper>
+        </Grid>
+      </Grid>
+
+      <Paper elevation={0} sx={{ borderRadius: 3, border: '1px solid #E2E8F0', bgcolor: '#fff', overflow: 'hidden' }}>
+        <Box sx={{ p: 3, borderBottom: '1px solid #F1F5F9' }}>
+          <Typography variant="h6" fontWeight={700} color="#0F172A">
+            Audit Log
+          </Typography>
+        </Box>
+        <TableContainer>
+          <Table sx={{ minWidth: 650 }}>
+            <TableHead sx={{ bgcolor: '#F8FAFC' }}>
+              <TableRow>
+                <TableCell sx={{ fontWeight: 700, color: '#475569', borderBottom: '1px solid #E2E8F0' }}>Action</TableCell>
+                <TableCell sx={{ fontWeight: 700, color: '#475569', borderBottom: '1px solid #E2E8F0' }}>Admin</TableCell>
+                <TableCell sx={{ fontWeight: 700, color: '#475569', borderBottom: '1px solid #E2E8F0' }}>Timestamp</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {auditLogs.map((log, idx) => (
+                <TableRow key={idx} hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+                  <TableCell sx={{ borderBottom: '1px solid #F1F5F9' }}>
+                    <Typography variant="body2" color="#0F172A" fontWeight={500}>
+                      {log.action}
+                    </Typography>
+                  </TableCell>
+                  <TableCell sx={{ borderBottom: '1px solid #F1F5F9' }}>
+                    <Typography variant="body2" color="#475569">
+                      {log.admin}
+                    </Typography>
+                  </TableCell>
+                  <TableCell sx={{ borderBottom: '1px solid #F1F5F9', color: '#475569', fontSize: '0.875rem' }}>
+                    {log.timestamp}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </Paper>
+    </Box>
+  );
+}

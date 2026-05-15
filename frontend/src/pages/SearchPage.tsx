@@ -8,7 +8,6 @@ import VerifiedIcon from '@mui/icons-material/Verified';
 import FlagIcon from '@mui/icons-material/Flag';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import ShieldIcon from '@mui/icons-material/Shield';
-import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { useSearchParams, Link as RouterLink } from 'react-router-dom';
 import Navbar from '../components/Navbar';
@@ -53,10 +52,6 @@ export default function SearchPage() {
     doSearch(query);
   };
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast.success('Copied!');
-  };
 
   return (
     <Box
@@ -86,8 +81,8 @@ export default function SearchPage() {
         <Box sx={{ textAlign: 'center', mb: { xs: 4, md: 6 }, mt: state === 'idle' ? { xs: -8, md: -12 } : 0 }}>
           <Typography
             variant="h3"
-            fontWeight={900}
             sx={{
+              fontWeight: 900,
               color: '#0F172A',
               letterSpacing: '-0.03em',
               fontSize: { xs: '2rem', md: '3rem' },
@@ -177,7 +172,7 @@ export default function SearchPage() {
         {state === 'loading' && (
           <Box sx={{ textAlign: 'center', py: 6 }}>
             <CircularProgress size={48} sx={{ color: '#1A1FE8' }} />
-            <Typography variant="body1" color="#64748B" mt={3} fontWeight={500}>
+            <Typography variant="body1" sx={{ color: '#64748B', mt: 3, fontWeight: 500 }}>
               Searching database…
             </Typography>
           </Box>
@@ -204,25 +199,20 @@ export default function SearchPage() {
               <WarningAmberIcon sx={{ fontSize: { xs: 44, md: 54 }, color: '#DC2626' }} />
             </Box>
 
-            <Typography variant="h4" fontWeight={900} color="#0F172A" mb={1.5}
-              sx={{ letterSpacing: '-0.02em', fontSize: { xs: '1.6rem', md: '2.2rem' } }}>
+            <Typography variant="h4" sx={{ fontWeight: 900, color: '#0F172A', mb: 1.5, letterSpacing: '-0.02em', fontSize: { xs: '1.6rem', md: '2.2rem' } }}>
               No Matching ID Found
             </Typography>
-            <Typography variant="body1" color="#64748B" mb={1}>
+            <Typography variant="body1" sx={{ color: '#64748B', mb: 1 }}>
               We couldn't find any vendor matching
             </Typography>
             <Typography
               variant="body1"
-              fontWeight={800}
-              fontFamily="monospace"
-              color="#1A1FE8"
-              mb={5}
-              sx={{ fontSize: { xs: '1rem', md: '1.2rem' } }}
+              sx={{ fontWeight: 800, fontFamily: 'monospace', color: '#1A1FE8', mb: 5, fontSize: { xs: '1rem', md: '1.2rem' } }}
             >
               "{searchParams.get('q')}"
             </Typography>
 
-            <Typography variant="body2" color="#94A3B8" mb={5}>
+            <Typography variant="body2" sx={{ color: '#94A3B8', mb: 5 }}>
               Double-check the Onlok ID or business name and try again.
               If you believe this vendor is operating fraudulently, you can report them below.
             </Typography>
@@ -281,10 +271,10 @@ export default function SearchPage() {
             >
               <WarningAmberIcon sx={{ fontSize: 50, color: '#EA580C' }} />
             </Box>
-            <Typography variant="h5" fontWeight={800} color="#0F172A" mb={1}>
+            <Typography variant="h5" sx={{ fontWeight: 800, color: '#0F172A', mb: 1 }}>
               Connection Error
             </Typography>
-            <Typography variant="body2" color="#64748B" mb={4}>
+            <Typography variant="body2" sx={{ color: '#64748B', mb: 4 }}>
               Could not reach the server. Make sure the backend is running and try again.
             </Typography>
             <Button
@@ -326,7 +316,7 @@ export default function SearchPage() {
                 {/* Header Bar */}
                 <Box sx={{ bgcolor: '#1A1FE8', py: 2, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 1 }}>
                   <VerifiedIcon sx={{ color: '#fff', fontSize: 20 }} />
-                  <Typography variant="body2" fontWeight={700} color="#fff">
+                  <Typography variant="body2" sx={{ fontWeight: 700, color: '#fff' }}>
                     Official ONLOK Public Verification Profile
                   </Typography>
                 </Box>
@@ -350,7 +340,7 @@ export default function SearchPage() {
                       {/* Info */}
                       <Box>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1, flexWrap: 'wrap' }}>
-                          <Typography variant="h4" fontWeight={900} color="#1A1FE8" sx={{ letterSpacing: '-0.02em' }}>
+                          <Typography variant="h4" sx={{ fontWeight: 900, color: '#1A1FE8', letterSpacing: '-0.02em' }}>
                             {fullName}
                           </Typography>
                           <Chip
@@ -366,12 +356,12 @@ export default function SearchPage() {
                             }}
                           />
                         </Box>
-                        <Typography variant="body1" color="#64748B" fontWeight={600} mb={2}>
+                        <Typography variant="body1" sx={{ color: '#64748B', fontWeight: 600, mb: 2 }}>
                           ID: {vendor.vendor_id}
                         </Typography>
 
                         <Box sx={{ display: 'flex', gap: 3, mb: 3, flexWrap: 'wrap' }}>
-                          <Typography variant="body2" color="#475569" fontWeight={600} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Typography variant="body2" sx={{ color: '#475569', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 7H4a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2zM16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"></path></svg>
                             {vendor.business_name}
                           </Typography>
@@ -405,7 +395,7 @@ export default function SearchPage() {
                     
                     {/* Left Col: Verification Breakdown */}
                     <Box>
-                      <Typography variant="h6" fontWeight={800} color="#1A1FE8" mb={2}>
+                      <Typography variant="h6" sx={{ fontWeight: 800, color: '#1A1FE8', mb: 2 }}>
                         Verification Breakdown
                       </Typography>
                       <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', gap: 3 }}>
@@ -417,8 +407,8 @@ export default function SearchPage() {
                           <Box key={i} sx={{ display: 'flex', gap: 2 }}>
                             <CheckCircleIcon sx={{ color: item.verified ? '#0EA5E9' : '#CBD5E1', mt: 0.2 }} />
                             <Box>
-                              <Typography variant="body2" fontWeight={800} color={item.verified ? '#0EA5E9' : '#64748B'}>{item.title}</Typography>
-                              <Typography variant="caption" color="#94A3B8" fontWeight={500}>{item.desc}</Typography>
+                              <Typography variant="body2" sx={{ fontWeight: 800, color: item.verified ? '#0EA5E9' : '#64748B' }}>{item.title}</Typography>
+                              <Typography variant="caption" sx={{ color: '#94A3B8', fontWeight: 500 }}>{item.desc}</Typography>
                             </Box>
                           </Box>
                         ))}
@@ -428,44 +418,44 @@ export default function SearchPage() {
                     {/* Right Col: Trust Level & Details */}
                     <Box>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-                        <Typography variant="h6" fontWeight={800} color="#1A1FE8">
+                        <Typography variant="h6" sx={{ fontWeight: 800, color: '#1A1FE8' }}>
                           Trust Level
                         </Typography>
-                        <Typography variant="body2" fontWeight={800} color="#0EA5E9">
+                        <Typography variant="body2" sx={{ fontWeight: 800, color: '#0EA5E9' }}>
                           {trustLevel}
                         </Typography>
                       </Box>
                       <Box sx={{ width: '100%', height: 10, bgcolor: '#E2E8F0', borderRadius: 5, mb: 1, overflow: 'hidden', display: 'flex' }}>
                         <Box sx={{ width: trustWidth, height: '100%', bgcolor: '#0EA5E9' }} />
                       </Box>
-                      <Typography variant="caption" color="#94A3B8" fontWeight={500} display="block" mb={4}>
+                      <Typography variant="caption" sx={{ color: '#94A3B8', fontWeight: 500, display: 'block', mb: 4 }}>
                         {isVerified ? 'High confidence based on verified data.' : 'Vendor is currently pending verification.'}
                       </Typography>
 
                       <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
                         <Paper elevation={0} sx={{ flex: 1, p: 2, borderRadius: 3, border: '1px solid #E2E8F0' }}>
-                          <Typography variant="caption" color="#64748B" fontWeight={500} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                          <Typography variant="caption" sx={{ color: '#64748B', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
                             Member Since
                           </Typography>
-                          <Typography variant="body2" fontWeight={800} color="#1A1FE8">{memberSince}</Typography>
+                          <Typography variant="body2" sx={{ fontWeight: 800, color: '#1A1FE8' }}>{memberSince}</Typography>
                         </Paper>
                         <Paper elevation={0} sx={{ flex: 1, p: 2, borderRadius: 3, border: '1px solid #E2E8F0' }}>
-                          <Typography variant="caption" color="#64748B" fontWeight={500} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                          <Typography variant="caption" sx={{ color: '#64748B', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                             <ShieldIcon sx={{ fontSize: 14 }} />
                             Last Verified
                           </Typography>
-                          <Typography variant="body2" fontWeight={800} color="#1A1FE8">{lastVerifiedStr}</Typography>
+                          <Typography variant="body2" sx={{ fontWeight: 800, color: '#1A1FE8' }}>{lastVerifiedStr}</Typography>
                         </Paper>
                       </Box>
 
                       <Paper elevation={0} sx={{ p: 2.5, borderRadius: 3, border: '1px solid #E2E8F0' }}>
-                        <Typography variant="caption" color="#1A1FE8" fontWeight={800} display="block" mb={1}>
+                        <Typography variant="caption" sx={{ color: '#1A1FE8', fontWeight: 800, display: 'block', mb: 1 }}>
                           Associated Business
                         </Typography>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <Box>
-                            <Typography variant="body2" color="#1A1FE8" fontWeight={500} mb={0.5}>
+                            <Typography variant="body2" sx={{ color: '#1A1FE8', fontWeight: 500, mb: 0.5 }}>
                               {vendor.business_name}
                             </Typography>
                             <Typography variant="caption" color="#94A3B8">

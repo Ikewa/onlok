@@ -40,6 +40,7 @@ const adminLogin = async (req, res) => {
         res.status(500).json({ message: 'Server error' });
     }
 };
+
 // @desc    Get all verifications (Queue)
 // @route   GET /api/admin/verifications
 // @access  Private/Admin
@@ -111,7 +112,7 @@ const getVerificationDetails = async (req, res) => {
     try {
         const { id } = req.params;
         const query = `
-            SELECT v.id as verification_id, v.gov_id_url, v.video_url, v.status, v.submitted_at, v.reviewed_at,
+            SELECT v.id as verification_id, v.gov_id_url, v.video_url, v.status, v.admin_notes, v.submitted_at, v.reviewed_at,
                    u.id as user_id, u.first_name, u.last_name, u.email, u.vendor_id, u.business_name,
                    (CASE WHEN u.business_name IS NOT NULL AND u.business_name != '' THEN 'Business' ELSE 'Individual' END) as type
             FROM verifications v
@@ -137,7 +138,7 @@ const getVerificationDetails = async (req, res) => {
 const updateVerificationStatus = async (req, res) => {
     try {
         const { id } = req.params;
-        const { status, notes } = req.body; // 'approved', 'rejected', 'flagged'
+        const { status, notes } = req.body; // 'approved', 'rejected', 'flagged', 'pending'
 
         if (!['approved', 'rejected', 'flagged', 'pending'].includes(status)) {
             return res.status(400).json({ message: 'Invalid status' });
@@ -151,31 +152,28 @@ const updateVerificationStatus = async (req, res) => {
         
         const verification = verifications[0];
         
-        // Prevent changing status if it's already approved/rejected/flagged unless needed? Usually fine to update.
-        
-        // Update verifications table
+        // Update verifications table (Now includes admin_notes!)
         const updateQuery = `
             UPDATE verifications 
-            SET status = ?, reviewed_at = CURRENT_TIMESTAMP, reviewed_by = ? 
+            SET status = ?, admin_notes = ?, reviewed_at = CURRENT_TIMESTAMP, reviewed_by = ? 
             WHERE id = ?
         `;
-        await pool.query(updateQuery, [status, req.user.id, id]);
+        await pool.query(updateQuery, [status, notes || null, req.user.id, id]);
 
-        // If approved, update user status to 'verified'
+        // Update Users Table based on action
         if (status === 'approved') {
             await pool.query(`UPDATE users SET status = 'verified' WHERE id = ?`, [verification.user_id]);
-            // Also generate the first badge if they don't have one (e.g. Identity Verified)
             const [existingBadges] = await pool.query('SELECT id FROM badges WHERE user_id = ? AND badge_type = "identity_verified"', [verification.user_id]);
             if (existingBadges.length === 0) {
                 await pool.query(`INSERT INTO badges (user_id, badge_type) VALUES (?, 'identity_verified')`, [verification.user_id]);
             }
-        } else if (status === 'rejected' || status === 'flagged') {
-            // Might want to update user status to rejected/flagged if needed, or leave user status as pending
-            if (status === 'rejected' && verification.status === 'approved') {
-                 // Downgrade user if they were previously approved
-                 await pool.query(`UPDATE users SET status = 'pending' WHERE id = ?`, [verification.user_id]);
-                 await pool.query(`DELETE FROM badges WHERE user_id = ? AND badge_type = "identity_verified"`, [verification.user_id]);
-            }
+        } else if (status === 'rejected') {
+            await pool.query(`UPDATE users SET status = 'rejected' WHERE id = ?`, [verification.user_id]);
+            await pool.query(`DELETE FROM badges WHERE user_id = ? AND badge_type = "identity_verified"`, [verification.user_id]);
+        } else if (status === 'flagged') {
+            await pool.query(`UPDATE users SET status = 'suspended' WHERE id = ?`, [verification.user_id]);
+        } else if (status === 'pending') {
+            await pool.query(`UPDATE users SET status = 'pending' WHERE id = ?`, [verification.user_id]);
         }
 
         res.status(200).json({ message: `Verification ${status} successfully` });
@@ -195,7 +193,6 @@ const getDashboardMetrics = async (req, res) => {
         const [approvedCount] = await pool.query('SELECT COUNT(*) as total FROM verifications WHERE status = "approved"');
         const [flaggedCount] = await pool.query('SELECT COUNT(*) as total FROM verifications WHERE status = "flagged"');
         
-        // Fetch recent users + their activity for User Management
         const [users] = await pool.query(`
             SELECT id, vendor_id, first_name, last_name, email, role, status, 
                    created_at, last_login, activity_score 
@@ -245,7 +242,6 @@ const getAlerts = async (req, res) => {
 const getSettings = async (req, res) => {
     try {
         const [settings] = await pool.query('SELECT setting_key, setting_value FROM admin_settings');
-        // Convert to key-value object
         const settingsObj = {};
         settings.forEach(s => { settingsObj[s.setting_key] = s.setting_value; });
         res.status(200).json(settingsObj);

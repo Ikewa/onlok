@@ -33,12 +33,9 @@ export default function AdminLoginPage() {
       <Container maxWidth="xs">
         <Paper elevation={0} sx={{ p: 4, borderRadius: 3, border: '1px solid #E2E8F0', textAlign: 'center' }}>
           <Box sx={{ mb: 4, display: 'inline-block' }}>
-            <Typography variant="h4" fontWeight={900} sx={{ letterSpacing: '-0.03em', mb: 0.5, display: 'flex', alignItems: 'center', gap: 1, color: '#1A1FE8' }}>
-              <Box component="span" sx={{ position: 'relative', width: 24, height: 24, bgcolor: '#1A1FE8', borderRadius: '50%', display: 'inline-block' }}>
-                <Box sx={{ position: 'absolute', top: 0, right: 0, width: '50%', height: '50%', bgcolor: '#0EA5E9', borderTopRightRadius: '100%' }} />
-              </Box>
-              nlok
-            </Typography>
+            <Box sx={{ height: 50, width: 180, overflow: 'hidden', position: 'relative', mb: 1 }}>
+              <Box component="img" src="/logo.png" alt="Onlok Logo" sx={{ width: '180%', height: 'auto', position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }} />
+            </Box>
             <Typography variant="caption" sx={{ color: '#64748B', fontWeight: 600 }}>Admin Portal</Typography>
           </Box>
 

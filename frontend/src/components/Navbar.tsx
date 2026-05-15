@@ -179,24 +179,6 @@ export default function Navbar() {
               </>
             )}
 
-            {/* Mobile hamburger - only show if NOT on landing page or if authenticated */}
-            {isMobile && (location.pathname !== '/' || isAuthenticated) && (
-              <>
-                <IconButton onClick={handleMenuOpen} color="inherit" sx={{ ml: 1 }}>
-                  <MenuIcon />
-                </IconButton>
-                <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
-                  {navLinks.map((link) => (
-                    <MenuItem key={link.label} component={RouterLink} to={link.to} onClick={handleMenuClose}>
-                      {link.label}
-                    </MenuItem>
-                  ))}
-                  {isAuthenticated && (
-                    <MenuItem component={RouterLink} to="/dashboard" onClick={handleMenuClose}>Dashboard</MenuItem>
-                  )}
-                </Menu>
-              </>
-            )}
           </Box>
         </Toolbar>
       </Container>

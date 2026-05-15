@@ -11,6 +11,11 @@ async function setup() {
         await pool.query('ALTER TABLE users ADD COLUMN activity_score INT DEFAULT 0');
     } catch(e) { if(!e.message.includes('Duplicate column name')) throw e; }
 
+    console.log('Adding admin_notes column to verifications table...');
+    try {
+        await pool.query('ALTER TABLE verifications ADD COLUMN admin_notes TEXT');
+    } catch(e) { if(!e.message.includes('Duplicate column name')) throw e; }
+
     console.log('Creating audit_logs table...');
     await pool.query(`
       CREATE TABLE IF NOT EXISTS audit_logs (

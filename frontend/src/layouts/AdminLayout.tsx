@@ -42,12 +42,9 @@ export default function AdminLayout() {
       >
         {/* Logo Area */}
         <Box sx={{ p: 3, pb: 4, borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-          <Typography variant="h4" fontWeight={900} sx={{ letterSpacing: '-0.03em', mb: 0.5, display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Box component="span" sx={{ position: 'relative', width: 24, height: 24, bgcolor: '#fff', borderRadius: '50%', display: 'inline-block' }}>
-               <Box sx={{ position: 'absolute', top: 0, right: 0, width: '50%', height: '50%', bgcolor: '#0EA5E9', borderTopRightRadius: '100%' }} />
-            </Box>
-            nlok
-          </Typography>
+          <Box sx={{ height: 45, width: 150, overflow: 'hidden', position: 'relative', mb: 1, filter: 'brightness(0) invert(1)' }}>
+            <Box component="img" src="/logo.png" alt="Onlok Logo" sx={{ width: '180%', height: 'auto', position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }} />
+          </Box>
           <Typography variant="caption" sx={{ color: '#94A3B8', ml: 4 }}>
             Admin Dashboard
           </Typography>

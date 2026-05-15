@@ -4,18 +4,34 @@ import { Toaster } from 'react-hot-toast';
 import theme from './theme';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
+import MobileBottomNav from './components/MobileBottomNav';
 
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import DashboardLayout from './layouts/DashboardLayout';
 import DashboardPage from './pages/DashboardPage';
+import VerificationPage from './pages/VerificationPage';
+import BadgePage from './pages/BadgePage';
+import ReferralsPage from './pages/ReferralsPage';
 import SearchPage from './pages/SearchPage';
 import ReportPage from './pages/ReportPage';
 import ComingSoonPage from './pages/ComingSoonPage';
+import SubscriptionPage from './pages/SubscriptionPage';
+import CheckoutPage from './pages/CheckoutPage';
+import PaymentSuccessPage from './pages/PaymentSuccessPage';
+import ProfileUpdatePage from './pages/ProfileUpdatePage';
+import ProfileBioEditPage from './pages/ProfileBioEditPage';
+import ProfileDocUploadPage from './pages/ProfileDocUploadPage';
+import PublicProfilePage from './pages/PublicProfilePage';
+import BadgeShowcasePage from './pages/BadgeShowcasePage';
 import AdminLayout from './layouts/AdminLayout';
 import AdminVerificationQueue from './pages/admin/AdminVerificationQueue';
 import AdminVerificationReview from './pages/admin/AdminVerificationReview';
 import AdminLoginPage from './pages/admin/AdminLoginPage';
+import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminAlerts from './pages/admin/AdminAlerts';
+import AdminSettings from './pages/admin/AdminSettings';
 import { Navigate } from 'react-router-dom';
 
 export default function App() {
@@ -31,28 +47,42 @@ export default function App() {
             <Route path="/search" element={<SearchPage />} />
             <Route path="/admin/login" element={<AdminLoginPage />} />
             <Route path="/report" element={<ReportPage />} />
-            <Route path="/pricing" element={<ComingSoonPage />} />
+            <Route path="/pricing" element={<SubscriptionPage />} />
+            <Route path="/subscription" element={<SubscriptionPage />} />
+            <Route path="/checkout" element={<CheckoutPage />} />
+            <Route path="/payment-success" element={<PaymentSuccessPage />} />
+            <Route path="/profile" element={<PublicProfilePage />} />
+            <Route path="/badges" element={<BadgeShowcasePage />} />
             <Route path="/about" element={<ComingSoonPage />} />
             <Route path="*" element={<ComingSoonPage />} />
             <Route
               path="/dashboard"
               element={
                 <ProtectedRoute>
-                  <DashboardPage />
+                  <DashboardLayout />
                 </ProtectedRoute>
               }
-            />
+            >
+              <Route index element={<DashboardPage />} />
+              <Route path="verification" element={<VerificationPage />} />
+              <Route path="badge" element={<BadgePage />} />
+              <Route path="referrals" element={<ReferralsPage />} />
+              <Route path="update" element={<ProfileUpdatePage />} />
+              <Route path="update/bio" element={<ProfileBioEditPage />} />
+              <Route path="update/docs" element={<ProfileDocUploadPage />} />
+            </Route>
             
             {/* Protected Admin Routes */}
             <Route element={<AdminLayout />}>
               <Route path="/admin" element={<Navigate to="/admin/verifications" replace />} />
               <Route path="/admin/verifications" element={<AdminVerificationQueue />} />
               <Route path="/admin/verifications/:id" element={<AdminVerificationReview />} />
-              <Route path="/admin/dashboard" element={<ComingSoonPage />} />
-              <Route path="/admin/alerts" element={<ComingSoonPage />} />
-              <Route path="/admin/settings" element={<ComingSoonPage />} />
+              <Route path="/admin/dashboard" element={<AdminDashboard />} />
+              <Route path="/admin/alerts" element={<AdminAlerts />} />
+              <Route path="/admin/settings" element={<AdminSettings />} />
             </Route>
           </Routes>
+          <MobileBottomNav />
         </BrowserRouter>
         <Toaster
           position="top-right"

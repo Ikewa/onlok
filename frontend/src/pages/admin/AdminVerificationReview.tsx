@@ -21,6 +21,7 @@ export default function AdminVerificationReview() {
       try {
         const data = await getVerificationDetails(Number(id));
         setDetails(data);
+        if (data.admin_notes) setNotes(data.admin_notes); // Load existing notes if any
       } catch (err) {
         toast.error('Failed to load details');
         navigate('/admin/verifications');
@@ -42,6 +43,12 @@ export default function AdminVerificationReview() {
     } finally {
       setActionLoading(false);
     }
+  };
+
+  const getMediaUrl = (path?: string) => {
+    if (!path) return '';
+    const cleanPath = path.startsWith('/') ? path.substring(1) : path;
+    return `http://localhost:5000/${cleanPath}`;
   };
 
   if (loading || !details) {
@@ -119,8 +126,8 @@ export default function AdminVerificationReview() {
                 >
                   {details.gov_id_url ? (
                     details.gov_id_url.endsWith('.pdf') ? 
-                      <Typography variant="body2" color="#1A1FE8" component="a" href={`http://localhost:5000${details.gov_id_url}`} target="_blank">View PDF ID</Typography>
-                    : <Box component="img" src={`http://localhost:5000${details.gov_id_url}`} sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <Typography variant="body2" color="#1A1FE8" component="a" href={getMediaUrl(details.gov_id_url)} target="_blank">View PDF ID</Typography>
+                    : <Box component="img" src={getMediaUrl(details.gov_id_url)} sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   ) : <Typography variant="caption" color="#94A3B8">No ID uploaded</Typography>}
                 </Box>
               </Grid>
@@ -133,7 +140,7 @@ export default function AdminVerificationReview() {
                   }}
                 >
                   {details.video_url ? (
-                    <video controls src={`http://localhost:5000${details.video_url}`} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                    <video controls src={getMediaUrl(details.video_url)} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                   ) : <Typography variant="caption" color="#94A3B8">No video uploaded</Typography>}
                 </Box>
               </Grid>
@@ -210,7 +217,8 @@ export default function AdminVerificationReview() {
               variant="contained"
               fullWidth
               startIcon={<InfoOutlinedIcon />}
-              disabled={actionLoading}
+              onClick={() => handleAction('pending')}
+              disabled={actionLoading || isPending}
               sx={{ bgcolor: '#EA580C', '&:hover': { bgcolor: '#C2410C' }, py: 1.5, borderRadius: 2, textTransform: 'none', fontWeight: 600 }}
             >
               Request More Info

@@ -199,11 +199,59 @@ const deleteUser = async (req, res) => {
     }
 };
 
+// @desc    Get user referrals
+// @route   GET /api/users/referrals
+// @access  Private
+const getReferrals = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        
+        // Fetch all referrals
+        const [referrals] = await pool.query('SELECT id, first_name, last_name, status, created_at FROM users WHERE referred_by = ? ORDER BY created_at DESC', [userId]);
+        
+        const totalReferrals = referrals.length;
+        const verifiedReferrals = referrals.filter(r => r.status === 'verified').length;
+        const earnings = verifiedReferrals * 5000; // 5000 NGN per verified referral
+
+        // Calculate last 7 days chart data
+        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const today = new Date();
+        const chartData = [];
+        
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date(today);
+            d.setDate(d.getDate() - i);
+            const dayName = days[d.getDay()];
+            
+            // Count signups on this day
+            const startOfDay = new Date(d.setHours(0,0,0,0));
+            const endOfDay = new Date(d.setHours(23,59,59,999));
+            
+            const count = referrals.filter(r => {
+                const rDate = new Date(r.created_at);
+                return rDate >= startOfDay && rDate <= endOfDay;
+            }).length;
+
+            chartData.push({ name: dayName, uv: count });
+        }
+
+        res.status(200).json({
+            stats: { total: totalReferrals, verified: verifiedReferrals, earnings },
+            recentActivity: referrals.slice(0, 10), // Top 10 most recent
+            chartData
+        });
+    } catch (error) {
+        console.error('Get Referrals Error:', error);
+        res.status(500).json({ message: 'Server error fetching referrals' });
+    }
+};
+
 module.exports = {
     registerUser,
     loginUser,
     getMe,
     getUsers,
     updateUser,
-    deleteUser
+    deleteUser,
+    getReferrals
 };
