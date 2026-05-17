@@ -163,13 +163,13 @@ const updateVerificationStatus = async (req, res) => {
         // Update Users Table based on action
         if (status === 'approved') {
             await pool.query(`UPDATE users SET status = 'verified' WHERE id = ?`, [verification.user_id]);
-            const [existingBadges] = await pool.query('SELECT id FROM badges WHERE user_id = ? AND badge_type = "identity_verified"', [verification.user_id]);
+            const [existingBadges] = await pool.query('SELECT id FROM badges WHERE user_id = ? AND badge_type = "verified_vendor"', [verification.user_id]);
             if (existingBadges.length === 0) {
-                await pool.query(`INSERT INTO badges (user_id, badge_type) VALUES (?, 'identity_verified')`, [verification.user_id]);
+                await pool.query(`INSERT INTO badges (user_id, badge_type) VALUES (?, 'verified_vendor')`, [verification.user_id]);
             }
         } else if (status === 'rejected') {
             await pool.query(`UPDATE users SET status = 'rejected' WHERE id = ?`, [verification.user_id]);
-            await pool.query(`DELETE FROM badges WHERE user_id = ? AND badge_type = "identity_verified"`, [verification.user_id]);
+            await pool.query(`DELETE FROM badges WHERE user_id = ? AND badge_type = "verified_vendor"`, [verification.user_id]);
         } else if (status === 'flagged') {
             await pool.query(`UPDATE users SET status = 'suspended' WHERE id = ?`, [verification.user_id]);
         } else if (status === 'pending') {

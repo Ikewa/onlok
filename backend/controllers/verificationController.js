@@ -66,7 +66,33 @@ const submitVerification = async (req, res) => {
     }
 };
 
+// @desc    Get current user's verification record
+// @route   GET /api/verifications/me
+// @access  Private
+const getMyVerification = async (req, res) => {
+    try {
+        const [rows] = await pool.query(
+            `SELECT id, gov_id_url, video_url, status, admin_notes, submitted_at, reviewed_at
+             FROM verifications
+             WHERE user_id = ?
+             ORDER BY submitted_at DESC
+             LIMIT 1`,
+            [req.user.id]
+        );
+
+        if (rows.length === 0) {
+            return res.status(404).json({ message: 'No verification record found' });
+        }
+
+        res.status(200).json(rows[0]);
+    } catch (error) {
+        console.error('Get Verification Error:', error);
+        res.status(500).json({ message: 'Server error fetching verification' });
+    }
+};
+
 module.exports = {
     upload,
-    submitVerification
+    submitVerification,
+    getMyVerification
 };

@@ -1,7 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const { upload, submitVerification } = require('../controllers/verificationController');
+const { upload, submitVerification, getMyVerification } = require('../controllers/verificationController');
 const { protect } = require('../middlewares/authMiddleware');
+
+// Get current user's verification record
+router.get('/me', protect, getMyVerification);
 
 // Route requires token, and handles multi-part form data
 router.post(
@@ -15,3 +18,4 @@ router.post(
 );
 
 module.exports = router;
+

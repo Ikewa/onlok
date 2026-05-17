@@ -1,9 +1,20 @@
 import api from './axiosInstance';
+import type { VerificationStatus } from '../types';
 
 interface VerificationResponse {
   message: string;
   verification_id: number;
 }
+
+export interface VerificationRecord extends VerificationStatus {
+  gov_id_url: string;
+  video_url: string;
+}
+
+export const getMyVerification = async (): Promise<VerificationRecord> => {
+  const { data } = await api.get<VerificationRecord>('/verifications/me');
+  return data;
+};
 
 export const submitVerification = async (
   govIdFile: File,

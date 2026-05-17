@@ -19,7 +19,8 @@ export interface AuthUser extends Omit<User, 'token'> {
 
 export interface VerificationStatus {
   id: number;
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'pending' | 'approved' | 'rejected' | 'flagged';
+  admin_notes?: string;
   submitted_at: string;
   reviewed_at: string | null;
 }
