@@ -5,14 +5,11 @@ const morgan = require('morgan');
 const path = require('path');
 require('dotenv').config();
 
-// Default values for missing env vars
-const PORT = process.env.PORT || 5000;
-
 const app = express();
 
 // Middlewares
 app.use(helmet({
-    crossOriginResourcePolicy: false, 
+    crossOriginResourcePolicy: false,
 }));
 app.use(cors({
     origin: (origin, callback) => {
@@ -63,9 +60,12 @@ app.get('*', (req, res) => {
 });
 
 // Start the server
+// Use the dynamically injected PORT from Hostinger, fallback to 5000 locally
+const port = process.env.PORT || 5000;
 const startServer = () => {
-    app.listen(PORT, () => {
-        console.log(`Server is running on port ${PORT}`);
+    // Adding '0.0.0.0' binds it to all available network interfaces
+    app.listen(port, '0.0.0.0', () => {
+        console.log(`Server is running on port ${port}`);
         console.log(`Serving frontend from: ${frontendDistPath}`);
     });
 };
