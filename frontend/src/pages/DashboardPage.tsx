@@ -1,15 +1,17 @@
 import { useState, useEffect } from 'react';
 import {
   Box, Typography, Button, Paper, Avatar, Divider, Chip,
-  Container, Alert
+  Container, Alert, Collapse, useTheme, useMediaQuery, IconButton
 } from '@mui/material';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import VerifiedIcon from '@mui/icons-material/Verified';
 import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
+import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
 import ShareIcon from '@mui/icons-material/Share';
 import WhatsAppIcon from '@mui/icons-material/WhatsApp';
 import InstagramIcon from '@mui/icons-material/Instagram';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
 import { useNavigate, Navigate, Link as RouterLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -25,6 +27,11 @@ export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const [isExpanded, setIsExpanded] = useState(false);
+  const showContent = !isMobile || isExpanded;
 
   useEffect(() => {
     getDashboard()
@@ -173,7 +180,43 @@ export default function DashboardPage() {
 
             {/* Update Profile Request Steps */}
             <Paper sx={{ ...cardStyle }}>
-              <Typography sx={{ fontWeight: 800, fontSize: '1.1rem', color: '#0F172A', mb: 2 }}>Update Profile Request</Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                <Typography sx={{ fontWeight: 800, fontSize: '1.1rem', color: '#0F172A' }}>
+                  Update Profile Request
+                </Typography>
+                {isMobile ? (
+                  <IconButton
+                    size="small"
+                    onClick={() => navigate('/dashboard/update')}
+                    sx={{ 
+                      color: '#1A1FE8', 
+                      bgcolor: '#EEF2FF',
+                      '&:hover': { bgcolor: '#E0E7FF' },
+                      p: 0.5
+                    }}
+                  >
+                    <ArrowForwardIosIcon sx={{ fontSize: 12 }} />
+                  </IconButton>
+                ) : (
+                  <Button
+                    variant="contained"
+                    onClick={() => navigate('/dashboard/update')}
+                    sx={{ 
+                      bgcolor: '#1A1FE8', 
+                      color: '#fff', 
+                      borderRadius: 2, 
+                      textTransform: 'none', 
+                      fontWeight: 700, 
+                      px: 3.5, 
+                      py: 1,
+                      boxShadow: 'none',
+                      '&:hover': { bgcolor: '#1318C0', boxShadow: 'none' }
+                    }}
+                  >
+                    Edit Profile
+                  </Button>
+                )}
+              </Box>
               <Box sx={{ display: 'flex', gap: 2, overflowX: 'auto', pb: 1, maxWidth: '100%', boxSizing: 'border-box' }}>
                 {[
                   { icon: '📝', title: '1. Submit Request', desc: 'Fill The Form With Changes You Want To Make' },
@@ -207,19 +250,48 @@ export default function DashboardPage() {
             </Paper>
 
             {/* Business Information */}
-            <Paper sx={{ ...cardStyle }}>
-              <Typography sx={{ fontWeight: 800, fontSize: '1.1rem', color: '#475569', mb: 2 }}>Business Information</Typography>
-              {[
-                { label: 'Business Name', value: dashUser?.business_name ?? 'N/A' },
-                { label: 'Business Mail', value: dashUser?.email ?? 'N/A' },
-                { label: 'Business Phone Number', value: data?.profile?.phone ?? '+234 800 000 0000' },
-                { label: 'Business Address', value: data?.profile?.address ?? 'Lagos, Nigeria' },
-              ].map((item, i) => (
-                <Box key={i} sx={{ mb: i === 3 ? 0 : 2.5 }}>
-                  <Typography sx={{ fontSize: '0.75rem', color: '#64748B', mb: 0.3 }}>{item.label}</Typography>
-                  <Typography sx={{ fontWeight: 700, fontSize: '0.95rem', color: '#0F172A' }}>{item.value}</Typography>
+            <Paper 
+              sx={{ 
+                ...cardStyle, 
+                cursor: isMobile ? 'pointer' : 'default',
+                transition: 'background-color 0.2s ease',
+                '&:hover': isMobile ? { bgcolor: '#F1F5F9' } : {}
+              }}
+              onClick={() => {
+                if (isMobile) {
+                  setIsExpanded(!isExpanded);
+                }
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Typography sx={{ fontWeight: 800, fontSize: '1.1rem', color: '#475569' }}>
+                  Business Information
+                </Typography>
+                {isMobile && (
+                  <ExpandMoreIcon 
+                    sx={{ 
+                      color: '#64748B', 
+                      transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                      transition: 'transform 0.2s ease-in-out'
+                    }} 
+                  />
+                )}
+              </Box>
+              <Collapse in={showContent} timeout="auto">
+                <Box sx={{ pt: 2 }}>
+                  {[
+                    { label: 'Business Name', value: dashUser?.business_name ?? 'N/A' },
+                    { label: 'Business Mail', value: dashUser?.email ?? 'N/A' },
+                    { label: 'Business Phone Number', value: data?.profile?.phone ?? '+234 800 000 0000' },
+                    { label: 'Business Address', value: data?.profile?.address ?? 'Lagos, Nigeria' },
+                  ].map((item, i) => (
+                    <Box key={i} sx={{ mb: i === 3 ? 0 : 2.5 }}>
+                      <Typography sx={{ fontSize: '0.75rem', color: '#64748B', mb: 0.3 }}>{item.label}</Typography>
+                      <Typography sx={{ fontWeight: 700, fontSize: '0.95rem', color: '#0F172A' }}>{item.value}</Typography>
+                    </Box>
+                  ))}
                 </Box>
-              ))}
+              </Collapse>
             </Paper>
 
             {/* QR Code */}

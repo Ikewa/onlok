@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   Box, Container, Typography, TextField, Button, Checkbox,
-  FormControlLabel, Alert, CircularProgress, Paper, InputAdornment, IconButton,
+  FormControlLabel, Alert, CircularProgress, Paper, Switch
 } from '@mui/material';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
@@ -141,20 +141,17 @@ export default function LoginPage() {
                 required
                 variant="outlined"
                 sx={{
+                  mb: 1.5,
                   '& .MuiOutlinedInput-root': {
                     borderRadius: 3,
                     bgcolor: '#fff'
                   }
                 }}
-                InputProps={{
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <IconButton onClick={() => setShowPassword((p) => !p)} edge="end" size="small">
-                        {showPassword ? <VisibilityOffIcon sx={{ fontSize: 20 }} /> : <VisibilityIcon sx={{ fontSize: 20 }} />}
-                      </IconButton>
-                    </InputAdornment>
-                  ),
-                }}
+              />
+              <FormControlLabel
+                control={<Switch checked={showPassword} onChange={(e) => setShowPassword(e.target.checked)} color="primary" size="small" />}
+                label={<Typography variant="body2" sx={{ color: '#475569', fontWeight: 600 }}>Show Password</Typography>}
+                sx={{ mb: 0 }}
               />
             </Box>
 

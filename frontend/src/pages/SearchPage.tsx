@@ -199,22 +199,21 @@ export default function SearchPage() {
               <WarningAmberIcon sx={{ fontSize: { xs: 44, md: 54 }, color: '#DC2626' }} />
             </Box>
 
-            <Typography variant="h4" sx={{ fontWeight: 900, color: '#0F172A', mb: 1.5, letterSpacing: '-0.02em', fontSize: { xs: '1.6rem', md: '2.2rem' } }}>
-              No Matching ID Found
+            <Typography variant="h4" sx={{ fontWeight: 900, color: '#DC2626', mb: 1.5, letterSpacing: '-0.02em', fontSize: { xs: '1.6rem', md: '2.2rem' } }}>
+              🔴 ID NOT VERIFIED
             </Typography>
-            <Typography variant="body1" sx={{ color: '#64748B', mb: 1 }}>
-              We couldn't find any vendor matching
+            <Typography variant="body1" sx={{ color: '#0F172A', fontWeight: 600, mb: 1 }}>
+              Onlok cannot confirm this business or ID.
             </Typography>
             <Typography
               variant="body1"
-              sx={{ fontWeight: 800, fontFamily: 'monospace', color: '#1A1FE8', mb: 5, fontSize: { xs: '1rem', md: '1.2rem' } }}
+              sx={{ fontWeight: 800, fontFamily: 'monospace', color: '#1A1FE8', mb: 4, fontSize: { xs: '1rem', md: '1.2rem' } }}
             >
               "{searchParams.get('q')}"
             </Typography>
 
-            <Typography variant="body2" sx={{ color: '#94A3B8', mb: 5 }}>
-              Double-check the Onlok ID or business name and try again.
-              If you believe this vendor is operating fraudulently, you can report them below.
+            <Typography variant="body2" sx={{ color: '#D97706', fontWeight: 700, mb: 5, bgcolor: '#FEF3C7', p: 2, borderRadius: 2, display: 'inline-block' }}>
+              ⚠️ Proceed with caution and avoid transactions until proper verification is confirmed.
             </Typography>
 
             <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>

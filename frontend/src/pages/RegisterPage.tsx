@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import {
-  Box, Container, Typography, TextField, Button, CircularProgress, Paper, MenuItem, Select, FormControl, Stack, Chip
+  Box, Container, Typography, TextField, Button, CircularProgress, Paper, MenuItem, Select, FormControl, Stack, Chip, IconButton, InputAdornment, Switch, FormControlLabel
 } from '@mui/material';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
@@ -32,6 +34,7 @@ interface FormData {
   confirm_password: string;
   gov_id_file: File | null;
   business_video_file: File | null;
+  category: string;
 }
 
 const initialData: FormData = {
@@ -40,6 +43,7 @@ const initialData: FormData = {
   twitter_handle: '', instagram_handle: '', facebook_handle: '',
   password: '', confirm_password: '',
   gov_id_file: null, business_video_file: null,
+  category: 'Consumer',
 };
 
 const countryCodes = [
@@ -58,6 +62,8 @@ export default function RegisterPage() {
   const [form, setForm] = useState<FormData>(initialData);
   const [loading, setLoading] = useState(false);
   const [registeredUser, setRegisteredUser] = useState<any>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   
   // New state to hold the exact input text including spaces
   const [fullNameInput, setFullNameInput] = useState('');
@@ -212,9 +218,43 @@ export default function RegisterPage() {
 
       {/* Passwords required for registration but styled cleanly */}
       <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} display="block">Create Password</Typography>
-      <TextField fullWidth type="password" value={form.password} onChange={(e) => set('password', e.target.value)} sx={{ mb: 3 }} InputProps={{ sx: { borderRadius: 2 } }} />
+      <TextField 
+        fullWidth 
+        variant="outlined"
+        type={showPassword ? 'text' : 'password'} 
+        value={form.password} 
+        onChange={(e) => set('password', e.target.value)} 
+        sx={{ 
+          mb: 3,
+          '& .MuiOutlinedInput-root': { borderRadius: '30px' }
+        }} 
+      />
       <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} display="block">Confirm Password</Typography>
-      <TextField fullWidth type="password" value={form.confirm_password} onChange={(e) => set('confirm_password', e.target.value)} InputProps={{ sx: { borderRadius: 2 } }} />
+      <TextField 
+        fullWidth 
+        variant="outlined"
+        type={showConfirmPassword ? 'text' : 'password'} 
+        value={form.confirm_password} 
+        onChange={(e) => set('confirm_password', e.target.value)} 
+        sx={{ 
+          mb: 2,
+          '& .MuiOutlinedInput-root': { borderRadius: '30px' }
+        }} 
+      />
+      <FormControlLabel
+        control={
+          <Switch 
+            checked={showPassword} 
+            onChange={(e) => {
+              setShowPassword(e.target.checked);
+              setShowConfirmPassword(e.target.checked);
+            }} 
+            color="primary" 
+          />
+        }
+        label={<Typography variant="body2" sx={{ color: '#475569', fontWeight: 600 }}>Show Passwords</Typography>}
+        sx={{ mb: 3 }}
+      />
     </Box>,
 
     // Step 2: Business
@@ -329,7 +369,20 @@ export default function RegisterPage() {
           <Typography variant="caption" fontWeight={700} color="#1A1FE8" sx={{ cursor: 'pointer' }} onClick={() => setActiveStep(1)}>Edit</Typography>
         </Box>
         <GridRow label="Name/Role" value={form.business_name || '-'} />
-        <GridRow label="Category" value="Consumer" />
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
+          <Typography variant="body2" color="#64748B" sx={{ width: 150 }}>Category</Typography>
+          <FormControl size="small" variant="standard" sx={{ minWidth: 100 }}>
+            <Select
+              value={form.category}
+              onChange={(e) => set('category', e.target.value)}
+              disableUnderline
+              sx={{ color: '#0F172A', fontWeight: 700, fontSize: '0.875rem', '& .MuiSelect-select': { py: 0 } }}
+            >
+              <MenuItem value="Consumer">Consumer</MenuItem>
+              <MenuItem value="Vendor">Vendor</MenuItem>
+            </Select>
+          </FormControl>
+        </Box>
       </Paper>
 
       <Box sx={{ p: 2.5, borderRadius: 3, bgcolor: '#E0F2FE', mb: 4, display: 'flex', alignItems: 'flex-start', gap: 2 }}>
