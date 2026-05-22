@@ -51,10 +51,22 @@ app.get('/api/health', (req, res) => {
     res.status(200).json({ status: 'success', message: 'Onlok API is running smoothly' });
 });
 
+// Serve Frontend in Production (Express Wrapper Strategy)
+const frontendDistPath = path.join(__dirname, '../frontend/dist');
+
+// We use express.static to serve the built React app
+app.use(express.static(frontendDistPath));
+
+// Catch-all route to serve index.html for client-side routing (React Router)
+app.get('*', (req, res) => {
+    res.sendFile(path.join(frontendDistPath, 'index.html'));
+});
+
 // Start the server
 const startServer = () => {
     app.listen(PORT, () => {
         console.log(`Server is running on port ${PORT}`);
+        console.log(`Serving frontend from: ${frontendDistPath}`);
     });
 };
 
