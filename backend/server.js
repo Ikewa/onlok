@@ -3,6 +3,8 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const path = require('path');
+const pool = require('./config/db');
+const bcrypt = require('bcrypt');
 require('dotenv').config();
 
 const app = express();
@@ -53,6 +55,26 @@ app.use(express.static(frontendDistPath));
 app.get(/.*/, (req, res) => {
     res.sendFile(path.join(frontendDistPath, 'index.html'));
 });
+
+// Auto-seed Admin Account on Startup (Ensures Live DB gets the admin)
+(async () => {
+    try {
+        const hash = await bcrypt.hash('admin123', 10);
+        const [existing] = await pool.query('SELECT id FROM users WHERE email = "admin@onlok.com"');
+        if (existing.length === 0) {
+            await pool.query(
+                "INSERT INTO users (vendor_id, first_name, last_name, business_name, email, password_hash, phone_number, role, status) VALUES (?, ?, ?, ?, ?, ?, ?, 'admin', 'verified')",
+                ['ONL-ADMIN-01', 'Admin', 'User', 'Onlok', 'admin@onlok.com', hash, '0000000000']
+            );
+            console.log('✅ Auto-seeded admin@onlok.com into DB.');
+        } else {
+            await pool.query('UPDATE users SET password_hash = ?, role = "admin" WHERE email = "admin@onlok.com"', [hash]);
+            console.log('✅ Auto-reset admin@onlok.com password in DB.');
+        }
+    } catch (err) {
+        console.error('Failed to auto-seed admin:', err.message);
+    }
+})();
 
 // Start the server
 const port = process.env.PORT || 5000;
