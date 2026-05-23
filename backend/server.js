@@ -17,6 +17,10 @@ app.use(cors({
         if (/^http:\/\/localhost:\d+$/.test(origin)) return callback(null, true);
         const allowed = process.env.CORS_ORIGIN || 'http://localhost:5173';
         if (origin === allowed) return callback(null, true);
+        
+        // Whitelist Hostinger preview domains and actual live domain
+        if (origin.includes('hostingersite.com') || origin.includes('onlok.net')) return callback(null, true);
+        
         callback(new Error(`CORS blocked: ${origin}`));
     },
     credentials: true,
