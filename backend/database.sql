@@ -1,6 +1,4 @@
-CREATE DATABASE IF NOT EXISTS onlok_db;
-USE onlok_db;
-
+-- Clean import file (No hardcoded database name so it works in cPanel/Hostinger)
 -- Users table (Vendors / Admins)
 CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,

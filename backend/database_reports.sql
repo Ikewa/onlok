@@ -1,7 +1,6 @@
 -- Reports Table Migration
 -- Run this against your onlok_db database
-
-USE onlok_db;
+-- Run this directly in phpMyAdmin after selecting your database
 
 CREATE TABLE IF NOT EXISTS reports (
     id INT AUTO_INCREMENT PRIMARY KEY,
