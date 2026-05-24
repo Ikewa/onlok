@@ -195,7 +195,7 @@ const getDashboardMetrics = async (req, res) => {
         
         const [users] = await pool.query(`
             SELECT id, vendor_id, first_name, last_name, email, role, status, 
-                   created_at, last_login, activity_score 
+                   created_at 
             FROM users 
             ORDER BY created_at DESC 
             LIMIT 50

@@ -90,6 +90,27 @@ app.get(/.*/, (req, res) => {
                 console.error('Migration notice (admin_notes):', err.message);
             }
         }
+
+        // Auto-migrate: Create missing admin_settings and audit_logs tables
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS admin_settings (
+                setting_key VARCHAR(50) PRIMARY KEY,
+                setting_value TEXT NOT NULL
+            )
+        `);
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS audit_logs (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id INT NULL,
+                action VARCHAR(255) NOT NULL,
+                severity ENUM('LOW', 'MEDIUM', 'HIGH', 'CRITICAL') DEFAULT 'LOW',
+                details TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+            )
+        `);
+        console.log('✅ Auto-migrated admin tables (settings & audit_logs).');
+
     } catch (err) {
         console.error('Failed to auto-seed admin:', err.message);
     }
