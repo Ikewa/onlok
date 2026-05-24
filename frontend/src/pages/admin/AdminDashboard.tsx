@@ -5,18 +5,23 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import VerifiedOutlinedIcon from '@mui/icons-material/VerifiedOutlined';
 import HighlightOffIcon from '@mui/icons-material/HighlightOff';
 import ReportProblemOutlinedIcon from '@mui/icons-material/ReportProblemOutlined';
-import { getDashboardMetrics, type DashboardMetrics } from '../../api/admin';
+import { getDashboardMetrics, getAlerts, type DashboardMetrics, type AuditLog } from '../../api/admin';
 import toast from 'react-hot-toast';
 
 export default function AdminDashboard() {
   const [data, setData] = useState<DashboardMetrics | null>(null);
+  const [alerts, setAlerts] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchMetrics = async () => {
       try {
-        const res = await getDashboardMetrics();
+        const [res, alertsRes] = await Promise.all([
+          getDashboardMetrics(),
+          getAlerts()
+        ]);
         setData(res);
+        setAlerts(alertsRes);
       } catch (err) {
         console.error(err);
         toast.error('Failed to load dashboard metrics');
@@ -35,31 +40,28 @@ export default function AdminDashboard() {
     );
   }
 
-  // Fallback to design values if API doesn't provide them yet
+  // Fallback to 0 if API doesn't provide them yet
   const metrics = data?.metrics || {
-    totalUsers: 12847,
-    pendingVerifications: 7,
-    approvedVendors: 11879,
-    rejectedVerifications: 487,
-    flaggedAccounts: 234
+    totalUsers: 0,
+    pendingVerifications: 0,
+    approvedVendors: 0,
+    rejectedVerifications: 0,
+    flaggedAccounts: 0
   };
 
   const statCards = [
-    { title: 'Total Users', value: metrics.totalUsers || 12847, icon: <PeopleOutlinedIcon sx={{ color: '#94A3B8', fontSize: 28 }} /> },
-    { title: 'Pending Verifications', value: metrics.pendingVerifications || 7, icon: <AccessTimeIcon sx={{ color: '#94A3B8', fontSize: 28 }} /> },
-    { title: 'Approved', value: metrics.approvedVendors || 11879, icon: <VerifiedOutlinedIcon sx={{ color: '#94A3B8', fontSize: 28 }} /> },
-    { title: 'Rejected', value: (metrics as any).rejectedVerifications || 487, icon: <HighlightOffIcon sx={{ color: '#94A3B8', fontSize: 28 }} /> },
-    { title: 'Flagged Accounts', value: metrics.flaggedAccounts || 234, icon: <ReportProblemOutlinedIcon sx={{ color: '#94A3B8', fontSize: 28 }} /> },
+    { title: 'Total Users', value: metrics.totalUsers, icon: <PeopleOutlinedIcon sx={{ color: '#94A3B8', fontSize: 28 }} /> },
+    { title: 'Pending Verifications', value: metrics.pendingVerifications, icon: <AccessTimeIcon sx={{ color: '#94A3B8', fontSize: 28 }} /> },
+    { title: 'Approved', value: metrics.approvedVendors, icon: <VerifiedOutlinedIcon sx={{ color: '#94A3B8', fontSize: 28 }} /> },
+    { title: 'Rejected', value: (metrics as any).rejectedVerifications || 0, icon: <HighlightOffIcon sx={{ color: '#94A3B8', fontSize: 28 }} /> },
+    { title: 'Flagged Accounts', value: metrics.flaggedAccounts, icon: <ReportProblemOutlinedIcon sx={{ color: '#94A3B8', fontSize: 28 }} /> },
   ];
 
-  // Hardcoded to match design exactly
-  const recentActivities = [
-    { text: 'Approved verification for Emma Wilson', sub: 'Admin User • 1/15/2024, 4:20:00 PM' },
-    { text: 'Flagged account for manual review', sub: 'Admin User • 1/15/2024, 3:45:00 PM' },
-    { text: 'Approved verification for Oliver Schmidt', sub: 'Admin User • 1/15/2024, 2:10:00 PM' },
-    { text: 'Rejected verification for Raj Patel', sub: 'Admin User • 1/15/2024, 12:30:00 PM' },
-    { text: 'Requested more information from Carlos Mendez', sub: 'Admin User • 1/15/2024, 11:15:00 AM' },
-  ];
+  // Map real data for recent activities
+  const recentActivities = alerts.slice(0, 5).map(log => ({
+    text: log.action,
+    sub: `${log.first_name ? `${log.first_name} ${log.last_name}` : 'System'} • ${new Date(log.created_at).toLocaleString()}`
+  }));
 
   return (
     <Box sx={{ maxWidth: 1200 }}>
@@ -104,6 +106,9 @@ export default function AdminDashboard() {
         </Typography>
         
         <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+          {recentActivities.length === 0 && (
+            <Typography variant="body2" color="#64748B" textAlign="center" py={3}>No recent activity</Typography>
+          )}
           {recentActivities.map((activity, idx) => (
             <Box key={idx}>
               <Box sx={{ display: 'flex', alignItems: 'flex-start', py: 2 }}>

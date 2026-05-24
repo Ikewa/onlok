@@ -7,12 +7,21 @@ import { getAlerts, type AuditLog } from '../../api/admin';
 import toast from 'react-hot-toast';
 
 export default function AdminAlerts() {
+  const [alerts, setAlerts] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Simulate loading to match other pages
-    const timer = setTimeout(() => setLoading(false), 500);
-    return () => clearTimeout(timer);
+    const fetchAlerts = async () => {
+      try {
+        const data = await getAlerts();
+        setAlerts(data);
+      } catch (err) {
+        toast.error('Failed to load alerts');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchAlerts();
   }, []);
 
   if (loading) {
@@ -23,54 +32,20 @@ export default function AdminAlerts() {
     );
   }
 
-  // Hardcoded to match design exactly
-  const activeAlerts = [
-    {
-      id: 1,
-      name: 'Ahmed Al-Rashid',
-      vendorId: 'ONL-892047',
-      description: 'Low face match score (62%) - manual review required',
-      reason: 'Suspicious',
-      date: '1/12/2024, 5:50:00 PM',
-      severity: 'HIGH',
-    },
-    {
-      id: 2,
-      name: 'Fatima Hassan',
-      vendorId: 'ONL-445577',
-      description: 'Multiple verification attempts detected (3 attempts in 24 hours)',
-      reason: 'Repeated Attempts',
-      date: '1/12/2024, 2:20:00 PM',
-      severity: 'MEDIUM',
-    },
-    {
-      id: 3,
-      name: 'Takeshi Yamamoto',
-      vendorId: 'ONL-678901',
-      description: 'Business registration documents invalid',
-      reason: 'Failed Verification',
-      date: '1/10/2024, 9:15:00 AM',
-      severity: 'LOW',
-    },
-    {
-      id: 4,
-      name: 'Yuki Tanaka',
-      vendorId: 'ONL-889900',
-      description: 'Face match failed (38%) - ID document quality poor',
-      reason: 'Failed Verification',
-      date: '1/6/2024, 5:25:00 PM',
-      severity: 'MEDIUM',
-    },
-    {
-      id: 5,
-      name: 'Carlos Mendez',
-      vendorId: 'ONL-776655',
-      description: 'Business documentation inconsistencies detected',
-      reason: 'Suspicious',
-      date: '1/8/2024, 11:30:00 AM',
-      severity: 'HIGH',
-    },
-  ];
+  // Map real data from backend
+  const activeAlerts = alerts.filter(a => a.severity !== 'LOW').map(a => ({
+    id: a.id,
+    name: a.first_name ? `${a.first_name} ${a.last_name}` : 'System / Unknown User',
+    vendorId: a.email || 'N/A',
+    description: a.details,
+    reason: a.action,
+    date: new Date(a.created_at).toLocaleString(),
+    severity: a.severity,
+  }));
+
+  const highCount = alerts.filter(a => a.severity === 'HIGH' || a.severity === 'CRITICAL').length;
+  const mediumCount = alerts.filter(a => a.severity === 'MEDIUM').length;
+  const lowCount = alerts.filter(a => a.severity === 'LOW').length;
 
   const getSeverityStyles = (severity: string) => {
     switch (severity) {
@@ -98,6 +73,9 @@ export default function AdminAlerts() {
         </Box>
         
         <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+          {activeAlerts.length === 0 && (
+            <Typography variant="body2" color="#64748B" textAlign="center" py={4}>No active alerts</Typography>
+          )}
           {activeAlerts.map((alert, idx) => {
             const styles = getSeverityStyles(alert.severity);
             return (
@@ -162,7 +140,7 @@ export default function AdminAlerts() {
               </Typography>
             </Box>
             <Typography variant="h3" fontWeight={800} color="#0F172A" mb={1}>
-              2
+              {highCount}
             </Typography>
             <Typography variant="body2" color="#64748B">
               Requires immediate attention
@@ -181,7 +159,7 @@ export default function AdminAlerts() {
               </Typography>
             </Box>
             <Typography variant="h3" fontWeight={800} color="#0F172A" mb={1}>
-              2
+              {mediumCount}
             </Typography>
             <Typography variant="body2" color="#64748B">
               Review within 24 hours
@@ -200,7 +178,7 @@ export default function AdminAlerts() {
               </Typography>
             </Box>
             <Typography variant="h3" fontWeight={800} color="#0F172A" mb={1}>
-              1
+              {lowCount}
             </Typography>
             <Typography variant="body2" color="#64748B">
               Monitor and review

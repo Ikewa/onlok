@@ -176,6 +176,14 @@ const updateVerificationStatus = async (req, res) => {
             await pool.query(`UPDATE users SET status = 'pending' WHERE id = ?`, [verification.user_id]);
         }
 
+        // Insert audit log
+        const severity = status === 'flagged' ? 'HIGH' : status === 'rejected' ? 'MEDIUM' : 'LOW';
+        const actionText = status === 'flagged' ? 'Flagged account' : status === 'rejected' ? 'Rejected verification' : 'Approved verification';
+        await pool.query(
+            'INSERT INTO audit_logs (user_id, action, severity, details) VALUES (?, ?, ?, ?)',
+            [verification.user_id, actionText, severity, notes || `Admin manually ${status} user`]
+        );
+
         res.status(200).json({ message: `Verification ${status} successfully` });
     } catch (error) {
         console.error('Admin Status Update Error:', error);
@@ -192,6 +200,7 @@ const getDashboardMetrics = async (req, res) => {
         const [pendingCount] = await pool.query('SELECT COUNT(*) as total FROM verifications WHERE status = "pending"');
         const [approvedCount] = await pool.query('SELECT COUNT(*) as total FROM verifications WHERE status = "approved"');
         const [flaggedCount] = await pool.query('SELECT COUNT(*) as total FROM verifications WHERE status = "flagged"');
+        const [rejectedCount] = await pool.query('SELECT COUNT(*) as total FROM verifications WHERE status = "rejected"');
         
         const [users] = await pool.query(`
             SELECT id, vendor_id, first_name, last_name, email, role, status, 
@@ -206,7 +215,8 @@ const getDashboardMetrics = async (req, res) => {
                 totalUsers: usersCount[0].total,
                 pendingVerifications: pendingCount[0].total,
                 approvedVendors: approvedCount[0].total,
-                flaggedAccounts: flaggedCount[0].total
+                flaggedAccounts: flaggedCount[0].total,
+                rejectedVerifications: rejectedCount[0].total
             },
             users
         });
@@ -263,6 +273,13 @@ const updateSettings = async (req, res) => {
                 [key, String(value), String(value)]
             );
         }
+        
+        // Insert audit log for settings change
+        await pool.query(
+            'INSERT INTO audit_logs (user_id, action, severity, details) VALUES (NULL, ?, ?, ?)',
+            ['Updated system settings', 'LOW', 'Admin updated global configuration settings']
+        );
+
         res.status(200).json({ message: 'Settings updated successfully' });
     } catch (error) {
         console.error('Admin Settings Update Error:', error);

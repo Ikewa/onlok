@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Box, Typography, Paper, Grid, Switch, Button, CircularProgress, Divider, Slider, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material';
-import { getSettings, updateSettings } from '../../api/admin';
+import { getSettings, updateSettings, getAlerts, type AuditLog } from '../../api/admin';
 import toast from 'react-hot-toast';
 
 export default function AdminSettings() {
@@ -16,11 +16,17 @@ export default function AdminSettings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+
   useEffect(() => {
     const fetchSettings = async () => {
       try {
-        const data = await getSettings();
+        const [data, alerts] = await Promise.all([
+          getSettings(),
+          getAlerts()
+        ]);
         setSettings(prev => ({ ...prev, ...data }));
+        setAuditLogs(alerts);
       } catch (err) {
         console.error(err);
         toast.error('Failed to load settings');
@@ -95,12 +101,11 @@ export default function AdminSettings() {
     </Box>
   );
 
-  // Hardcoded audit log to match design
-  const auditLogs = [
-    { action: 'Updated face match threshold to 85%', admin: 'Admin User', timestamp: '1/15/2024, 2:30:00 PM' },
-    { action: 'Enabled "Require Business Documents"', admin: 'Admin User', timestamp: '1/14/2024, 10:15:00 AM' },
-    { action: 'Updated business verification threshold to 90%', admin: 'System', timestamp: '1/10/2024, 9:00:00 AM' },
-  ];
+  const displayedLogs = auditLogs.slice(0, 10).map(log => ({
+    action: log.action,
+    admin: log.first_name ? `${log.first_name} ${log.last_name}` : 'System',
+    timestamp: new Date(log.created_at).toLocaleString()
+  }));
 
   return (
     <Box sx={{ maxWidth: 1200 }}>
@@ -175,7 +180,14 @@ export default function AdminSettings() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {auditLogs.map((log, idx) => (
+              {displayedLogs.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={3} align="center" sx={{ py: 4, color: '#64748B' }}>
+                    No audit logs available
+                  </TableCell>
+                </TableRow>
+              )}
+              {displayedLogs.map((log, idx) => (
                 <TableRow key={idx} hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
                   <TableCell sx={{ borderBottom: '1px solid #F1F5F9' }}>
                     <Typography variant="body2" color="#0F172A" fontWeight={500}>
