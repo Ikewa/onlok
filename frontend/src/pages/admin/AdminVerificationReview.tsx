@@ -47,9 +47,10 @@ export default function AdminVerificationReview() {
 
   const getMediaUrl = (path?: string) => {
     if (!path) return '';
-    const cleanPath = path.startsWith('/') ? path.substring(1) : path;
-    const baseUrl = import.meta.env.VITE_API_URL?.replace(/\/api\/?$/, '') || 'http://localhost:5000';
-    return `${baseUrl}/${cleanPath}`;
+    if (import.meta.env.PROD) {
+      return path.startsWith('/') ? path : `/${path}`;
+    }
+    return `http://localhost:5000${path.startsWith('/') ? '' : '/'}${path}`;
   };
 
   if (loading || !details) {
