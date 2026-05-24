@@ -80,6 +80,16 @@ app.get(/.*/, (req, res) => {
             await pool.query('UPDATE users SET password_hash = ?, role = "admin" WHERE email = "admin@onlok.com"', [hash]);
             console.log('✅ Auto-reset admin@onlok.com password in DB.');
         }
+
+        // Auto-migrate: Add missing admin_notes column to verifications if it doesn't exist
+        try {
+            await pool.query("ALTER TABLE verifications ADD COLUMN admin_notes TEXT NULL AFTER status");
+            console.log('✅ Added admin_notes column to verifications table.');
+        } catch (err) {
+            if (err.code !== 'ER_DUP_FIELDNAME') {
+                console.error('Migration notice (admin_notes):', err.message);
+            }
+        }
     } catch (err) {
         console.error('Failed to auto-seed admin:', err.message);
     }
