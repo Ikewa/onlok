@@ -3,6 +3,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const path = require('path');
+const fs = require('fs');
 const pool = require('./config/db');
 const bcrypt = require('bcrypt');
 require('dotenv').config();
@@ -29,7 +30,11 @@ app.use(express.json());
 app.use(morgan('dev'));
 
 // Static folder for file uploads
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+const uploadDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir);
+}
+app.use('/uploads', express.static(uploadDir));
 
 // Routes
 const userRoutes = require('./routes/userRoute');
