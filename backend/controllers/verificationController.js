@@ -5,7 +5,7 @@ const pool = require('../config/db');
 // Multer Storage Configuration
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
-        cb(null, 'uploads/');
+        cb(null, path.join(__dirname, '../uploads'));
     },
     filename: function (req, file, cb) {
         cb(null, `${req.user.vendor_id}-${file.fieldname}-${Date.now()}${path.extname(file.originalname)}`);
