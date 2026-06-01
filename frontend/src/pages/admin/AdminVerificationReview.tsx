@@ -4,6 +4,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
 import HighlightOffIcon from '@mui/icons-material/HighlightOff';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import FlagOutlinedIcon from '@mui/icons-material/FlagOutlined';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getVerificationDetails, updateVerificationStatus, type AdminVerification } from '../../api/admin';
 import toast from 'react-hot-toast';
@@ -228,7 +229,7 @@ export default function AdminVerificationReview() {
             <Button
               variant="contained"
               fullWidth
-              startIcon={<InfoOutlinedIcon />}
+              startIcon={<FlagOutlinedIcon />}
               onClick={() => handleAction('flagged')}
               disabled={actionLoading || isFlagged}
               sx={{ bgcolor: '#D97706', '&:hover': { bgcolor: '#B45309' }, py: 1.5, borderRadius: 2, textTransform: 'none', fontWeight: 600 }}

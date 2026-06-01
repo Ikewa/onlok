@@ -11,12 +11,15 @@ import toast from 'react-hot-toast';
 
 const STATUS_FILTERS = ['All', 'Pending', 'Approved', 'Rejected', 'Flagged'];
 
-const STATUS_STYLES: Record<string, { bg: string; color: string }> = {
-  pending: { bg: '#FEF3C7', color: '#D97706' },
-  approved: { bg: '#DCFCE7', color: '#15803D' },
-  rejected: { bg: '#FEE2E2', color: '#B91C1C' },
-  flagged: { bg: '#FFEDD5', color: '#C2410C' },
+const STATUS_STYLES: Record<string, { bg: string; color: string; border: string }> = {
+  pending:  { bg: '#FEF3C7', color: '#D97706', border: '#FDE68A' },
+  approved: { bg: '#DCFCE7', color: '#15803D', border: '#BBF7D0' },
+  rejected: { bg: '#FEE2E2', color: '#B91C1C', border: '#FECACA' },
+  flagged:  { bg: '#FFEDD5', color: '#C2410C', border: '#FED7AA' },
+  suspended:{ bg: '#FFEDD5', color: '#C2410C', border: '#FED7AA' },
 };
+
+const DEFAULT_STATUS_STYLE = { bg: '#F1F5F9', color: '#475569', border: '#E2E8F0' };
 
 export default function AdminVerificationQueue() {
   const navigate = useNavigate();
@@ -139,7 +142,9 @@ export default function AdminVerificationQueue() {
               ) : (
                 verifications.map((v) => {
                   const initials = `${v.first_name?.[0] || ''}${v.last_name?.[0] || ''}`.toUpperCase();
-                  const statStyle = STATUS_STYLES[v.status] || STATUS_STYLES.pending;
+                  // Normalize status: trim whitespace, lowercase, handle 'suspended' -> 'flagged'
+                  const normalizedStatus = (v.status || '').trim().toLowerCase();
+                  const statStyle = STATUS_STYLES[normalizedStatus] || DEFAULT_STATUS_STYLE;
                   
                   return (
                     <TableRow 
@@ -185,13 +190,17 @@ export default function AdminVerificationQueue() {
                       {/* Status */}
                       <TableCell sx={{ borderBottom: '1px solid #F1F5F9' }}>
                         <Chip 
-                          label={v.status.charAt(0).toUpperCase() + v.status.slice(1)} 
+                          label={normalizedStatus.charAt(0).toUpperCase() + normalizedStatus.slice(1)} 
                           size="small"
                           sx={{ 
                             bgcolor: statStyle.bg, 
-                            color: statStyle.color, 
+                            color: statStyle.color,
+                            border: `1px solid ${statStyle.border}`,
                             fontWeight: 700,
-                            borderRadius: '16px' 
+                            fontSize: '0.75rem',
+                            px: 0.5,
+                            borderRadius: '16px',
+                            '& .MuiChip-label': { px: 1.5 }
                           }} 
                         />
                       </TableCell>

@@ -52,8 +52,15 @@ const getVerificationQueue = async (req, res) => {
         const statusFilter = req.query.status; // 'pending', 'approved', 'rejected', 'flagged', 'all'
         const search = req.query.search;
 
+        // Derive a unified display status:
+        // If verifications.status is 'flagged' OR users.status is 'suspended' => show as 'flagged'
         let query = `
-            SELECT v.id as verification_id, v.status, v.submitted_at, 
+            SELECT v.id as verification_id,
+                   CASE 
+                     WHEN v.status = 'flagged' OR u.status = 'suspended' THEN 'flagged'
+                     ELSE v.status 
+                   END as status,
+                   v.submitted_at, 
                    u.id as user_id, u.first_name, u.last_name, u.email, u.vendor_id, u.business_name,
                    (CASE WHEN u.business_name IS NOT NULL AND u.business_name != '' THEN 'Business' ELSE 'Individual' END) as type
             FROM verifications v
@@ -63,8 +70,13 @@ const getVerificationQueue = async (req, res) => {
         const params = [];
 
         if (statusFilter && statusFilter !== 'all') {
-            query += ` AND v.status = ?`;
-            params.push(statusFilter);
+            if (statusFilter === 'flagged') {
+                // Catch records where either verifications OR users table marks it as flagged/suspended
+                query += ` AND (v.status = 'flagged' OR u.status = 'suspended')`;
+            } else {
+                query += ` AND v.status = ? AND u.status != 'suspended'`;
+                params.push(statusFilter);
+            }
         }
 
         if (search) {
@@ -82,8 +94,12 @@ const getVerificationQueue = async (req, res) => {
         let countQuery = `SELECT COUNT(*) as total FROM verifications v JOIN users u ON v.user_id = u.id WHERE 1=1`;
         const countParams = [];
         if (statusFilter && statusFilter !== 'all') {
-            countQuery += ` AND v.status = ?`;
-            countParams.push(statusFilter);
+            if (statusFilter === 'flagged') {
+                countQuery += ` AND (v.status = 'flagged' OR u.status = 'suspended')`;
+            } else {
+                countQuery += ` AND v.status = ? AND u.status != 'suspended'`;
+                countParams.push(statusFilter);
+            }
         }
         if (search) {
             countQuery += ` AND (u.first_name LIKE ? OR u.last_name LIKE ? OR u.email LIKE ? OR u.vendor_id LIKE ?)`;
@@ -112,7 +128,12 @@ const getVerificationDetails = async (req, res) => {
     try {
         const { id } = req.params;
         const query = `
-            SELECT v.id as verification_id, v.gov_id_url, v.video_url, v.status, v.admin_notes, v.submitted_at, v.reviewed_at,
+            SELECT v.id as verification_id, v.gov_id_url, v.video_url,
+                   CASE 
+                     WHEN v.status = 'flagged' OR u.status = 'suspended' THEN 'flagged'
+                     ELSE v.status 
+                   END as status,
+                   v.admin_notes, v.submitted_at, v.reviewed_at,
                    u.id as user_id, u.first_name, u.last_name, u.email, u.vendor_id, u.business_name,
                    (CASE WHEN u.business_name IS NOT NULL AND u.business_name != '' THEN 'Business' ELSE 'Individual' END) as type
             FROM verifications v
