@@ -1,4 +1,4 @@
-import { Paper, BottomNavigation, BottomNavigationAction } from '@mui/material';
+import { Box, Paper, BottomNavigation, BottomNavigationAction } from '@mui/material';
 import GridViewOutlinedIcon from '@mui/icons-material/GridViewOutlined';
 import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
 import PaymentsOutlinedIcon from '@mui/icons-material/PaymentsOutlined';
@@ -6,6 +6,18 @@ import WorkspacePremiumOutlinedIcon from '@mui/icons-material/WorkspacePremiumOu
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
+
+const get3DIcon = (IconComponent: any, color: string, gradient: string) => (
+  <Box sx={{ 
+    width: 34, height: 34, borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+    background: gradient,
+    boxShadow: '2px 2px 5px rgba(0,0,0,0.15), -2px -2px 5px rgba(255,255,255,0.9), inset 1px 1px 2px rgba(255,255,255,0.6), inset -1px -1px 2px rgba(0,0,0,0.05)',
+    transform: 'perspective(500px) rotateX(10deg) rotateY(-5deg)',
+    transition: 'all 0.3s ease',
+  }}>
+    <IconComponent sx={{ fontSize: 20, color: color, filter: `drop-shadow(1px 1px 2px ${color}80)` }} />
+  </Box>
+);
 
 export default function MobileBottomNav() {
   const navigate = useNavigate();
@@ -75,10 +87,10 @@ export default function MobileBottomNav() {
           }
         }}
       >
-        <BottomNavigationAction label="Dashboard" icon={<GridViewOutlinedIcon fontSize="small" />} />
-        <BottomNavigationAction label="Search" icon={<SearchOutlinedIcon fontSize="small" />} />
-        <BottomNavigationAction label="Earning" icon={<PaymentsOutlinedIcon fontSize="small" />} />
-        <BottomNavigationAction label="Badge" icon={<WorkspacePremiumOutlinedIcon fontSize="small" />} />
+        <BottomNavigationAction label="Dashboard" icon={get3DIcon(GridViewOutlinedIcon, '#3B82F6', 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)')} />
+        <BottomNavigationAction label="Search" icon={get3DIcon(SearchOutlinedIcon, '#8B5CF6', 'linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%)')} />
+        <BottomNavigationAction label="Earning" icon={get3DIcon(PaymentsOutlinedIcon, '#10B981', 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)')} />
+        <BottomNavigationAction label="Badge" icon={get3DIcon(WorkspacePremiumOutlinedIcon, '#F59E0B', 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)')} />
       </BottomNavigation>
     </Paper>
   );
