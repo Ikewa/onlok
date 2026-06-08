@@ -27,55 +27,56 @@ export default function LandingPage() {
     }}>
       <Navbar />
 
-      <Container maxWidth="lg" sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', py: { xs: 2, md: 4 } }}>
-        <Box sx={{ textAlign: 'center', mb: { xs: 4, md: 8 } }}>
-          {/* GIGANTIC Size - Virtually Cropped via CSS Zoom */}
-          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 8 }}>
-            <Box 
+      <Container maxWidth="lg" sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', py: { xs: 2, md: 4 } }}>
+        <Box sx={{ my: 'auto', width: '100%', display: 'flex', flexDirection: 'column' }}>
+          <Box sx={{ textAlign: 'center', mb: { xs: 4, md: 8 } }}>
+            {/* GIGANTIC Size - Virtually Cropped via CSS Zoom */}
+            <Box sx={{ display: 'flex', justifyContent: 'center', mb: { xs: 4, md: 8 } }}>
+              <Box 
+                sx={{ 
+                  width: { xs: '90%', md: 700 }, // Responsive width
+                  maxWidth: { xs: 350, md: 700 },
+                  height: { xs: 60, md: 150 }, // Scaled height for mobile
+                  overflow: 'hidden',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  position: 'relative'
+                }}
+              >
+                <Box 
+                  component="img"
+                  src="/logo.png"
+                  alt="Onlok Logo"
+                  sx={{ 
+                    width: '180%', // Reduced zoom to show more of the logo
+                    height: 'auto',
+                    display: 'block',
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)'
+                  }} 
+                />
+              </Box>
+            </Box>
+
+            <Typography 
+              variant="body1" 
               sx={{ 
-                width: { xs: '90%', md: 700 }, // Responsive width
-                maxWidth: { xs: 350, md: 700 },
-                height: { xs: 60, md: 150 }, // Scaled height for mobile
-                overflow: 'hidden',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                position: 'relative'
+                color: '#64748B', 
+                fontSize: { xs: '1rem', md: '1.25rem' }, 
+                maxWidth: 600, 
+                mx: 'auto', 
+                mb: 6,
+                lineHeight: 1.6,
+                fontWeight: 500,
+                px: { xs: 2, md: 0 }
               }}
             >
-              <Box 
-                component="img"
-                src="/logo.png"
-                alt="Onlok Logo"
-                sx={{ 
-                  width: '180%', // Reduced zoom to show more of the logo
-                  height: 'auto',
-                  display: 'block',
-                  position: 'absolute',
-                  top: '50%',
-                  left: '50%',
-                  transform: 'translate(-50%, -50%)'
-                }} 
-              />
-            </Box>
+              Onlok Is A Dedicated Business Identity Verification Platform. It Is Built Specifically For The Online Global Market And Those That Power It.
+            </Typography>
           </Box>
-
-          <Typography 
-            variant="body1" 
-            sx={{ 
-              color: '#64748B', 
-              fontSize: { xs: '1rem', md: '1.25rem' }, 
-              maxWidth: 600, 
-              mx: 'auto', 
-              mb: 6,
-              lineHeight: 1.6,
-              fontWeight: 500,
-              px: { xs: 2, md: 0 }
-            }}
-          >
-            Onlok Is A Dedicated Business Identity Verification Platform. It Is Built Specifically For The Online Global Market And Those That Power It.
-          </Typography>
-        </Box>
 
           {/* Search Box */}
           <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4, px: { xs: 2, md: 0 } }}>
@@ -142,6 +143,7 @@ export default function LandingPage() {
               </Button>
             </Box>
           </Box>
+        </Box>
 
         {/* Action Buttons Below Search */}
         <Box sx={{ 
