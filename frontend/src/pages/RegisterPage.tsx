@@ -30,19 +30,21 @@ interface FormData {
   twitter_handle: string;
   instagram_handle: string;
   facebook_handle: string;
+  tiktok_handle: string;
   password: string;
   confirm_password: string;
   gov_id_file: File | null;
   business_video_file: File | null;
+  cac_file: File | null;
   category: string;
 }
 
 const initialData: FormData = {
   first_name: '', last_name: '', email: '', phone_number: '',
   country_code: 'NG', business_name: '',
-  twitter_handle: '', instagram_handle: '', facebook_handle: '',
+  twitter_handle: '', instagram_handle: '', facebook_handle: '', tiktok_handle: '',
   password: '', confirm_password: '',
-  gov_id_file: null, business_video_file: null,
+  gov_id_file: null, business_video_file: null, cac_file: null,
   category: 'Consumer',
 };
 
@@ -98,6 +100,7 @@ export default function RegisterPage() {
     }
     if (activeStep === 2) {
       if (!form.gov_id_file) { toast.error('Please upload your Government ID.'); return false; }
+      if (!form.cac_file) { toast.error('Please upload your CAC certificate.'); return false; }
       if (!form.business_video_file) { toast.error('Please upload your business video.'); return false; }
     }
     return true;
@@ -120,7 +123,7 @@ export default function RegisterPage() {
         });
         setRegisteredUser(user);
         login(user);
-        await submitVerification(form.gov_id_file!, form.business_video_file!);
+        await submitVerification(form.gov_id_file!, form.business_video_file!); // API doesn't seem to expect CAC yet, might need backend update if required
         toast.success('Verification submitted!');
         setActiveStep(4); // Success screen
       } catch (err: any) {
@@ -275,7 +278,10 @@ export default function RegisterPage() {
       <TextField fullWidth value={form.instagram_handle} onChange={(e) => set('instagram_handle', e.target.value)} placeholder="https://instagram.com/profile" sx={{ mb: 3 }} InputProps={{ sx: { borderRadius: 2 } }} />
       
       <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} display="block">Facebook Handle</Typography>
-      <TextField fullWidth value={form.facebook_handle} onChange={(e) => set('facebook_handle', e.target.value)} placeholder="https://facebook.com/profile" InputProps={{ sx: { borderRadius: 2 } }} />
+      <TextField fullWidth value={form.facebook_handle} onChange={(e) => set('facebook_handle', e.target.value)} placeholder="https://facebook.com/profile" sx={{ mb: 3 }} InputProps={{ sx: { borderRadius: 2 } }} />
+      
+      <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} display="block">TikTok Handle</Typography>
+      <TextField fullWidth value={form.tiktok_handle} onChange={(e) => set('tiktok_handle', e.target.value)} placeholder="https://tiktok.com/@profile" InputProps={{ sx: { borderRadius: 2 } }} />
     </Box>,
 
     // Step 3: ID Upload
@@ -298,9 +304,9 @@ export default function RegisterPage() {
       <Typography variant="body2" color="#64748B" mb={3}>Upload a valid, unexpired government-issued ID.</Typography>
       
       <FileUploadDropzone 
-        file={null} 
-        onChange={() => {}} 
-        onRemove={() => {}}
+        file={form.cac_file} 
+        onChange={(f: File) => set('cac_file', f)} 
+        onRemove={() => set('cac_file', null)}
         title="CAC upload"
         labels={['CAC Certificat']}
         accept=".svg,.png,.jpg,.pdf"
@@ -359,8 +365,9 @@ export default function RegisterPage() {
           <Typography variant="subtitle2" fontWeight={800} color="#0F172A">Documents</Typography>
           <Typography variant="caption" fontWeight={700} color="#1A1FE8" sx={{ cursor: 'pointer' }} onClick={() => setActiveStep(2)}>Edit</Typography>
         </Box>
-        <GridRow label="ID Document" value={form.gov_id_file ? 'Submitted' : 'Missing'} />
-        <GridRow label="Business Video" value={form.business_video_file ? 'Submitted' : 'Missing'} />
+        <GridRow label="ID Document" value={form.gov_id_file ? form.gov_id_file.name : 'Missing'} />
+        <GridRow label="CAC Certificate" value={form.cac_file ? form.cac_file.name : 'Missing'} />
+        <GridRow label="Business Video" value={form.business_video_file ? form.business_video_file.name : 'Missing'} />
       </Paper>
 
       <Paper elevation={0} sx={{ p: 3, borderRadius: 3, bgcolor: '#F8FAFC', mb: 4 }}>

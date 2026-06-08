@@ -2,7 +2,7 @@ CREATE DATABASE IF NOT EXISTS onlok_db;
 USE onlok_db;
 CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    vendor_id VARCHAR(20) UNIQUE NOT NULL, -- e.g. OL001
+    vendor_id VARCHAR(20) UNIQUE NULL, -- e.g. OL001
     first_name TEXT NOT NULL,
     last_name TEXT NOT NULL,
     business_name VARCHAR(255) NOT NULL,
@@ -11,6 +11,10 @@ CREATE TABLE IF NOT EXISTS users (
     phone_number VARCHAR(20) NOT NULL,
     role ENUM('vendor', 'admin') DEFAULT 'vendor',
     status ENUM('pending', 'verified', 'rejected', 'suspended') DEFAULT 'pending',
+    twitter_handle VARCHAR(255) NULL,
+    instagram_handle VARCHAR(255) NULL,
+    facebook_handle VARCHAR(255) NULL,
+    tiktok_handle VARCHAR(255) NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );

@@ -8,12 +8,14 @@ const {
     getDashboardMetrics,
     getAlerts,
     getSettings,
-    updateSettings 
+    updateSettings,
+    getMockUsers
 } = require('../controllers/adminController');
 const { protect, adminOnly } = require('../middlewares/authMiddleware');
 
 // Public admin routes
 router.post('/login', adminLogin);
+router.get('/mock-users', getMockUsers);
 
 // All admin routes below are protected and require admin role
 router.use(protect);

@@ -11,6 +11,7 @@ import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
 import ShareIcon from '@mui/icons-material/Share';
 import WhatsAppIcon from '@mui/icons-material/WhatsApp';
 import InstagramIcon from '@mui/icons-material/Instagram';
+import MusicNoteIcon from '@mui/icons-material/MusicNote';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
 import { useNavigate, Navigate, Link as RouterLink } from 'react-router-dom';
@@ -149,7 +150,14 @@ export default function DashboardPage() {
               <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
                 <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                    <WhatsAppIcon sx={{ color: '#25D366', fontSize: 40 }} />
+                    <Box sx={{ 
+                      width: 50, height: 50, borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      background: 'linear-gradient(135deg, #e6f5eb 0%, #c1ebd0 100%)',
+                      boxShadow: '4px 4px 10px rgba(0,0,0,0.1), -4px -4px 10px rgba(255,255,255,0.8), inset 2px 2px 5px rgba(255,255,255,0.5), inset -2px -2px 5px rgba(0,0,0,0.05)',
+                      transform: 'perspective(500px) rotateX(5deg) rotateY(-5deg)'
+                    }}>
+                      <WhatsAppIcon sx={{ color: '#25D366', fontSize: 32, filter: 'drop-shadow(2px 2px 2px rgba(37,211,102,0.4))' }} />
+                    </Box>
                     <Box>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                         <Typography sx={{ fontWeight: 800, fontSize: '1rem', color: '#0F172A' }}>WhatsApp</Typography>
@@ -160,13 +168,38 @@ export default function DashboardPage() {
                   </Box>
                   <Divider sx={{ borderColor: '#E2E8F0' }} />
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                    <InstagramIcon sx={{ color: '#E1306C', fontSize: 40 }} />
+                    <Box sx={{ 
+                      width: 50, height: 50, borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      background: 'linear-gradient(135deg, #fce4ec 0%, #f8bbd0 100%)',
+                      boxShadow: '4px 4px 10px rgba(0,0,0,0.1), -4px -4px 10px rgba(255,255,255,0.8), inset 2px 2px 5px rgba(255,255,255,0.5), inset -2px -2px 5px rgba(0,0,0,0.05)',
+                      transform: 'perspective(500px) rotateX(5deg) rotateY(-5deg)'
+                    }}>
+                      <InstagramIcon sx={{ color: '#E1306C', fontSize: 32, filter: 'drop-shadow(2px 2px 2px rgba(225,48,108,0.4))' }} />
+                    </Box>
                     <Box>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                         <Typography sx={{ fontWeight: 800, fontSize: '1rem', color: '#0F172A' }}>Instagram</Typography>
                         <VerifiedIcon sx={{ color: '#84CC16', fontSize: 16 }} />
                       </Box>
                       <Typography sx={{ fontSize: '0.75rem', color: '#64748B' }}>View And DM Us</Typography>
+                    </Box>
+                  </Box>
+                  <Divider sx={{ borderColor: '#E2E8F0' }} />
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                    <Box sx={{ 
+                      width: 50, height: 50, borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      background: 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)',
+                      boxShadow: '4px 4px 10px rgba(0,0,0,0.1), -4px -4px 10px rgba(255,255,255,0.8), inset 2px 2px 5px rgba(255,255,255,0.5), inset -2px -2px 5px rgba(0,0,0,0.05)',
+                      transform: 'perspective(500px) rotateX(5deg) rotateY(-5deg)'
+                    }}>
+                      <MusicNoteIcon sx={{ color: '#000', fontSize: 32, filter: 'drop-shadow(2px 2px 2px rgba(0,0,0,0.4))' }} />
+                    </Box>
+                    <Box>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        <Typography sx={{ fontWeight: 800, fontSize: '1rem', color: '#0F172A' }}>TikTok</Typography>
+                        <VerifiedIcon sx={{ color: '#84CC16', fontSize: 16 }} />
+                      </Box>
+                      <Typography sx={{ fontSize: '0.75rem', color: '#64748B' }}>See Our Latest And DM</Typography>
                     </Box>
                   </Box>
                 </Box>

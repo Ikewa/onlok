@@ -32,7 +32,7 @@ export default function ProfileBioEditPage() {
   const navigate = useNavigate();
   const initials = `${user?.first_name?.[0] ?? ''}${user?.last_name?.[0] ?? ''}`.toUpperCase();
 
-  const [form, setForm] = useState({ fullName: '', twitter: '', instagram: '', facebook: '' });
+  const [form, setForm] = useState({ fullName: '', twitter: '', instagram: '', facebook: '', tiktok: '' });
   const handleChange = (f: string) => (e: React.ChangeEvent<HTMLInputElement>) => setForm(p => ({ ...p, [f]: e.target.value }));
 
   const handleSubmit = () => toast.success('Profile update submitted for review!');
@@ -171,6 +171,7 @@ export default function ProfileBioEditPage() {
               { field: 'twitter', label: 'X (formally tweeter) handle', placeholder: 'https://x.com/profile' },
               { field: 'instagram', label: 'Instagram Handle', placeholder: 'https://instagram.com/profile' },
               { field: 'facebook', label: 'Facebook Handle', placeholder: 'https://facebook.com/profile' },
+              { field: 'tiktok', label: 'TikTok Handle', placeholder: 'https://tiktok.com/@profile' },
             ].map((item) => (
               <Box key={item.field} sx={{ mb: 2.5 }}>
                 <Typography sx={{ fontSize: '0.78rem', color: '#0F172A', fontWeight: 600, mb: 0.8 }}>{item.label}</Typography>

@@ -23,8 +23,8 @@ const verificationItems = [
   { label: 'Ongoing Monitoring Active', desc: 'Daily global watchlist screening' },
 ];
 
-function SocialRow({ icon, label, sub }: { icon: React.ReactNode; label: string; sub: string }) {
-  return (
+function SocialRow({ icon, label, sub, url }: { icon: React.ReactNode; label: string; sub: string; url?: string | null }) {
+  const content = (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, py: 1 }}>
       {icon}
       <Box>
@@ -36,6 +36,11 @@ function SocialRow({ icon, label, sub }: { icon: React.ReactNode; label: string;
       </Box>
     </Box>
   );
+
+  if (url) {
+    return <a href={url.startsWith('http') ? url : `https://${url}`} target="_blank" rel="noreferrer" style={{ textDecoration: 'none', color: 'inherit' }}>{content}</a>;
+  }
+  return content;
 }
 
 export default function PublicProfilePage() {
@@ -149,11 +154,11 @@ export default function PublicProfilePage() {
           <Typography sx={{ fontSize: '0.78rem', color: '#64748B', mb: 2 }}>Reach Out To Us On Our Verified Channels To Place Order And Make Enquiry</Typography>
           <Box sx={{ display: 'flex', gap: 2 }}>
             <Box sx={{ flex: 1 }}>
-              <SocialRow icon={<WhatsAppIcon sx={{ color: '#25D366', fontSize: 32 }} />} label="Whatsapp" sub="Chat To Order" />
+              <SocialRow icon={<WhatsAppIcon sx={{ color: '#25D366', fontSize: 32 }} />} label="Whatsapp" sub="Chat To Order" url={vendor?.phone_number ? `https://wa.me/${vendor.phone_number}` : null} />
               <Divider sx={{ borderColor: '#F1F5F9', my: 0.5 }} />
-              <SocialRow icon={<InstagramIcon sx={{ color: '#E1306C', fontSize: 32 }} />} label="Instagram" sub="View And DM Us" />
+              <SocialRow icon={<InstagramIcon sx={{ color: '#E1306C', fontSize: 32 }} />} label="Instagram" sub="View And DM Us" url={vendor?.instagram_handle} />
               <Divider sx={{ borderColor: '#F1F5F9', my: 0.5 }} />
-              <SocialRow icon={<MusicNoteIcon sx={{ color: '#000', fontSize: 28 }} />} label="TikTok" sub="See Our Latest And DM" />
+              <SocialRow icon={<MusicNoteIcon sx={{ color: '#000', fontSize: 28 }} />} label="TikTok" sub="See Our Latest And DM" url={vendor?.tiktok_handle} />
             </Box>
             <Box sx={{ width: 110, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', bgcolor: '#F8FAFC', borderRadius: 2, p: 1.5, gap: 0.5 }}>
               <WhatsAppIcon sx={{ color: '#25D366', fontSize: 28 }} />

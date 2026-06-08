@@ -62,6 +62,10 @@ export interface VendorSearchResult {
   created_at: string;
   badges: string[];
   last_verified?: string | null;
+  twitter_handle?: string | null;
+  instagram_handle?: string | null;
+  facebook_handle?: string | null;
+  tiktok_handle?: string | null;
 }
 
 export type ReportCategory =

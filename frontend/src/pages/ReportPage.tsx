@@ -11,6 +11,7 @@ import ShieldIcon from '@mui/icons-material/Shield';
 import { Box, Container, Typography, TextField, Button, Paper, Alert, CircularProgress, Avatar } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 import { submitReport } from '../api/reports';
+import { useAuth } from '../context/AuthContext';
 import type { ReportCategory } from '../types';
 import toast from 'react-hot-toast';
 
@@ -22,6 +23,7 @@ const categories: { value: ReportCategory; label: string; desc: string; icon: an
 ];
 
 export default function ReportPage() {
+  const { user } = useAuth();
   const [vendorId, setVendorId] = useState('');
   const [category, setCategory] = useState<ReportCategory | ''>('');
   const [context, setContext] = useState('');
@@ -79,7 +81,13 @@ export default function ReportPage() {
         
         {/* Top Header */}
         <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
-          <Avatar src="https://i.pravatar.cc/150?img=11" sx={{ width: 44, height: 44 }} />
+          {user ? (
+            <Avatar sx={{ width: 44, height: 44, bgcolor: '#1A1FE8', fontSize: '1.2rem', fontWeight: 800 }}>
+              {user.first_name?.[0]?.toUpperCase()}{user.last_name?.[0]?.toUpperCase()}
+            </Avatar>
+          ) : (
+            <Avatar sx={{ width: 44, height: 44 }} />
+          )}
         </Box>
 
         <Typography variant="h4" sx={{ fontWeight: 800, color: '#0F172A', mb: 1 }}>Report User</Typography>

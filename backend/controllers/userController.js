@@ -16,7 +16,7 @@ const generateToken = (id, role, vendor_id) => {
 // @access  Public
 const registerUser = async (req, res) => {
     try {
-        const { first_name, last_name, business_name, email, password, phone_number, country_code } = req.body;
+        const { first_name, last_name, business_name, email, password, phone_number, country_code, twitter_handle, instagram_handle, facebook_handle, tiktok_handle } = req.body;
 
         if (!first_name || !last_name || !business_name || !email || !password || !phone_number) {
             return res.status(400).json({ message: 'Please add all fields' });
@@ -32,36 +32,22 @@ const registerUser = async (req, res) => {
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-        // Generate ID
-        const vendor_id = await generateVendorId(country_code || 'NG');
-
-        // Create user
+        // Create user with null vendor_id
         const query = `
-            INSERT INTO users (vendor_id, first_name, last_name, business_name, email, password_hash, phone_number) 
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO users (vendor_id, first_name, last_name, business_name, email, password_hash, phone_number, twitter_handle, instagram_handle, facebook_handle, tiktok_handle) 
+            VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
-        const [result] = await pool.execute(query, [vendor_id, first_name, last_name, business_name, email, hashedPassword, phone_number]);
+        const [result] = await pool.execute(query, [first_name, last_name, business_name, email, hashedPassword, phone_number, twitter_handle || null, instagram_handle || null, facebook_handle || null, tiktok_handle || null]);
 
         const newUserId = result.insertId;
 
-        // Generate Profile Link and QR Code
-        // Assuming frontend will be hosted on domain.com/profile/OLXXX
-        const profileLink = `https://onlok.com/profile/${vendor_id}`;
-        const qrCodeUrl = await generateQRCode(profileLink);
-
-        // Insert Vendor Profile
-        const profileQuery = `INSERT INTO vendor_profiles (user_id, profile_link, qr_code_url) VALUES (?, ?, ?)`;
-        await pool.execute(profileQuery, [newUserId, profileLink, qrCodeUrl]);
-
         res.status(201).json({
             id: newUserId,
-            vendor_id: vendor_id,
+            vendor_id: null,
             first_name,
             last_name,
             email,
-            profileLink,
-            qrCodeUrl,
-            token: generateToken(newUserId, 'vendor', vendor_id)
+            token: generateToken(newUserId, 'vendor', null)
         });
 
     } catch (error) {
@@ -81,9 +67,15 @@ const loginUser = async (req, res) => {
             return res.status(400).json({ message: 'Please provide your Onlok ID and password' });
         }
 
-        // Find User by vendor_id
-        const [rows] = await pool.query('SELECT * FROM users WHERE vendor_id = ?', [vendor_id]);
-        const user = rows[0];
+        // Check if input is email or vendor_id
+        let user;
+        if (vendor_id.includes('@')) {
+            const [rows] = await pool.query('SELECT * FROM users WHERE email = ?', [vendor_id]);
+            user = rows[0];
+        } else {
+            const [rows] = await pool.query('SELECT * FROM users WHERE vendor_id = ?', [vendor_id]);
+            user = rows[0];
+        }
 
         // Check password
         if (user && (await bcrypt.compare(password, user.password_hash))) {
@@ -99,7 +91,7 @@ const loginUser = async (req, res) => {
                 token: generateToken(user.id, user.role, user.vendor_id)
             });
         } else {
-            res.status(401).json({ message: 'Invalid Onlok ID or password' });
+            res.status(401).json({ message: 'Invalid Onlok ID / Email or password' });
         }
 
     } catch (error) {

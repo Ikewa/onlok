@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   Box, Container, Typography, TextField, Button, Checkbox,
-  FormControlLabel, Alert, CircularProgress, Paper, Switch
+  FormControlLabel, Alert, CircularProgress, Paper, Switch, ToggleButton, ToggleButtonGroup
 } from '@mui/material';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
@@ -14,6 +14,7 @@ export default function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
 
+  const [loginMethod, setLoginMethod] = useState<'id' | 'email'>('email');
   const [vendorId, setVendorId] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -98,13 +99,45 @@ export default function LoginPage() {
           {error && <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>{error}</Alert>}
 
           <Box component="form" onSubmit={handleSubmit}>
+            <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
+              <ToggleButtonGroup
+                value={loginMethod}
+                exclusive
+                onChange={(e, newMethod) => { if (newMethod) setLoginMethod(newMethod); }}
+                sx={{
+                  bgcolor: '#F1F5F9',
+                  p: 0.5,
+                  borderRadius: 3,
+                  '& .MuiToggleButton-root': {
+                    border: 'none',
+                    borderRadius: 2,
+                    px: 3,
+                    py: 0.8,
+                    fontWeight: 600,
+                    color: '#64748B',
+                    textTransform: 'none',
+                    '&.Mui-selected': {
+                      bgcolor: '#fff',
+                      color: '#1A1FE8',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                    },
+                    '&:hover': { bgcolor: '#fff', color: '#1A1FE8' }
+                  }
+                }}
+              >
+                <ToggleButton value="email">Email</ToggleButton>
+                <ToggleButton value="id">Onlok ID</ToggleButton>
+              </ToggleButtonGroup>
+            </Box>
+
             <Box sx={{ mb: 3.5 }}>
               <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#1E293B', mb: 1 }}>
-                Onlok ID
+                {loginMethod === 'email' ? 'Email Address' : 'Onlok ID'}
               </Typography>
               <TextField
                 fullWidth
-                placeholder="example OL-NG-00545"
+                type={loginMethod === 'email' ? 'email' : 'text'}
+                placeholder={loginMethod === 'email' ? "Enter your email" : "example OL-NG-00545"}
                 value={vendorId}
                 onChange={(e) => setVendorId(e.target.value)}
                 required

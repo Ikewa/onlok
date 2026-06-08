@@ -1,6 +1,8 @@
 const pool = require('../config/db');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const { generateVendorId } = require('../utils/generateId');
+const { generateQRCode } = require('../utils/qrCodeGenerator');
 
 // @desc    Auth admin & get token
 // @route   POST /api/admin/login
@@ -183,7 +185,24 @@ const updateVerificationStatus = async (req, res) => {
 
         // Update Users Table based on action
         if (status === 'approved') {
-            await pool.query(`UPDATE users SET status = 'verified' WHERE id = ?`, [verification.user_id]);
+            // Fetch user to check if they already have a vendor_id
+            const [userRows] = await pool.query('SELECT vendor_id FROM users WHERE id = ?', [verification.user_id]);
+            let vendor_id = userRows[0]?.vendor_id;
+
+            if (!vendor_id) {
+                vendor_id = await generateVendorId('NG');
+                const profileLink = `https://onlok.com/profile/${vendor_id}`;
+                const qrCodeUrl = await generateQRCode(profileLink);
+
+                // Update user with new vendor_id
+                await pool.query(`UPDATE users SET status = 'verified', vendor_id = ? WHERE id = ?`, [vendor_id, verification.user_id]);
+                
+                // Insert Vendor Profile
+                await pool.query(`INSERT INTO vendor_profiles (user_id, profile_link, qr_code_url) VALUES (?, ?, ?)`, [verification.user_id, profileLink, qrCodeUrl]);
+            } else {
+                await pool.query(`UPDATE users SET status = 'verified' WHERE id = ?`, [verification.user_id]);
+            }
+
             const [existingBadges] = await pool.query('SELECT id FROM badges WHERE user_id = ? AND badge_type = "verified_vendor"', [verification.user_id]);
             if (existingBadges.length === 0) {
                 await pool.query(`INSERT INTO badges (user_id, badge_type) VALUES (?, 'verified_vendor')`, [verification.user_id]);
@@ -308,6 +327,25 @@ const updateSettings = async (req, res) => {
     }
 };
 
+// @desc    Get mock users
+// @route   GET /api/admin/mock-users
+// @access  Public (Temporary)
+const getMockUsers = (req, res) => {
+    try {
+        const fs = require('fs');
+        const path = require('path');
+        const mockDataPath = path.join(__dirname, '..', 'mock_users.json');
+        if (fs.existsSync(mockDataPath)) {
+            const data = fs.readFileSync(mockDataPath, 'utf8');
+            res.status(200).json(JSON.parse(data));
+        } else {
+            res.status(404).json({ message: 'Mock data not found' });
+        }
+    } catch (error) {
+        res.status(500).json({ message: 'Error reading mock data' });
+    }
+};
+
 module.exports = {
     adminLogin,
     getVerificationQueue,
@@ -316,5 +354,6 @@ module.exports = {
     getDashboardMetrics,
     getAlerts,
     getSettings,
-    updateSettings
+    updateSettings,
+    getMockUsers
 };

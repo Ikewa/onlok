@@ -27,7 +27,7 @@ export default function LandingPage() {
     }}>
       <Navbar />
 
-      <Container maxWidth="lg" sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', py: { xs: 4, md: 12 } }}>
+      <Container maxWidth="lg" sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', py: { xs: 2, md: 4 } }}>
         <Box sx={{ textAlign: 'center', mb: { xs: 4, md: 8 } }}>
           {/* GIGANTIC Size - Virtually Cropped via CSS Zoom */}
           <Box sx={{ display: 'flex', justifyContent: 'center', mb: 8 }}>
@@ -154,27 +154,6 @@ export default function LandingPage() {
         }}>
           <Button
             variant="contained"
-            startIcon={<FlagIcon />}
-            sx={{
-              bgcolor: '#E11D48',
-              color: 'white',
-              borderRadius: '50px',
-              px: { xs: 2, md: 4 },
-              py: { xs: 1.5, md: 2 },
-              fontWeight: 600,
-              fontSize: { xs: '0.75rem', md: '1rem' },
-              textTransform: 'none',
-              minWidth: { xs: 'auto', md: 180 },
-              flexGrow: 1,
-              '&:hover': { bgcolor: '#BE123C' }
-            }}
-            component={RouterLink}
-            to="/report"
-          >
-            Report A User
-          </Button>
-          <Button
-            variant="contained"
             startIcon={<VerifiedUserIcon />}
             sx={{
               bgcolor: '#6366F1',
@@ -193,6 +172,27 @@ export default function LandingPage() {
             to="/register"
           >
             Get Verified
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<FlagIcon />}
+            sx={{
+              bgcolor: '#E11D48',
+              color: 'white',
+              borderRadius: '50px',
+              px: { xs: 2, md: 4 },
+              py: { xs: 1.5, md: 2 },
+              fontWeight: 600,
+              fontSize: { xs: '0.75rem', md: '1rem' },
+              textTransform: 'none',
+              minWidth: { xs: 'auto', md: 180 },
+              flexGrow: 1,
+              '&:hover': { bgcolor: '#BE123C' }
+            }}
+            component={RouterLink}
+            to="/report"
+          >
+            Report A User
           </Button>
         </Box>
       </Container>
