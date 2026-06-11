@@ -5,6 +5,7 @@ const morgan = require('morgan');
 const path = require('path');
 const fs = require('fs');
 const pool = require('./config/db');
+const runMigrations = require('./config/autoMigrate');
 const bcrypt = require('bcrypt');
 require('dotenv').config();
 
@@ -65,56 +66,8 @@ app.get(/.*/, (req, res) => {
     res.sendFile(path.join(frontendDistPath, 'index.html'));
 });
 
-// Auto-seed Admin Account on Startup (Ensures Live DB gets the admin)
-(async () => {
-    try {
-        const hash = await bcrypt.hash('admin123', 10);
-        const [existing] = await pool.query('SELECT id FROM users WHERE email = "admin@onlok.com"');
-        if (existing.length === 0) {
-            await pool.query(
-                "INSERT INTO users (vendor_id, first_name, last_name, business_name, email, password_hash, phone_number, role, status) VALUES (?, ?, ?, ?, ?, ?, ?, 'admin', 'verified')",
-                ['ONL-ADMIN-01', 'Admin', 'User', 'Onlok', 'admin@onlok.com', hash, '0000000000']
-            );
-            console.log('✅ Auto-seeded admin@onlok.com into DB.');
-        } else {
-            await pool.query('UPDATE users SET password_hash = ?, role = "admin" WHERE email = "admin@onlok.com"', [hash]);
-            console.log('✅ Auto-reset admin@onlok.com password in DB.');
-        }
-
-        // Auto-migrate: Add missing admin_notes column to verifications if it doesn't exist
-        try {
-            await pool.query("ALTER TABLE verifications ADD COLUMN admin_notes TEXT NULL AFTER status");
-            console.log('✅ Added admin_notes column to verifications table.');
-        } catch (err) {
-            if (err.code !== 'ER_DUP_FIELDNAME') {
-                console.error('Migration notice (admin_notes):', err.message);
-            }
-        }
-
-        // Auto-migrate: Create missing admin_settings and audit_logs tables
-        await pool.query(`
-            CREATE TABLE IF NOT EXISTS admin_settings (
-                setting_key VARCHAR(50) PRIMARY KEY,
-                setting_value TEXT NOT NULL
-            )
-        `);
-        await pool.query(`
-            CREATE TABLE IF NOT EXISTS audit_logs (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                user_id INT NULL,
-                action VARCHAR(255) NOT NULL,
-                severity ENUM('LOW', 'MEDIUM', 'HIGH', 'CRITICAL') DEFAULT 'LOW',
-                details TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
-            )
-        `);
-        console.log('✅ Auto-migrated admin tables (settings & audit_logs).');
-
-    } catch (err) {
-        console.error('Failed to auto-seed admin:', err.message);
-    }
-})();
+// Auto-migrate: create tables, add missing columns, seed admin
+runMigrations();
 
 // Start the server
 const port = process.env.PORT || 5000;
