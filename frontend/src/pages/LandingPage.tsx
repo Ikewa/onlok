@@ -154,37 +154,7 @@ export default function LandingPage() {
           px: 1,
           mb: 4
         }}>
-          <Button
-            variant="contained"
-            startIcon={
-              <Box sx={{ 
-                width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                background: 'linear-gradient(135deg, #fce4ec 0%, #f8bbd0 100%)',
-                boxShadow: '2px 2px 5px rgba(0,0,0,0.2), -2px -2px 5px rgba(255,255,255,0.5), inset 1px 1px 3px rgba(255,255,255,0.5), inset -1px -1px 3px rgba(0,0,0,0.1)',
-                transform: 'perspective(500px) rotateX(10deg) rotateY(-10deg)',
-                mr: 0.5
-              }}>
-                <FlagIcon sx={{ fontSize: 18, color: '#E11D48', filter: 'drop-shadow(1px 1px 1px rgba(225,29,72,0.4))' }} />
-              </Box>
-            }
-            sx={{
-              bgcolor: '#E11D48',
-              color: 'white',
-              borderRadius: '50px',
-              px: { xs: 2, md: 4 },
-              py: { xs: 1.5, md: 2 },
-              fontWeight: 600,
-              fontSize: { xs: '0.75rem', md: '1rem' },
-              textTransform: 'none',
-              minWidth: { xs: 'auto', md: 180 },
-              flexGrow: 1,
-              '&:hover': { bgcolor: '#BE123C' }
-            }}
-            component={RouterLink}
-            to="/report"
-          >
-            Report A User
-          </Button>
+          {/* Get Verified — LEFT */}
           <Button
             variant="contained"
             startIcon={
@@ -215,6 +185,38 @@ export default function LandingPage() {
             to="/register"
           >
             Get Verified
+          </Button>
+          {/* Report A User — RIGHT */}
+          <Button
+            variant="contained"
+            startIcon={
+              <Box sx={{ 
+                width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: 'linear-gradient(135deg, #fce4ec 0%, #f8bbd0 100%)',
+                boxShadow: '2px 2px 5px rgba(0,0,0,0.2), -2px -2px 5px rgba(255,255,255,0.5), inset 1px 1px 3px rgba(255,255,255,0.5), inset -1px -1px 3px rgba(0,0,0,0.1)',
+                transform: 'perspective(500px) rotateX(10deg) rotateY(-10deg)',
+                mr: 0.5
+              }}>
+                <FlagIcon sx={{ fontSize: 18, color: '#E11D48', filter: 'drop-shadow(1px 1px 1px rgba(225,29,72,0.4))' }} />
+              </Box>
+            }
+            sx={{
+              bgcolor: '#E11D48',
+              color: 'white',
+              borderRadius: '50px',
+              px: { xs: 2, md: 4 },
+              py: { xs: 1.5, md: 2 },
+              fontWeight: 600,
+              fontSize: { xs: '0.75rem', md: '1rem' },
+              textTransform: 'none',
+              minWidth: { xs: 'auto', md: 180 },
+              flexGrow: 1,
+              '&:hover': { bgcolor: '#BE123C' }
+            }}
+            component={RouterLink}
+            to="/report"
+          >
+            Report A User
           </Button>
         </Box>
       </Container>
