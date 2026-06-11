@@ -54,26 +54,49 @@ const searchVendor = async (req, res) => {
         }
 
         const { page, limit, startIndex } = req.pagination;
-
         const searchQuery = `%${q}%`;
-        const query = `
-            SELECT id, vendor_id, first_name, last_name, business_name, status, created_at, twitter_handle, instagram_handle, facebook_handle, tiktok_handle 
-            FROM users 
-            WHERE (vendor_id LIKE ? OR business_name LIKE ?) AND role = 'vendor'
-            LIMIT ? OFFSET ?
-        `;
-        const [vendors] = await pool.query(query, [searchQuery, searchQuery, limit, startIndex]);
+
+        // Try with tiktok_handle; if the column doesn't exist yet fall back
+        let vendors;
+        try {
+            const query = `
+                SELECT id, vendor_id, first_name, last_name, business_name, status, created_at,
+                       twitter_handle, instagram_handle, facebook_handle, tiktok_handle
+                FROM users
+                WHERE (vendor_id LIKE ? OR business_name LIKE ?) AND role = 'vendor'
+                LIMIT ? OFFSET ?
+            `;
+            [vendors] = await pool.query(query, [searchQuery, searchQuery, limit, startIndex]);
+        } catch (colErr) {
+            if (colErr.code === 'ER_BAD_FIELD_ERROR') {
+                // tiktok_handle column not yet migrated — retry without it
+                const fallback = `
+                    SELECT id, vendor_id, first_name, last_name, business_name, status, created_at,
+                           twitter_handle, instagram_handle, facebook_handle
+                    FROM users
+                    WHERE (vendor_id LIKE ? OR business_name LIKE ?) AND role = 'vendor'
+                    LIMIT ? OFFSET ?
+                `;
+                [vendors] = await pool.query(fallback, [searchQuery, searchQuery, limit, startIndex]);
+                vendors = vendors.map(v => ({ ...v, tiktok_handle: null }));
+            } else {
+                throw colErr;
+            }
+        }
 
         if (vendors.length === 0) {
-             return res.status(404).json({ message: 'No vendors found matching your query.' });
+            return res.status(404).json({ message: 'No vendors found matching your query.' });
         }
 
         // Fetch badges and verification info for found vendors
         for (let vendor of vendors) {
             const [badges] = await pool.query('SELECT badge_type FROM badges WHERE user_id = ?', [vendor.id]);
             vendor.badges = badges.map(b => b.badge_type);
-            
-            const [verifications] = await pool.query('SELECT reviewed_at FROM verifications WHERE user_id = ? AND status = "approved" ORDER BY reviewed_at DESC LIMIT 1', [vendor.id]);
+
+            const [verifications] = await pool.query(
+                'SELECT reviewed_at FROM verifications WHERE user_id = ? AND status = "approved" ORDER BY reviewed_at DESC LIMIT 1',
+                [vendor.id]
+            );
             vendor.last_verified = verifications.length > 0 ? verifications[0].reviewed_at : null;
         }
 
