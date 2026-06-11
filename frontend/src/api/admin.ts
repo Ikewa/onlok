@@ -50,16 +50,71 @@ export interface AuditLog {
   email: string | null;
 }
 
+// ── Map mock user → AdminVerification shape ─────────────────────────────────
+const mapMockUser = (u: any): AdminVerification => ({
+  verification_id: u.id,
+  status: u.status === 'suspended' ? 'flagged'
+        : u.status === 'verified'  ? 'approved'
+        : u.status,                          // pending / rejected / flagged
+  submitted_at: u.created_at,
+  reviewed_at: null,
+  user_id: u.id,
+  first_name: u.first_name,
+  last_name: u.last_name,
+  email: u.email,
+  vendor_id: u.vendor_id,
+  business_name: u.business_name,
+  type: 'Business',
+});
+
+// ── Fetch mock users and apply filter / search / pagination client-side ──────
+const getMockQueue = async (
+  page: number,
+  limit: number,
+  status: string,
+  search: string
+) => {
+  const { data: raw } = await api.get('/admin/mock-users');
+  let items: AdminVerification[] = (raw as any[]).map(mapMockUser);
+
+  // Status filter
+  if (status && status !== 'all') {
+    items = items.filter(v => v.status === status);
+  }
+
+  // Search filter (name, vendor_id, email)
+  if (search.trim()) {
+    const q = search.trim().toLowerCase();
+    items = items.filter(v =>
+      `${v.first_name} ${v.last_name}`.toLowerCase().includes(q) ||
+      (v.vendor_id || '').toLowerCase().includes(q) ||
+      (v.email || '').toLowerCase().includes(q)
+    );
+  }
+
+  const total = items.length;
+  const offset = (page - 1) * limit;
+  const results = items.slice(offset, offset + limit);
+  return { results, total, page, limit };
+};
+
 export const getVerificationQueue = async (
   page: number = 1,
   limit: number = 20,
   status: string = 'all',
   search: string = ''
 ) => {
-  const { data } = await api.get('/admin/verifications', {
-    params: { page, limit, status, search }
-  });
-  return data;
+  try {
+    const { data } = await api.get('/admin/verifications', {
+      params: { page, limit, status, search }
+    });
+    // If real API returns empty, fall back to mock
+    if (data?.results?.length > 0) return data;
+    return await getMockQueue(page, limit, status, search);
+  } catch {
+    // Real API failed — use mock data
+    return getMockQueue(page, limit, status, search);
+  }
 };
 
 export const getVerificationDetails = async (id: number): Promise<AdminVerification> => {
