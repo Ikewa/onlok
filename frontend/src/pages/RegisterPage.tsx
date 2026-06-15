@@ -112,22 +112,39 @@ export default function RegisterPage() {
     if (activeStep === 3) {
       setLoading(true);
       try {
-        const user = await registerUser({
-          first_name: form.first_name,
-          last_name: form.last_name,
-          business_name: form.business_name,
-          email: form.email,
-          password: form.password,
-          phone_number: form.phone_number,
-          country_code: form.country_code,
-        });
-        setRegisteredUser(user);
-        login(user);
-        await submitVerification(form.gov_id_file!, form.business_video_file!); // API doesn't seem to expect CAC yet, might need backend update if required
+        let user = registeredUser;
+        
+        // 1. Only register if we haven't successfully registered them yet in this session
+        if (!user) {
+          user = await registerUser({
+            first_name: form.first_name,
+            last_name: form.last_name,
+            business_name: form.business_name,
+            email: form.email,
+            password: form.password,
+            phone_number: form.phone_number,
+            country_code: form.country_code,
+          });
+          setRegisteredUser(user);
+          login(user);
+        }
+
+        // 2. Now attempt to upload the files
+        await submitVerification(form.gov_id_file!, form.business_video_file!);
+        
         toast.success('Verification submitted!');
         setActiveStep(4); // Success screen
       } catch (err: any) {
-        const msg = err?.response?.data?.message ?? 'Registration failed. Please try again.';
+        console.error('Submission error:', err);
+        let msg = err?.response?.data?.message;
+        
+        // Handle NGINX / server limits (e.g. 413 Payload Too Large)
+        if (err?.response?.status === 413) {
+          msg = 'Your video file is too large. Please upload a smaller video (max 50MB).';
+        } else if (!msg) {
+          msg = 'Registration failed or file is too large. Please check your connection and try again.';
+        }
+        
         toast.error(msg);
       } finally {
         setLoading(false);
@@ -516,6 +533,26 @@ const GridRow = ({ label, value }: { label: string; value: string }) => (
 );
 
 const FileUploadDropzone = ({ file, onChange, onRemove, title, labels, accept, maxSize, icon }: any) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (!selectedFile) return;
+
+    // Determine max size in bytes based on the prop string (e.g. "50MB" or "10MB")
+    let maxBytes = 50 * 1024 * 1024; // Default to 50MB
+    if (typeof maxSize === 'string' && maxSize.toLowerCase().includes('mb')) {
+      const mbValue = parseInt(maxSize.toLowerCase().replace('mb', ''));
+      if (!isNaN(mbValue)) maxBytes = mbValue * 1024 * 1024;
+    }
+
+    if (selectedFile.size > maxBytes) {
+      toast.error(`File is too large. Maximum size is ${maxSize}.`);
+      e.target.value = ''; // Reset input
+      return;
+    }
+
+    onChange(selectedFile);
+  };
+
   if (file) {
     return (
       <Box sx={{ p: 2, borderRadius: 2, border: '1px solid #00BCD4', bgcolor: '#E0F7FA', display: 'flex', alignItems: 'center', mb: 3 }}>
@@ -554,7 +591,7 @@ const FileUploadDropzone = ({ file, onChange, onRemove, title, labels, accept, m
           <Chip key={l} label={l} size="small" variant="outlined" sx={{ borderRadius: 1, color: '#64748B', borderColor: '#E2E8F0' }} />
         ))}
       </Stack>
-      <input type="file" accept={accept} hidden onChange={(e) => e.target.files?.[0] && onChange(e.target.files[0])} style={{ display: 'none' }} id={`upload-${title}`} />
+      <input type="file" accept={accept} hidden onChange={handleFileChange} style={{ display: 'none' }} id={`upload-${title}`} />
       <label htmlFor={`upload-${title}`} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, cursor: 'pointer' }} />
     </Box>
   );
