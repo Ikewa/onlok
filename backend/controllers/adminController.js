@@ -346,6 +346,104 @@ const getMockUsers = (req, res) => {
     }
 };
 
+// @desc    Get all referrals and global stats
+// @route   GET /api/admin/referrals
+// @access  Private/Admin
+const getReferralsAdmin = async (req, res) => {
+    try {
+        const [referrals] = await pool.query(`
+            SELECT r.*, 
+                   referrer.first_name as referrer_first_name, referrer.last_name as referrer_last_name,
+                   referred.business_name as referred_business_name, referred.first_name as referred_first_name, referred.last_name as referred_last_name
+            FROM referrals r
+            JOIN users referrer ON r.referrer_id = referrer.id
+            JOIN users referred ON r.referred_user_id = referred.id
+            ORDER BY r.created_at DESC
+        `);
+
+        let totalReferrals = referrals.length;
+        let totalCommissionsGenerated = 0;
+        let totalPendingCommissions = 0;
+        let totalAvailableCommissions = 0;
+
+        referrals.forEach(ref => {
+            if (ref.status !== 'cancelled' && ref.status !== 'reversed') {
+                totalCommissionsGenerated += parseFloat(ref.commission_earned);
+            }
+            if (ref.status === 'pending') {
+                totalPendingCommissions += parseFloat(ref.commission_earned);
+            }
+            if (ref.status === 'available') {
+                totalAvailableCommissions += parseFloat(ref.commission_earned);
+            }
+        });
+
+        // Also get total paid from withdrawals
+        const [paidWithdrawals] = await pool.query(`SELECT SUM(amount) as total_paid FROM withdrawals WHERE status = 'paid'`);
+        let totalCommissionsPaid = paidWithdrawals[0].total_paid || 0;
+
+        res.status(200).json({
+            stats: {
+                totalReferrals,
+                totalCommissionsGenerated,
+                totalPendingCommissions,
+                totalAvailableCommissions,
+                totalCommissionsPaid
+            },
+            referrals
+        });
+    } catch (error) {
+        console.error('Admin Referrals Fetch Error:', error);
+        res.status(500).json({ message: 'Server error fetching admin referrals' });
+    }
+};
+
+// @desc    Get all withdrawals
+// @route   GET /api/admin/withdrawals
+// @access  Private/Admin
+const getWithdrawalsAdmin = async (req, res) => {
+    try {
+        const [withdrawals] = await pool.query(`
+            SELECT w.*, u.first_name, u.last_name, u.email 
+            FROM withdrawals w
+            JOIN users u ON w.user_id = u.id
+            ORDER BY w.created_at DESC
+        `);
+        res.status(200).json(withdrawals);
+    } catch (error) {
+        console.error('Admin Withdrawals Fetch Error:', error);
+        res.status(500).json({ message: 'Server error fetching admin withdrawals' });
+    }
+};
+
+// @desc    Update withdrawal status
+// @route   PUT /api/admin/withdrawals/:id/status
+// @access  Private/Admin
+const updateWithdrawalStatus = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status } = req.body;
+
+        if (!['processing', 'paid', 'failed'].includes(status)) {
+            return res.status(400).json({ message: 'Invalid status' });
+        }
+
+        await pool.query('UPDATE withdrawals SET status = ? WHERE id = ?', [status, id]);
+
+        // Insert audit log
+        await pool.query(
+            'INSERT INTO audit_logs (user_id, action, severity, details) VALUES (NULL, ?, ?, ?)',
+            ['Update withdrawal status', 'LOW', `Admin updated withdrawal ${id} to ${status}`]
+        );
+
+        res.status(200).json({ message: 'Withdrawal status updated successfully' });
+    } catch (error) {
+        console.error('Admin Update Withdrawal Error:', error);
+        res.status(500).json({ message: 'Server error updating withdrawal status' });
+    }
+};
+
+
 module.exports = {
     adminLogin,
     getVerificationQueue,
@@ -355,5 +453,8 @@ module.exports = {
     getAlerts,
     getSettings,
     updateSettings,
-    getMockUsers
+    getMockUsers,
+    getReferralsAdmin,
+    getWithdrawalsAdmin,
+    updateWithdrawalStatus
 };

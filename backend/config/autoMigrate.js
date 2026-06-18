@@ -126,7 +126,7 @@ async function createTables() {
             subscription_plan  VARCHAR(50) NOT NULL,
             amount_paid        DECIMAL(10,2) NOT NULL,
             commission_earned  DECIMAL(10,2) NOT NULL,
-            status             ENUM('pending','available','withdrawn','cancelled') DEFAULT 'pending',
+            status             ENUM('pending','available','processing','paid','withdrawn','cancelled','reversed') DEFAULT 'pending',
             created_at         TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at         TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             FOREIGN KEY (referrer_id) REFERENCES users(id) ON DELETE CASCADE,
@@ -171,6 +171,8 @@ const COLUMN_MIGRATIONS = [
     // Example:
     // { table: 'users', column: 'bio', definition: 'TEXT NULL AFTER tiktok_handle' },
     { table: 'users', column: 'referred_by', definition: 'INT NULL AFTER vendor_id' },
+    // Update referrals status enum
+    { table: 'referrals', column: 'status', definition: "ENUM('pending','available','processing','paid','withdrawn','cancelled','reversed') DEFAULT 'pending' AFTER commission_earned" },
 ];
 
 async function addMissingColumns() {

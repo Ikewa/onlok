@@ -9,7 +9,10 @@ const {
     getAlerts,
     getSettings,
     updateSettings,
-    getMockUsers
+    getMockUsers,
+    getReferralsAdmin,
+    getWithdrawalsAdmin,
+    updateWithdrawalStatus
 } = require('../controllers/adminController');
 const { protect, adminOnly } = require('../middlewares/authMiddleware');
 
@@ -35,5 +38,10 @@ router.get('/alerts', getAlerts);
 // Settings
 router.get('/settings', getSettings);
 router.put('/settings', updateSettings);
+
+// Referrals & Withdrawals
+router.get('/referrals', getReferralsAdmin);
+router.get('/withdrawals', getWithdrawalsAdmin);
+router.put('/withdrawals/:id/status', updateWithdrawalStatus);
 
 module.exports = router;

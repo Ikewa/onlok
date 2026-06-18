@@ -32,6 +32,7 @@ import AdminLoginPage from './pages/admin/AdminLoginPage';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminAlerts from './pages/admin/AdminAlerts';
 import AdminSettings from './pages/admin/AdminSettings';
+import AdminReferrals from './pages/admin/AdminReferrals';
 import { Navigate } from 'react-router-dom';
 
 export default function App() {
@@ -80,6 +81,7 @@ export default function App() {
               <Route path="/admin/dashboard" element={<AdminDashboard />} />
               <Route path="/admin/alerts" element={<AdminAlerts />} />
               <Route path="/admin/settings" element={<AdminSettings />} />
+              <Route path="/admin/referrals" element={<AdminReferrals />} />
             </Route>
           </Routes>
           <MobileBottomNav />
