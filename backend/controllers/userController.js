@@ -191,46 +191,91 @@ const deleteUser = async (req, res) => {
     }
 };
 
-// @desc    Get user referrals
+// @desc    Get user referrals and withdrawals
 // @route   GET /api/users/referrals
 // @access  Private
 const getReferrals = async (req, res) => {
     try {
         const userId = req.user.id;
         
-        // Fetch all referrals
-        const [referrals] = await pool.query('SELECT id, first_name, last_name, status, created_at FROM users WHERE referred_by = ? ORDER BY created_at DESC', [userId]);
-        
-        const totalReferrals = referrals.length;
-        const verifiedReferrals = referrals.filter(r => r.status === 'verified').length;
-        const earnings = verifiedReferrals * 5000; // 5000 NGN per verified referral
+        // 1. Automatically move pending > 7 days to available
+        await pool.query(`
+            UPDATE referrals 
+            SET status = 'available' 
+            WHERE referrer_id = ? 
+              AND status = 'pending' 
+              AND created_at <= DATE_SUB(NOW(), INTERVAL 7 DAY)
+        `, [userId]);
 
-        // Calculate last 7 days chart data
-        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-        const today = new Date();
-        const chartData = [];
-        
-        for (let i = 6; i >= 0; i--) {
-            const d = new Date(today);
-            d.setDate(d.getDate() - i);
-            const dayName = days[d.getDay()];
-            
-            // Count signups on this day
-            const startOfDay = new Date(d.setHours(0,0,0,0));
-            const endOfDay = new Date(d.setHours(23,59,59,999));
-            
-            const count = referrals.filter(r => {
-                const rDate = new Date(r.created_at);
-                return rDate >= startOfDay && rDate <= endOfDay;
-            }).length;
+        // 2. Fetch all referrals with user details
+        const [referrals] = await pool.query(`
+            SELECT r.id, r.subscription_plan, r.amount_paid, r.commission_earned, r.status, r.created_at, 
+                   u.business_name, u.first_name, u.last_name
+            FROM referrals r
+            JOIN users u ON r.referred_user_id = u.id
+            WHERE r.referrer_id = ?
+            ORDER BY r.created_at DESC
+        `, [userId]);
 
-            chartData.push({ name: dayName, uv: count });
-        }
+        // 3. Fetch withdrawals
+        const [withdrawals] = await pool.query(`
+            SELECT id, amount, status, payment_method, created_at 
+            FROM withdrawals 
+            WHERE user_id = ?
+            ORDER BY created_at DESC
+        `, [userId]);
+
+        // 4. Calculate stats
+        let pendingEarnings = 0;
+        let availableEarnings = 0;
+        let lifetimeEarnings = 0;
+        let totalWithdrawn = 0;
+        let pendingWithdrawals = 0;
+        let successfulReferrals = 0;
+
+        referrals.forEach(r => {
+            if (r.status !== 'cancelled') {
+                lifetimeEarnings += parseFloat(r.commission_earned);
+                successfulReferrals++;
+            }
+            if (r.status === 'pending') {
+                pendingEarnings += parseFloat(r.commission_earned);
+            } else if (r.status === 'available') {
+                availableEarnings += parseFloat(r.commission_earned);
+            }
+        });
+
+        withdrawals.forEach(w => {
+            if (w.status === 'paid') {
+                totalWithdrawn += parseFloat(w.amount);
+            } else if (w.status === 'processing') {
+                pendingWithdrawals += parseFloat(w.amount);
+            }
+        });
+
+        // The current wallet balance is the sum of available referrals minus any withdrawals that are processing or paid
+        // Since we are not changing referral status to 'withdrawn' explicitly (unless we want to), it's safer to deduct withdrawals.
+        const currentWalletBalance = availableEarnings - totalWithdrawn - pendingWithdrawals;
+        
+        // But if we want Available Earnings to show just available minus withdrawals:
+        // Actually, let's keep availableEarnings as the gross available, and currentWalletBalance as net available.
+        // The spec says: Available Earnings = Sum of all commissions with Available status.
+        // So Available Earnings in UI should be the currentWalletBalance if they want to see what they can withdraw.
+        const netAvailable = currentWalletBalance > 0 ? currentWalletBalance : 0;
 
         res.status(200).json({
-            stats: { total: totalReferrals, verified: verifiedReferrals, earnings },
-            recentActivity: referrals.slice(0, 10), // Top 10 most recent
-            chartData
+            stats: {
+                totalReferrals: referrals.length,
+                successfulReferrals,
+                pendingEarnings,
+                availableEarnings: netAvailable,
+                lifetimeEarnings,
+                totalWithdrawn,
+                pendingWithdrawals,
+                currentWalletBalance: netAvailable
+            },
+            referrals,
+            withdrawals
         });
     } catch (error) {
         console.error('Get Referrals Error:', error);

@@ -117,6 +117,37 @@ async function createTables() {
         )
     `);
 
+    // Referrals
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS referrals (
+            id                 INT AUTO_INCREMENT PRIMARY KEY,
+            referrer_id        INT NOT NULL,
+            referred_user_id   INT NOT NULL,
+            subscription_plan  VARCHAR(50) NOT NULL,
+            amount_paid        DECIMAL(10,2) NOT NULL,
+            commission_earned  DECIMAL(10,2) NOT NULL,
+            status             ENUM('pending','available','withdrawn','cancelled') DEFAULT 'pending',
+            created_at         TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at         TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            FOREIGN KEY (referrer_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY (referred_user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+    `);
+
+    // Withdrawals
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS withdrawals (
+            id              INT AUTO_INCREMENT PRIMARY KEY,
+            user_id         INT NOT NULL,
+            amount          DECIMAL(10,2) NOT NULL,
+            status          ENUM('processing','paid','failed') DEFAULT 'processing',
+            payment_method  VARCHAR(255) NULL,
+            created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+    `);
+
     console.log('✅ [AutoMigrate] All tables verified / created.');
 }
 
@@ -139,6 +170,7 @@ const COLUMN_MIGRATIONS = [
     // ── ADD NEW COLUMNS BELOW THIS LINE ──────────────────────────
     // Example:
     // { table: 'users', column: 'bio', definition: 'TEXT NULL AFTER tiktok_handle' },
+    { table: 'users', column: 'referred_by', definition: 'INT NULL AFTER vendor_id' },
 ];
 
 async function addMissingColumns() {

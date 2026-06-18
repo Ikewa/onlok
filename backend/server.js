@@ -43,12 +43,14 @@ const verificationRoutes = require('./routes/verificationRoute');
 const dashboardRoutes = require('./routes/dashboardRoute');
 const reportRoutes = require('./routes/reportRoute');
 const adminRoutes = require('./routes/adminRoute');
+const withdrawalRoutes = require('./routes/withdrawalRoute');
 
 app.use('/api/users', userRoutes);
 app.use('/api/verifications', verificationRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/withdrawals', withdrawalRoutes);
 
 // Test Route
 app.get('/api/health', (req, res) => {
