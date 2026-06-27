@@ -158,3 +158,9 @@ export const updateSettings = async (settings: Record<string, string>) => {
   const { data } = await api.put('/admin/settings', settings);
   return data;
 };
+
+export const getAdminReports = async () => {
+  const { data } = await api.get('/reports');
+  return data;
+};
+

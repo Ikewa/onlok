@@ -11,6 +11,7 @@ const navItems = [
   { text: 'Dashboard', icon: <DashboardIcon />, path: '/admin/dashboard' },
   { text: 'Verification Queue', icon: <QueueIcon />, path: '/admin/verifications' },
   { text: 'Referrals & Payouts', icon: <AccountBalanceWalletOutlinedIcon />, path: '/admin/referrals' },
+  { text: 'Complaints & Reports', icon: <WarningAmberIcon />, path: '/admin/complaints' },
   { text: 'Alerts & Risk', icon: <WarningAmberIcon />, path: '/admin/alerts' },
   { text: 'Admin Settings', icon: <SettingsIcon />, path: '/admin/settings' },
 ];

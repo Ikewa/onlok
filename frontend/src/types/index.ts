@@ -72,13 +72,10 @@ export type ReportCategory =
   | 'fraud'
   | 'impersonation'
   | 'harassment'
-  | 'inaccurate_information';
+  | 'inaccurate_information'
+  | 'others';
 
-export interface ReportPayload {
-  reported_vendor_id: string;
-  category: ReportCategory;
-  context: string;
-}
+export type ReportPayload = FormData;
 
 export interface RegisterPayload {
   first_name: string;

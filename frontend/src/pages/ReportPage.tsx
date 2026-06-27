@@ -1,47 +1,80 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import MoneyOffIcon from '@mui/icons-material/MoneyOff';
 import FaceRetouchingNaturalIcon from '@mui/icons-material/FaceRetouchingNatural';
 import VolumeOffIcon from '@mui/icons-material/VolumeOff';
 import GppBadIcon from '@mui/icons-material/GppBad';
-import InfoIcon from '@mui/icons-material/Info';
-import DashboardIcon from '@mui/icons-material/Dashboard';
-import SearchIcon from '@mui/icons-material/Search';
-import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
-import ShieldIcon from '@mui/icons-material/Shield';
-import { Box, Container, Typography, TextField, Button, Paper, Alert, CircularProgress, Avatar } from '@mui/material';
-import { Link as RouterLink } from 'react-router-dom';
+import CategoryIcon from '@mui/icons-material/Category';
+import EmailIcon from '@mui/icons-material/Email';
+import PhoneIcon from '@mui/icons-material/Phone';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import { Box, Container, Typography, TextField, Button, Paper, Alert, InputAdornment, Checkbox, FormControlLabel } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
 import { submitReport } from '../api/reports';
-import { useAuth } from '../context/AuthContext';
+import Navbar from '../components/Navbar';
 import type { ReportCategory } from '../types';
 import toast from 'react-hot-toast';
+import { useDropzone } from 'react-dropzone';
 
 const categories: { value: ReportCategory; label: string; desc: string; icon: any }[] = [
-  { value: 'fraud', label: 'Fraud', desc: 'Suspicious Financial Activity Or Deceptive Schemes.', icon: <MoneyOffIcon sx={{ color: '#1A1FE8' }} /> },
-  { value: 'impersonation', label: 'Impersonation', desc: 'Claiming To Be Someone Else Or An Official Entity.', icon: <FaceRetouchingNaturalIcon sx={{ color: '#1A1FE8' }} /> },
-  { value: 'harassment', label: 'Harassment', desc: 'Repeated Unwanted Contact Or Offensive Language.', icon: <VolumeOffIcon sx={{ color: '#1A1FE8' }} /> },
-  { value: 'inaccurate_information', label: 'Inaccurate Information', desc: 'Misleading Profile Data Or False Credentials.', icon: <GppBadIcon sx={{ color: '#1A1FE8' }} /> },
+  { value: 'fraud', label: 'Fraud', desc: 'Suspicious Financial Activity', icon: <MoneyOffIcon /> },
+  { value: 'impersonation', label: 'Impersonation', desc: 'Claiming To Be Someone Else', icon: <FaceRetouchingNaturalIcon /> },
+  { value: 'harassment', label: 'Harassment', desc: 'Repeated Unwanted Contact', icon: <VolumeOffIcon /> },
+  { value: 'inaccurate_information', label: 'Inaccurate Info', desc: 'Misleading Profile Data', icon: <GppBadIcon /> },
+  { value: 'others', label: 'Others', desc: 'Other violations', icon: <CategoryIcon /> },
 ];
 
 export default function ReportPage() {
-  const { user } = useAuth();
+  const navigate = useNavigate();
   const [vendorId, setVendorId] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [category, setCategory] = useState<ReportCategory | ''>('');
   const [context, setContext] = useState('');
+  const [agreed, setAgreed] = useState(false);
+  const [files, setFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [submitted, setSubmitted] = useState(false);
+
+  const onDrop = useCallback((acceptedFiles: File[]) => {
+    setFiles((prev) => [...prev, ...acceptedFiles]);
+  }, []);
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop, accept: { 'image/*': [], 'application/pdf': [], 'video/*': [] } });
 
   const handleSubmit = async () => {
     setError('');
 
-    if (!vendorId.trim()) { setError('Please enter the user ID.'); return; }
+    if (!vendorId.trim()) { setError('Please enter the Order/Vendor ID.'); return; }
+    if (!email.trim()) { setError('Please enter your Contact Email.'); return; }
     if (!category) { setError('Please select a report category.'); return; }
-    if (context.trim().length < 10) { setError('Please provide more detail.'); return; }
+    if (context.trim().length < 10) { setError('Please provide a detailed description (at least 10 characters).'); return; }
+    if (!agreed) { setError('You must declare that the information provided is accurate.'); return; }
 
     setLoading(true);
     try {
-      await submitReport({ reported_vendor_id: vendorId.trim(), category: category as ReportCategory, context });
-      setSubmitted(true);
+      const formData = new FormData();
+      formData.append('reported_vendor_id', vendorId.trim());
+      formData.append('category', category);
+      formData.append('context', context);
+      formData.append('contact_email', email);
+      formData.append('phone_number', phone);
+      
+      files.forEach(file => {
+        formData.append('evidence', file);
+      });
+
+      const response = await submitReport(formData);
+      
+      navigate('/report-success', { 
+        state: { 
+          reference_number: response.reference_number, 
+          reported_vendor_id: vendorId, 
+          category: category, 
+          date: new Date().toLocaleString(),
+          complainantName: 'Anonymous'
+        } 
+      });
+
     } catch (err: any) {
       setError(err?.response?.data?.message ?? 'Failed to submit report. Please try again.');
       toast.error('Failed to submit report');
@@ -50,195 +83,157 @@ export default function ReportPage() {
     }
   };
 
-  if (submitted) {
-    return (
-      <Box sx={{ minHeight: '100vh', bgcolor: '#fff', display: 'flex', flexDirection: 'column' }}>
-        <Container maxWidth="sm" sx={{ py: 6, flexGrow: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
-          <Box sx={{ width: 80, height: 80, bgcolor: '#EEF2FF', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 3 }}>
-            <ShieldIcon sx={{ fontSize: 40, color: '#1A1FE8' }} />
-          </Box>
-          <Typography variant="h5" sx={{ fontWeight: 800, color: '#0F172A', mb: 1.5 }}>Report Submitted</Typography>
-          <Typography variant="body1" sx={{ color: '#64748B', mb: 4, px: 2 }}>
-            Thank you for keeping our community safe. We will review your report and take necessary actions.
-          </Typography>
-          <Button 
-            fullWidth 
-            variant="contained" 
-            component={RouterLink} 
-            to="/"
-            sx={{ bgcolor: '#1A1FE8', borderRadius: 8, py: 1.8, textTransform: 'none', fontWeight: 700, fontSize: '1rem', '&:hover': { bgcolor: '#1318C0' } }}
-          >
-            Back To Dashboard
-          </Button>
-        </Container>
-      </Box>
-    );
-  }
+  const removeFile = (index: number) => {
+    setFiles(prev => prev.filter((_, i) => i !== index));
+  };
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', bgcolor: '#fff' }}>
-      <Container maxWidth="sm" sx={{ pt: 2, pb: 10, px: 3, flexGrow: 1, position: 'relative' }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', bgcolor: '#F8FAFC' }}>
+      <Navbar />
+      <Container maxWidth="lg" sx={{ pt: { xs: 4, md: 6 }, pb: 10 }}>
         
-        {/* Top Header */}
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
-          {user ? (
-            <Avatar sx={{ width: 44, height: 44, bgcolor: '#1A1FE8', fontSize: '1.2rem', fontWeight: 800 }}>
-              {user.first_name?.[0]?.toUpperCase()}{user.last_name?.[0]?.toUpperCase()}
-            </Avatar>
-          ) : (
-            <Avatar sx={{ width: 44, height: 44 }} />
-          )}
+        <Box sx={{ textAlign: 'center', mb: 6 }}>
+          <Typography variant="h4" sx={{ fontWeight: 800, color: '#0F172A', mb: 1.5 }}>Report User</Typography>
+          <Typography variant="body1" sx={{ color: '#475569', lineHeight: 1.6, maxWidth: 500, mx: 'auto' }}>
+            Identify And Report Behaviors That Violate Our Community Standards. This Report Is Secure And Confidential.
+          </Typography>
         </Box>
 
-        <Typography variant="h4" sx={{ fontWeight: 800, color: '#0F172A', mb: 1 }}>Report User</Typography>
-        <Typography variant="body1" sx={{ color: '#64748B', mb: 4, lineHeight: 1.5 }}>
-          Identify And Report Behaviors That Violate Our Community Standards. This Report Is Secure And Confidential.
-        </Typography>
+        {error && <Alert severity="error" sx={{ mb: 4, borderRadius: 2, maxWidth: 800, mx: 'auto' }}>{error}</Alert>}
 
-        {error && <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>{error}</Alert>}
-
-        {/* User ID */}
-        <Typography variant="body2" sx={{ fontWeight: 700, color: '#0F172A', mb: 1 }}>User ID</Typography>
-        <TextField
-          fullWidth
-          placeholder="E.G. OL-NG-00545"
-          value={vendorId}
-          onChange={(e) => setVendorId(e.target.value)}
-          sx={{ 
-            mb: 4, 
-            '& .MuiOutlinedInput-root': { 
-              borderRadius: 3,
-              '& fieldset': { borderColor: '#E2E8F0' },
-            },
-            '& input': { py: 2, fontSize: '0.9rem', color: '#64748B' }
-          }}
-        />
-
-        {/* Category */}
-        <Typography variant="h6" sx={{ fontWeight: 800, color: '#0F172A', mb: 2 }}>Category</Typography>
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 4 }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(5, 1fr)' }, gap: 2, mb: 4 }}>
           {categories.map((cat) => (
             <Paper
               key={cat.value}
               elevation={0}
               onClick={() => setCategory(cat.value)}
               sx={{
-                p: 2.5, 
+                p: 2, 
                 borderRadius: 3, 
-                border: '1px solid',
+                border: '2px solid',
                 borderColor: category === cat.value ? '#1A1FE8' : '#E2E8F0',
-                bgcolor: '#fff',
+                bgcolor: category === cat.value ? '#F4F5FF' : '#fff',
                 cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 2,
+                textAlign: 'center',
                 transition: 'all 0.2s',
-                boxShadow: category === cat.value ? '0 4px 12px rgba(26,31,232,0.08)' : 'none'
+                '&:hover': { borderColor: '#1A1FE8' }
               }}
             >
-              <Box sx={{ width: 44, height: 44, bgcolor: '#EEF2FF', borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <Box sx={{ color: category === cat.value ? '#1A1FE8' : '#64748B', mb: 1 }}>
                 {cat.icon}
               </Box>
-              <Box sx={{ flex: 1 }}>
-                <Typography variant="body1" sx={{ fontWeight: 800, color: '#0F172A', mb: 0.3 }}>{cat.label}</Typography>
-                <Typography variant="body2" sx={{ color: '#64748B', lineHeight: 1.4 }}>{cat.desc}</Typography>
-              </Box>
-              <Box sx={{ 
-                width: 24, 
-                height: 24, 
-                borderRadius: '50%', 
-                border: '2px solid',
-                borderColor: category === cat.value ? '#1A1FE8' : '#CBD5E1',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0
-              }}>
-                {category === cat.value && <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: '#1A1FE8' }} />}
-              </Box>
+              <Typography variant="body2" sx={{ fontWeight: 700, color: '#0F172A' }}>{cat.label}</Typography>
             </Paper>
           ))}
         </Box>
 
-        {/* Provide Context */}
-        <Typography variant="h6" sx={{ fontWeight: 800, color: '#0F172A', mb: 2 }}>Provide Context</Typography>
-        <Box sx={{ bgcolor: '#F8FAFC', borderRadius: 3, border: '1px solid #E2E8F0', overflow: 'hidden', mb: 4 }}>
-          <TextField
-            fullWidth
-            multiline
-            rows={4}
-            placeholder="Please Provide Specific Details Or Evidence Regarding This Report..."
-            value={context}
-            onChange={(e) => setContext(e.target.value)}
-            sx={{ 
-              '& .MuiOutlinedInput-root': { 
-                p: 2.5,
-                '& fieldset': { border: 'none' },
-              },
-              '& textarea': { fontSize: '0.9rem', color: '#64748B' }
-            }}
-          />
-          <Box sx={{ bgcolor: '#EEF2FF', p: 2, display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
-            <InfoIcon sx={{ color: '#1A1FE8', mt: 0.2, fontSize: 20 }} />
-            <Typography variant="caption" sx={{ color: '#334155', fontWeight: 500, lineHeight: 1.4 }}>
-              Detailed reports are prioritized for review. Ensure all information is objective and factual.
-            </Typography>
+        <Paper elevation={0} sx={{ p: { xs: 3, md: 5 }, borderRadius: 4, border: '1px solid #E2E8F0', bgcolor: '#fff' }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 4, mb: 4 }}>
+            <Box>
+              <Typography variant="body2" sx={{ fontWeight: 700, color: '#0F172A', mb: 1 }}>Order/Vendor ID *</Typography>
+              <TextField
+                fullWidth
+                placeholder="E.G. OL-NG-00545"
+                value={vendorId}
+                onChange={(e) => setVendorId(e.target.value)}
+                InputProps={{ sx: { borderRadius: 2, bgcolor: '#F8FAFC' } }}
+              />
+            </Box>
+            <Box>
+              <Typography variant="body2" sx={{ fontWeight: 700, color: '#0F172A', mb: 1 }}>Contact Email *</Typography>
+              <TextField
+                fullWidth
+                placeholder="alex.johnson@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                InputProps={{ 
+                  startAdornment: <InputAdornment position="start"><EmailIcon sx={{ color: '#94A3B8' }}/></InputAdornment>,
+                  sx: { borderRadius: 2, bgcolor: '#F8FAFC' } 
+                }}
+              />
+            </Box>
+            <Box>
+              <Typography variant="body2" sx={{ fontWeight: 700, color: '#0F172A', mb: 1 }}>Phone Number</Typography>
+              <TextField
+                fullWidth
+                placeholder="+1 (555) 000-0000"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                InputProps={{ 
+                  startAdornment: <InputAdornment position="start"><PhoneIcon sx={{ color: '#94A3B8' }}/></InputAdornment>,
+                  sx: { borderRadius: 2, bgcolor: '#F8FAFC' } 
+                }}
+              />
+            </Box>
           </Box>
-        </Box>
 
-        <Button
-          onClick={handleSubmit}
-          fullWidth
-          variant="contained"
-          disabled={loading}
-          sx={{ 
-            bgcolor: '#1A1FE8', 
-            color: '#fff', 
-            borderRadius: 8, 
-            py: 1.8, 
-            textTransform: 'none', 
-            fontWeight: 700, 
-            fontSize: '1.05rem', 
-            mb: 4,
-            '&:hover': { bgcolor: '#1318C0' } 
-          }}
-        >
-          {loading ? <CircularProgress size={24} color="inherit" /> : 'Submit Report'}
-        </Button>
+          <Box sx={{ mb: 4 }}>
+            <Typography variant="body2" sx={{ fontWeight: 700, color: '#0F172A', mb: 1 }}>Detailed Description *</Typography>
+            <TextField
+              fullWidth
+              multiline
+              rows={5}
+              placeholder="Please provide a detailed description of the issue..."
+              value={context}
+              onChange={(e) => setContext(e.target.value)}
+              InputProps={{ sx: { borderRadius: 2, bgcolor: '#F8FAFC' } }}
+            />
+          </Box>
 
+          <Box sx={{ mb: 4 }}>
+            <Typography variant="body2" sx={{ fontWeight: 700, color: '#0F172A', mb: 1 }}>Evidence (Images, PDFs, Videos)</Typography>
+            <Box 
+              {...getRootProps()} 
+              sx={{ 
+                border: '2px dashed #CBD5E1', 
+                borderRadius: 3, 
+                p: 4, 
+                textAlign: 'center',
+                bgcolor: isDragActive ? '#F1F5F9' : '#fff',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                '&:hover': { borderColor: '#94A3B8' }
+              }}
+            >
+              <input {...getInputProps()} />
+              <CloudUploadIcon sx={{ fontSize: 40, color: '#94A3B8', mb: 1 }} />
+              <Typography variant="body1" sx={{ fontWeight: 600, color: '#475569' }}>
+                Drag & Drop files here, or click to browse
+              </Typography>
+              <Typography variant="body2" sx={{ color: '#94A3B8', mt: 0.5 }}>
+                Supports JPG, PNG, PDF, MP4 (Max 5 files)
+              </Typography>
+            </Box>
+            {files.length > 0 && (
+              <Box sx={{ mt: 2, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                {files.map((f, i) => (
+                  <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 1, bgcolor: '#F1F5F9', p: 1, pr: 2, borderRadius: 2 }}>
+                    <Typography variant="caption" sx={{ fontWeight: 600, color: '#0F172A' }}>{f.name}</Typography>
+                    <Typography variant="caption" sx={{ color: '#EF4444', cursor: 'pointer', fontWeight: 700 }} onClick={() => removeFile(i)}>✕</Typography>
+                  </Box>
+                ))}
+              </Box>
+            )}
+          </Box>
+
+          <FormControlLabel
+            control={<Checkbox checked={agreed} onChange={(e) => setAgreed(e.target.checked)} sx={{ color: '#CBD5E1', '&.Mui-checked': { color: '#1A1FE8' } }} />}
+            label={<Typography variant="body2" sx={{ color: '#475569', fontWeight: 500 }}>I hereby declare that the information provided is accurate to the best of my knowledge and understand that false reporting may lead to account suspension.</Typography>}
+            sx={{ mb: 4, alignItems: 'flex-start' }}
+          />
+
+          <Button 
+            fullWidth 
+            onClick={handleSubmit}
+            disabled={loading}
+            variant="contained" 
+            sx={{ bgcolor: '#1A1FE8', py: 2, borderRadius: 2, textTransform: 'none', fontWeight: 700, fontSize: '1.05rem', '&:hover': { bgcolor: '#1318C0' } }}
+          >
+            {loading ? 'Submitting...' : 'Submit Complaint >'}
+          </Button>
+
+        </Paper>
       </Container>
-
-      {/* Bottom Navigation */}
-      <Box sx={{ 
-        position: 'fixed', 
-        bottom: 0, 
-        left: 0, 
-        right: 0, 
-        bgcolor: '#fff', 
-        borderTop: '1px solid #E2E8F0',
-        display: 'flex',
-        justifyContent: 'space-around',
-        py: 1.5,
-        pb: 3, // safe area
-        zIndex: 100
-      }}>
-        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5, color: '#64748B' }}>
-          <DashboardIcon fontSize="small" />
-          <Typography variant="caption" sx={{ fontSize: '0.65rem' }}>Dashboard</Typography>
-        </Box>
-        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5, color: '#1A1FE8' }}>
-          <SearchIcon fontSize="small" />
-          <Typography variant="caption" sx={{ fontSize: '0.65rem', fontWeight: 600 }}>Search</Typography>
-        </Box>
-        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5, color: '#64748B' }}>
-          <EmojiEventsIcon fontSize="small" />
-          <Typography variant="caption" sx={{ fontSize: '0.65rem' }}>Earning</Typography>
-        </Box>
-        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5, color: '#64748B' }}>
-          <ShieldIcon fontSize="small" />
-          <Typography variant="caption" sx={{ fontSize: '0.65rem' }}>Badge</Typography>
-        </Box>
-      </Box>
     </Box>
   );
 }

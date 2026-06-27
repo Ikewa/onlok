@@ -86,15 +86,34 @@ async function createTables() {
     await pool.query(`
         CREATE TABLE IF NOT EXISTS reports (
             id                  INT AUTO_INCREMENT PRIMARY KEY,
+            reference_number    VARCHAR(50) UNIQUE NULL,
             reporter_id         INT NULL,
-            reported_vendor_id  VARCHAR(20) NOT NULL,
-            category            ENUM('fraud','impersonation','harassment','inaccurate_information') NOT NULL,
+            reported_vendor_id  VARCHAR(50) NOT NULL,
+            contact_email       VARCHAR(255) NULL,
+            phone_number        VARCHAR(20) NULL,
+            category            ENUM('fraud','impersonation','harassment','inaccurate_information', 'others') NOT NULL,
             context             TEXT NOT NULL,
+            evidence_files      JSON NULL,
             status              ENUM('pending','reviewed','dismissed') DEFAULT 'pending',
             created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (reporter_id) REFERENCES users(id) ON DELETE SET NULL
         )
     `);
+
+    // Add new columns if the table already existed before this update
+    try {
+        await pool.query("ALTER TABLE reports ADD COLUMN reference_number VARCHAR(50) UNIQUE NULL AFTER id");
+        await pool.query("ALTER TABLE reports ADD COLUMN contact_email VARCHAR(255) NULL AFTER reported_vendor_id");
+        await pool.query("ALTER TABLE reports ADD COLUMN phone_number VARCHAR(20) NULL AFTER contact_email");
+        await pool.query("ALTER TABLE reports ADD COLUMN evidence_files JSON NULL AFTER context");
+        await pool.query("ALTER TABLE reports MODIFY COLUMN reported_vendor_id VARCHAR(50) NOT NULL");
+        await pool.query("ALTER TABLE reports MODIFY COLUMN category ENUM('fraud','impersonation','harassment','inaccurate_information', 'others') NOT NULL");
+    } catch (err) {
+        // Ignore errors if columns already exist
+        if (err.code !== 'ER_DUP_FIELDNAME') {
+            console.log('Notice: Some ALTER TABLE queries for reports failed (might already be updated):', err.message);
+        }
+    }
 
     // Admin Settings
     await pool.query(`

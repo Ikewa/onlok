@@ -16,6 +16,7 @@ import BadgePage from './pages/BadgePage';
 import ReferralsPage from './pages/ReferralsPage';
 import SearchPage from './pages/SearchPage';
 import ReportPage from './pages/ReportPage';
+import ReportSuccessPage from './pages/ReportSuccessPage';
 import ComingSoonPage from './pages/ComingSoonPage';
 import SubscriptionPage from './pages/SubscriptionPage';
 import CheckoutPage from './pages/CheckoutPage';
@@ -31,6 +32,7 @@ import AdminVerificationReview from './pages/admin/AdminVerificationReview';
 import AdminLoginPage from './pages/admin/AdminLoginPage';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminAlerts from './pages/admin/AdminAlerts';
+import AdminComplaints from './pages/admin/AdminComplaints';
 import AdminSettings from './pages/admin/AdminSettings';
 import AdminReferrals from './pages/admin/AdminReferrals';
 import { Navigate } from 'react-router-dom';
@@ -48,6 +50,7 @@ export default function App() {
             <Route path="/search" element={<SearchPage />} />
             <Route path="/admin/login" element={<AdminLoginPage />} />
             <Route path="/report" element={<ReportPage />} />
+            <Route path="/report-success" element={<ReportSuccessPage />} />
             <Route path="/pricing" element={<SubscriptionPage />} />
             <Route path="/subscription" element={<SubscriptionPage />} />
             <Route path="/checkout" element={<CheckoutPage />} />
@@ -80,6 +83,7 @@ export default function App() {
               <Route path="/admin/verifications/:id" element={<AdminVerificationReview />} />
               <Route path="/admin/dashboard" element={<AdminDashboard />} />
               <Route path="/admin/alerts" element={<AdminAlerts />} />
+              <Route path="/admin/complaints" element={<AdminComplaints />} />
               <Route path="/admin/settings" element={<AdminSettings />} />
               <Route path="/admin/referrals" element={<AdminReferrals />} />
             </Route>
