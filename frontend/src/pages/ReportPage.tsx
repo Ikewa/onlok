@@ -142,7 +142,7 @@ export default function ReportPage() {
               />
             </Box>
             <Box>
-              <Typography variant="body2" sx={{ fontWeight: 700, color: '#0F172A', mb: 1 }}>Contact Email *</Typography>
+              <Typography variant="body2" sx={{ fontWeight: 700, color: '#0F172A', mb: 1 }}>Your Email Address *</Typography>
               <TextField
                 fullWidth
                 placeholder="alex.johnson@example.com"
@@ -155,7 +155,7 @@ export default function ReportPage() {
               />
             </Box>
             <Box>
-              <Typography variant="body2" sx={{ fontWeight: 700, color: '#0F172A', mb: 1 }}>Phone Number</Typography>
+              <Typography variant="body2" sx={{ fontWeight: 700, color: '#0F172A', mb: 1 }}>Your Phone Number</Typography>
               <TextField
                 fullWidth
                 placeholder="+234 800 000 0000"
