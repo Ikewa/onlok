@@ -239,7 +239,7 @@ const updateVerificationStatus = async (req, res) => {
 // @access  Private/Admin
 const getDashboardMetrics = async (req, res) => {
     try {
-        const [usersCount] = await pool.query('SELECT COUNT(*) as total FROM users');
+        const [usersCount] = await pool.query('SELECT COUNT(*) as total FROM users WHERE role != "admin"');
         const [pendingCount] = await pool.query('SELECT COUNT(*) as total FROM verifications WHERE status = "pending"');
         const [approvedCount] = await pool.query('SELECT COUNT(*) as total FROM verifications WHERE status = "approved"');
         const [flaggedCount] = await pool.query('SELECT COUNT(*) as total FROM verifications WHERE status = "flagged"');
@@ -249,6 +249,7 @@ const getDashboardMetrics = async (req, res) => {
             SELECT id, vendor_id, first_name, last_name, email, role, status, 
                    created_at 
             FROM users 
+            WHERE role != "admin"
             ORDER BY created_at DESC 
             LIMIT 50
         `);

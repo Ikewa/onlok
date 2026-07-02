@@ -114,6 +114,37 @@ export default function AdminDashboard() {
         ))}
       </Grid>
 
+      <Paper elevation={0} sx={{ borderRadius: 3, border: '1px solid #E2E8F0', bgcolor: '#fff', p: 4, mb: 4 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+          <Typography variant="h6" fontWeight={700} color="#0F172A">
+            Website Hits
+          </Typography>
+          <ToggleButtonGroup
+            value={hitsPeriod}
+            exclusive
+            onChange={(_, newPeriod) => { if (newPeriod) setHitsPeriod(newPeriod); }}
+            size="small"
+            sx={{ '& .MuiToggleButton-root': { textTransform: 'none', fontWeight: 600, color: '#64748B' }, '& .Mui-selected': { color: '#1A1FE8 !important', bgcolor: '#F0F5FF !important' } }}
+          >
+            <ToggleButton value="week">Week</ToggleButton>
+            <ToggleButton value="month">Month</ToggleButton>
+            <ToggleButton value="quarterly">Quarterly</ToggleButton>
+            <ToggleButton value="all">All Time</ToggleButton>
+          </ToggleButtonGroup>
+        </Box>
+        
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', py: 4 }}>
+          <Box sx={{ textAlign: 'center' }}>
+            <Typography variant="h2" fontWeight={800} color="#1A1FE8">
+              {hits.toLocaleString()}
+            </Typography>
+            <Typography variant="body1" color="#64748B" fontWeight={500} mt={1}>
+              Total visits this {hitsPeriod === 'quarterly' ? 'quarter' : hitsPeriod === 'all' ? 'time' : hitsPeriod}
+            </Typography>
+          </Box>
+        </Box>
+      </Paper>
+
       <Paper elevation={0} sx={{ borderRadius: 3, border: '1px solid #E2E8F0', bgcolor: '#fff', p: 4 }}>
         <Typography variant="h6" fontWeight={700} color="#0F172A" mb={3}>
           Recent Activity
@@ -149,37 +180,6 @@ export default function AdminDashboard() {
               )}
             </Box>
           ))}
-        </Box>
-      </Paper>
-
-      <Paper elevation={0} sx={{ borderRadius: 3, border: '1px solid #E2E8F0', bgcolor: '#fff', p: 4, mt: 4 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-          <Typography variant="h6" fontWeight={700} color="#0F172A">
-            Website Hits
-          </Typography>
-          <ToggleButtonGroup
-            value={hitsPeriod}
-            exclusive
-            onChange={(_, newPeriod) => { if (newPeriod) setHitsPeriod(newPeriod); }}
-            size="small"
-            sx={{ '& .MuiToggleButton-root': { textTransform: 'none', fontWeight: 600, color: '#64748B' }, '& .Mui-selected': { color: '#1A1FE8 !important', bgcolor: '#F0F5FF !important' } }}
-          >
-            <ToggleButton value="week">Week</ToggleButton>
-            <ToggleButton value="month">Month</ToggleButton>
-            <ToggleButton value="quarterly">Quarterly</ToggleButton>
-            <ToggleButton value="all">All Time</ToggleButton>
-          </ToggleButtonGroup>
-        </Box>
-        
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', py: 4 }}>
-          <Box sx={{ textAlign: 'center' }}>
-            <Typography variant="h2" fontWeight={800} color="#1A1FE8">
-              {hits.toLocaleString()}
-            </Typography>
-            <Typography variant="body1" color="#64748B" fontWeight={500} mt={1}>
-              Total visits this {hitsPeriod === 'quarterly' ? 'quarter' : hitsPeriod === 'all' ? 'time' : hitsPeriod}
-            </Typography>
-          </Box>
         </Box>
       </Paper>
     </Box>
