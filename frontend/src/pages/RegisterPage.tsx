@@ -130,7 +130,7 @@ export default function RegisterPage() {
         }
 
         // 2. Now attempt to upload the files
-        await submitVerification(form.gov_id_file!, form.business_video_file!);
+        await submitVerification(form.gov_id_file!, form.cac_file!, form.business_video_file!);
         
         toast.success('Verification submitted!');
         setActiveStep(4); // Success screen

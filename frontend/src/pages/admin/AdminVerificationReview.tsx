@@ -119,7 +119,7 @@ export default function AdminVerificationReview() {
           <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: '1px solid #E2E8F0', mb: 3 }}>
             <Typography variant="subtitle1" fontWeight={800} mb={3}>Uploaded Documents</Typography>
             <Grid container spacing={3}>
-              <Grid item xs={12} sm={6}>
+              <Grid item xs={12} sm={4}>
                 <Typography variant="caption" color="#64748B" display="block" mb={1}>ID Document</Typography>
                 <Box 
                   sx={{ 
@@ -134,7 +134,24 @@ export default function AdminVerificationReview() {
                   ) : <Typography variant="caption" color="#94A3B8">No ID uploaded</Typography>}
                 </Box>
               </Grid>
-              <Grid item xs={12} sm={6}>
+              
+              <Grid item xs={12} sm={4}>
+                <Typography variant="caption" color="#64748B" display="block" mb={1}>CAC Document</Typography>
+                <Box 
+                  sx={{ 
+                    width: '100%', height: 200, bgcolor: '#F1F5F9', borderRadius: 2, overflow: 'hidden', 
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #E2E8F0' 
+                  }}
+                >
+                  {details.cac_url ? (
+                    details.cac_url.endsWith('.pdf') ? 
+                      <Typography variant="body2" color="#1A1FE8" component="a" href={getMediaUrl(details.cac_url)} target="_blank">View PDF CAC</Typography>
+                    : <Box component="img" src={getMediaUrl(details.cac_url)} sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : <Typography variant="caption" color="#94A3B8">No CAC uploaded</Typography>}
+                </Box>
+              </Grid>
+
+              <Grid item xs={12} sm={4}>
                 <Typography variant="caption" color="#64748B" display="block" mb={1}>Business Video</Typography>
                 <Box 
                   sx={{ 

@@ -14,9 +14,9 @@ const storage = multer.diskStorage({
 
 // File filter to acccept specific types
 const fileFilter = (req, file, cb) => {
-    if (file.fieldname === "gov_id") {
+    if (file.fieldname === "gov_id" || file.fieldname === "cac_document") {
         if (!file.mimetype.match(/(jpg|jpeg|png|pdf)$/)) {
-            return cb(new Error('Please upload an image or PDF for ID'));
+            return cb(new Error('Please upload an image or PDF for ID/CAC'));
         }
     } else if (file.fieldname === "business_video") {
         if (!file.mimetype.match(/(mp4|mkv|avi)$/)) {
@@ -38,10 +38,11 @@ const upload = multer({
 const submitVerification = async (req, res) => {
     try {
         if (!req.files || !req.files['gov_id'] || !req.files['business_video']) {
-            return res.status(400).json({ message: 'Both Government ID and Business Video are required.' });
+            return res.status(400).json({ message: 'Government ID and Business Video are required.' });
         }
 
         const govIdUrl = `/uploads/${req.files['gov_id'][0].filename}`;
+        const cacUrl = req.files['cac_document'] ? `/uploads/${req.files['cac_document'][0].filename}` : null;
         const videoUrl = `/uploads/${req.files['business_video'][0].filename}`;
 
         // Ensure user hasn't already submitted a pending one
@@ -52,8 +53,8 @@ const submitVerification = async (req, res) => {
         }
 
         // Insert into verification table
-        const query = `INSERT INTO verifications (user_id, gov_id_url, video_url) VALUES (?, ?, ?)`;
-        const [result] = await pool.query(query, [req.user.id, govIdUrl, videoUrl]);
+        const query = `INSERT INTO verifications (user_id, gov_id_url, cac_url, video_url) VALUES (?, ?, ?, ?)`;
+        const [result] = await pool.query(query, [req.user.id, govIdUrl, cacUrl, videoUrl]);
 
         res.status(201).json({
             message: 'Verification documents submitted successfully',
@@ -72,7 +73,7 @@ const submitVerification = async (req, res) => {
 const getMyVerification = async (req, res) => {
     try {
         const [rows] = await pool.query(
-            `SELECT id, gov_id_url, video_url, status, admin_notes, submitted_at, reviewed_at
+            `SELECT id, gov_id_url, cac_url, video_url, status, admin_notes, submitted_at, reviewed_at
              FROM verifications
              WHERE user_id = ?
              ORDER BY submitted_at DESC

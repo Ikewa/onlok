@@ -47,6 +47,7 @@ async function createTables() {
             id            INT AUTO_INCREMENT PRIMARY KEY,
             user_id       INT NOT NULL,
             gov_id_url    VARCHAR(255) NOT NULL,
+            cac_url       VARCHAR(255) NULL,
             video_url     VARCHAR(255) NOT NULL,
             status        ENUM('pending','approved','rejected','flagged') DEFAULT 'pending',
             admin_notes   TEXT NULL,
@@ -103,6 +104,7 @@ async function createTables() {
     // Add new columns if the table already existed before this update
     try {
         await pool.query("ALTER TABLE users MODIFY COLUMN vendor_id VARCHAR(20) NULL");
+        await pool.query("ALTER TABLE verifications ADD COLUMN cac_url VARCHAR(255) NULL AFTER gov_id_url");
         await pool.query("ALTER TABLE reports ADD COLUMN reference_number VARCHAR(50) UNIQUE NULL AFTER id");
         await pool.query("ALTER TABLE reports ADD COLUMN contact_email VARCHAR(255) NULL AFTER reported_vendor_id");
         await pool.query("ALTER TABLE reports ADD COLUMN phone_number VARCHAR(20) NULL AFTER contact_email");

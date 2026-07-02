@@ -13,6 +13,7 @@ export interface AdminVerification {
   business_name: string;
   type: string;
   gov_id_url?: string;
+  cac_url?: string;
   video_url?: string;
 }
 

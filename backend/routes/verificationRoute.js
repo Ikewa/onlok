@@ -12,6 +12,7 @@ router.post(
     protect, 
     upload.fields([
         { name: 'gov_id', maxCount: 1 }, 
+        { name: 'cac_document', maxCount: 1 },
         { name: 'business_video', maxCount: 1 }
     ]), 
     submitVerification
