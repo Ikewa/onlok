@@ -52,7 +52,11 @@ const registerUser = async (req, res) => {
 
     } catch (error) {
         console.error('Registration Error:', error);
-        res.status(500).json({ message: 'Server error during registration' });
+        res.status(500).json({ 
+            message: 'Server error during registration', 
+            error: error.message, 
+            stack: error.stack 
+        });
     }
 };
 
