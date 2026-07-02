@@ -180,6 +180,26 @@ export default function AdminVerificationReview() {
                 <Typography variant="body2" color="#475569">Business Verification</Typography>
                 {isApproved ? <CheckCircleOutlinedIcon sx={{ color: '#15803D' }} /> : isRejected ? <HighlightOffIcon sx={{ color: '#DC2626' }} /> : <CircularProgress size={20} />}
               </Box>
+              <Divider />
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Box>
+                  <Typography variant="body2" color="#475569">Referral Link</Typography>
+                  <Typography variant="caption" color="#64748B" display="block">
+                    https://onlok.net/register?ref={details.vendor_id}
+                  </Typography>
+                </Box>
+                <Button 
+                  size="small" 
+                  variant="outlined" 
+                  onClick={() => {
+                    navigator.clipboard.writeText(`https://onlok.net/register?ref=${details.vendor_id}`);
+                    toast.success('Referral link copied');
+                  }}
+                  sx={{ textTransform: 'none', borderRadius: 2 }}
+                >
+                  Copy
+                </Button>
+              </Box>
             </Box>
           </Paper>
 

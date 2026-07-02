@@ -28,6 +28,7 @@ export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [locationStr, setLocationStr] = useState('Fetching location...');
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -44,6 +45,18 @@ export default function DashboardPage() {
         setError('Failed to load dashboard. Please refresh.');
         setLoading(false);
       });
+
+    // Fetch current location
+    fetch('https://ipapi.co/json/')
+      .then(res => res.json())
+      .then(data => {
+        if (data.city && data.country_name) {
+          setLocationStr(`${data.city}, ${data.country_name}`);
+        } else {
+          setLocationStr('Unknown Location');
+        }
+      })
+      .catch(() => setLocationStr('Location Unavailable'));
   }, []);
 
   const copyToClipboard = (text: string) => {
@@ -55,7 +68,7 @@ export default function DashboardPage() {
   const firstName = dashUser?.first_name ?? 'Munir';
   const fullName = `${dashUser?.first_name ?? 'Muhammad'} ${dashUser?.last_name ?? 'Munir'}`.trim();
   const vendorId = dashUser?.vendor_id ?? 'ONL-7829-KX';
-  const profileLink = data?.profile?.profile_link ?? `Onlok.Net/Ref/${firstName}`;
+  const profileLink = `https://onlok.net/profile?id=${vendorId}`;
 
   const cardStyle = { p: 2.5, borderRadius: 3, border: '1px solid #E2E8F0', boxShadow: 'none', bgcolor: '#F8FAFC', mb: 2.5 };
 
@@ -83,14 +96,14 @@ export default function DashboardPage() {
           
           {/* Left Column */}
           <Box sx={{ width: { xs: '100%', sm: '58%' }, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 0 }}>
-            {/* Earn Rewards Block */}
+            {/* Profile Link Block */}
             <Paper sx={{ ...cardStyle }}>
               <Typography sx={{ fontWeight: 800, fontSize: '0.9rem', color: '#475569', mb: 1.5 }}>
-                Earn Rewards By Referring Others
+                Share Your Profile Link
               </Typography>
               <Box sx={{ bgcolor: '#94A3B8', opacity: 0.8, borderRadius: 2, p: 2, mb: 2, textAlign: 'center' }}>
                 <Typography sx={{ color: '#0F172A', fontWeight: 600, fontSize: '0.95rem', wordBreak: 'break-all' }}>
-                  Your Referral Link: {profileLink}
+                  Your Profile Link: {profileLink}
                 </Typography>
               </Box>
               <Box sx={{ display: 'flex', gap: 2 }}>
@@ -315,8 +328,8 @@ export default function DashboardPage() {
                   {[
                     { label: 'Business Name', value: dashUser?.business_name ?? 'N/A' },
                     { label: 'Business Mail', value: dashUser?.email ?? 'N/A' },
-                    { label: 'Business Phone Number', value: data?.profile?.phone ?? '+234 800 000 0000' },
-                    { label: 'Business Address', value: data?.profile?.address ?? 'Lagos, Nigeria' },
+                    { label: 'Business Phone Number', value: dashUser?.phone_number ?? data?.profile?.phone ?? '+234 800 000 0000' },
+                    { label: 'Business Address', value: locationStr },
                   ].map((item, i) => (
                     <Box key={i} sx={{ mb: i === 3 ? 0 : 2.5 }}>
                       <Typography sx={{ fontSize: '0.75rem', color: '#64748B', mb: 0.3 }}>{item.label}</Typography>
