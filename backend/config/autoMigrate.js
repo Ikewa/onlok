@@ -102,6 +102,7 @@ async function createTables() {
 
     // Add new columns if the table already existed before this update
     try {
+        await pool.query("ALTER TABLE users MODIFY COLUMN vendor_id VARCHAR(20) NULL");
         await pool.query("ALTER TABLE reports ADD COLUMN reference_number VARCHAR(50) UNIQUE NULL AFTER id");
         await pool.query("ALTER TABLE reports ADD COLUMN contact_email VARCHAR(255) NULL AFTER reported_vendor_id");
         await pool.query("ALTER TABLE reports ADD COLUMN phone_number VARCHAR(20) NULL AFTER contact_email");

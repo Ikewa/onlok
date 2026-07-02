@@ -32,7 +32,7 @@ const registerUser = async (req, res) => {
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-        // Create user with null vendor_id
+        // Create user with null vendor_id (will be generated later upon admin approval)
         const query = `
             INSERT INTO users (vendor_id, first_name, last_name, business_name, email, password_hash, phone_number, twitter_handle, instagram_handle, facebook_handle, tiktok_handle) 
             VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
