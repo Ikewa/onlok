@@ -16,7 +16,7 @@ const generateToken = (id, role, vendor_id) => {
 // @access  Public
 const registerUser = async (req, res) => {
     try {
-        const { first_name, last_name, business_name, email, password, phone_number, country_code, twitter_handle, instagram_handle, facebook_handle, tiktok_handle } = req.body;
+        const { first_name, last_name, business_name, email, password, phone_number, country_code, twitter_handle, instagram_handle, facebook_handle, tiktok_handle, referred_by } = req.body;
 
         if (!first_name || !last_name || !business_name || !email || !password || !phone_number) {
             return res.status(400).json({ message: 'Please add all fields' });
@@ -32,14 +32,31 @@ const registerUser = async (req, res) => {
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
+        // Handle Referral
+        let referrerId = null;
+        if (referred_by) {
+            const [referrerRows] = await pool.query('SELECT id FROM users WHERE vendor_id = ?', [referred_by]);
+            if (referrerRows.length > 0) {
+                referrerId = referrerRows[0].id;
+            }
+        }
+
         // Create user with null vendor_id (will be generated later upon admin approval)
         const query = `
-            INSERT INTO users (vendor_id, first_name, last_name, business_name, email, password_hash, phone_number, twitter_handle, instagram_handle, facebook_handle, tiktok_handle) 
-            VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO users (vendor_id, referred_by, first_name, last_name, business_name, email, password_hash, phone_number, twitter_handle, instagram_handle, facebook_handle, tiktok_handle) 
+            VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
-        const [result] = await pool.execute(query, [first_name, last_name, business_name, email, hashedPassword, phone_number, twitter_handle || null, instagram_handle || null, facebook_handle || null, tiktok_handle || null]);
+        const [result] = await pool.execute(query, [referrerId, first_name, last_name, business_name, email, hashedPassword, phone_number, twitter_handle || null, instagram_handle || null, facebook_handle || null, tiktok_handle || null]);
 
         const newUserId = result.insertId;
+
+        // If there is a referrer, create a pending referral record
+        if (referrerId) {
+            await pool.execute(`
+                INSERT INTO referrals (referrer_id, referred_user_id, subscription_plan, amount_paid, commission_earned, status)
+                VALUES (?, ?, 'Signup', 0.00, 5000.00, 'pending')
+            `, [referrerId, newUserId]);
+        }
 
         res.status(201).json({
             id: newUserId,

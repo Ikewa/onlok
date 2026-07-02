@@ -12,7 +12,8 @@ const {
     getMockUsers,
     getReferralsAdmin,
     getWithdrawalsAdmin,
-    updateWithdrawalStatus
+    updateWithdrawalStatus,
+    getWebsiteHits
 } = require('../controllers/adminController');
 const { protect, adminOnly } = require('../middlewares/authMiddleware');
 
@@ -31,6 +32,7 @@ router.put('/verifications/:id/status', updateVerificationStatus);
 
 // Dashboard & User Management
 router.get('/dashboard', getDashboardMetrics);
+router.get('/website-hits', getWebsiteHits);
 
 // Alerts & Risk
 router.get('/alerts', getAlerts);

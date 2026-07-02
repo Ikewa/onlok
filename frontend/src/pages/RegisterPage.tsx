@@ -11,7 +11,7 @@ import FileUploadOutlinedIcon from '@mui/icons-material/FileUploadOutlined';
 import InsertDriveFileOutlinedIcon from '@mui/icons-material/InsertDriveFileOutlined';
 import PlayCircleOutlinedIcon from '@mui/icons-material/PlayCircleOutlined';
 import VerifiedUserOutlinedIcon from '@mui/icons-material/VerifiedUserOutlined';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { registerUser } from '../api/auth';
 import { submitVerification } from '../api/verifications';
@@ -60,6 +60,9 @@ const countryCodes = [
 export default function RegisterPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const queryParams = new URLSearchParams(location.search);
+  const refCode = queryParams.get('ref');
   const [activeStep, setActiveStep] = useState(0);
   const [form, setForm] = useState<FormData>(initialData);
   const [loading, setLoading] = useState(false);
@@ -124,6 +127,7 @@ export default function RegisterPage() {
             password: form.password,
             phone_number: form.phone_number,
             country_code: form.country_code,
+            referred_by: refCode || undefined
           });
           setRegisteredUser(user);
           login(user);

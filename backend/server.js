@@ -30,6 +30,18 @@ app.use(cors({
 app.use(express.json());
 app.use(morgan('dev'));
 
+// Website hit tracking middleware
+app.use(async (req, res, next) => {
+    if (req.method === 'GET' && req.headers.accept && req.headers.accept.includes('text/html')) {
+        try {
+            await pool.query('INSERT INTO daily_site_hits (date) VALUES (CURRENT_DATE) ON DUPLICATE KEY UPDATE hits = hits + 1');
+        } catch (e) {
+            console.error('Hit tracking error:', e);
+        }
+    }
+    next();
+});
+
 // Static folder for file uploads
 const uploadDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadDir)) {

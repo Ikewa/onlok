@@ -207,6 +207,9 @@ const updateVerificationStatus = async (req, res) => {
             if (existingBadges.length === 0) {
                 await pool.query(`INSERT INTO badges (user_id, badge_type) VALUES (?, 'verified_vendor')`, [verification.user_id]);
             }
+            
+            // Mark referral as available
+            await pool.query(`UPDATE referrals SET status = 'available' WHERE referred_user_id = ? AND status = 'pending'`, [verification.user_id]);
         } else if (status === 'rejected') {
             await pool.query(`UPDATE users SET status = 'rejected' WHERE id = ?`, [verification.user_id]);
             await pool.query(`DELETE FROM badges WHERE user_id = ? AND badge_type = "verified_vendor"`, [verification.user_id]);
@@ -443,6 +446,35 @@ const updateWithdrawalStatus = async (req, res) => {
     }
 };
 
+// @desc    Get website hits
+// @route   GET /api/admin/website-hits
+// @access  Private/Admin
+const getWebsiteHits = async (req, res) => {
+    try {
+        const { period } = req.query; // 'week', 'month', 'quarterly'
+        let dateCondition = '';
+        
+        if (period === 'week') {
+            dateCondition = 'date >= DATE_SUB(CURRENT_DATE, INTERVAL 7 DAY)';
+        } else if (period === 'month') {
+            dateCondition = 'date >= DATE_SUB(CURRENT_DATE, INTERVAL 1 MONTH)';
+        } else if (period === 'quarterly') {
+            dateCondition = 'date >= DATE_SUB(CURRENT_DATE, INTERVAL 3 MONTH)';
+        } else {
+            // default to all time
+            dateCondition = '1=1';
+        }
+
+        const query = `SELECT SUM(hits) as total_hits FROM daily_site_hits WHERE ${dateCondition}`;
+        const [rows] = await pool.query(query);
+        
+        res.status(200).json({ totalHits: rows[0].total_hits || 0 });
+    } catch (error) {
+        console.error('Admin Website Hits Fetch Error:', error);
+        res.status(500).json({ message: 'Server error fetching website hits' });
+    }
+};
+
 
 module.exports = {
     adminLogin,
@@ -456,5 +488,6 @@ module.exports = {
     getMockUsers,
     getReferralsAdmin,
     getWithdrawalsAdmin,
-    updateWithdrawalStatus
+    updateWithdrawalStatus,
+    getWebsiteHits
 };

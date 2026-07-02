@@ -6,7 +6,7 @@ export const loginUser = async (payload: LoginPayload): Promise<User> => {
   return data;
 };
 
-export const registerUser = async (payload: RegisterPayload): Promise<User> => {
+export const registerUser = async (payload: RegisterPayload & { referred_by?: string }): Promise<User> => {
   const { data } = await api.post<User>('/users/register', payload);
   return data;
 };

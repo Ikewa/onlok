@@ -165,3 +165,8 @@ export const getAdminReports = async () => {
   return data;
 };
 
+export const getWebsiteHits = async (period: 'week' | 'month' | 'quarterly' | 'all' = 'all'): Promise<{totalHits: number}> => {
+  const { data } = await api.get('/admin/website-hits', { params: { period } });
+  return data;
+};
+

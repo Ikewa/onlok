@@ -1,17 +1,19 @@
 import { useState, useEffect } from 'react';
-import { Box, Typography, Grid, Paper, Divider, CircularProgress } from '@mui/material';
+import { Box, Typography, Grid, Paper, Divider, CircularProgress, ToggleButton, ToggleButtonGroup } from '@mui/material';
 import PeopleOutlinedIcon from '@mui/icons-material/PeopleOutlined';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import VerifiedOutlinedIcon from '@mui/icons-material/VerifiedOutlined';
 import HighlightOffIcon from '@mui/icons-material/HighlightOff';
 import ReportProblemOutlinedIcon from '@mui/icons-material/ReportProblemOutlined';
-import { getDashboardMetrics, getAlerts, type DashboardMetrics, type AuditLog } from '../../api/admin';
+import { getDashboardMetrics, getAlerts, getWebsiteHits, type DashboardMetrics, type AuditLog } from '../../api/admin';
 import toast from 'react-hot-toast';
 
 export default function AdminDashboard() {
   const [data, setData] = useState<DashboardMetrics | null>(null);
   const [alerts, setAlerts] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hits, setHits] = useState<number>(0);
+  const [hitsPeriod, setHitsPeriod] = useState<'week' | 'month' | 'quarterly' | 'all'>('week');
 
   useEffect(() => {
     const fetchMetrics = async () => {
@@ -31,6 +33,18 @@ export default function AdminDashboard() {
     };
     fetchMetrics();
   }, []);
+
+  useEffect(() => {
+    const fetchHits = async () => {
+      try {
+        const res = await getWebsiteHits(hitsPeriod);
+        setHits(res.totalHits);
+      } catch (err) {
+        console.error('Failed to load hits', err);
+      }
+    };
+    fetchHits();
+  }, [hitsPeriod]);
 
   if (loading) {
     return (
@@ -135,6 +149,37 @@ export default function AdminDashboard() {
               )}
             </Box>
           ))}
+        </Box>
+      </Paper>
+
+      <Paper elevation={0} sx={{ borderRadius: 3, border: '1px solid #E2E8F0', bgcolor: '#fff', p: 4, mt: 4 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+          <Typography variant="h6" fontWeight={700} color="#0F172A">
+            Website Hits
+          </Typography>
+          <ToggleButtonGroup
+            value={hitsPeriod}
+            exclusive
+            onChange={(_, newPeriod) => { if (newPeriod) setHitsPeriod(newPeriod); }}
+            size="small"
+            sx={{ '& .MuiToggleButton-root': { textTransform: 'none', fontWeight: 600, color: '#64748B' }, '& .Mui-selected': { color: '#1A1FE8 !important', bgcolor: '#F0F5FF !important' } }}
+          >
+            <ToggleButton value="week">Week</ToggleButton>
+            <ToggleButton value="month">Month</ToggleButton>
+            <ToggleButton value="quarterly">Quarterly</ToggleButton>
+            <ToggleButton value="all">All Time</ToggleButton>
+          </ToggleButtonGroup>
+        </Box>
+        
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', py: 4 }}>
+          <Box sx={{ textAlign: 'center' }}>
+            <Typography variant="h2" fontWeight={800} color="#1A1FE8">
+              {hits.toLocaleString()}
+            </Typography>
+            <Typography variant="body1" color="#64748B" fontWeight={500} mt={1}>
+              Total visits this {hitsPeriod === 'quarterly' ? 'quarter' : hitsPeriod === 'all' ? 'time' : hitsPeriod}
+            </Typography>
+          </Box>
         </Box>
       </Paper>
     </Box>

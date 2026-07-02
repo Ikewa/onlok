@@ -19,6 +19,14 @@ const bcrypt = require('bcrypt');
 // 1.  CREATE TABLES (safe: all use IF NOT EXISTS)
 // ─────────────────────────────────────────────────────────────────
 async function createTables() {
+    // Global metrics / Stats
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS daily_site_hits (
+            date DATE PRIMARY KEY,
+            hits INT DEFAULT 1
+        )
+    `);
+
     // Users
     await pool.query(`
         CREATE TABLE IF NOT EXISTS users (

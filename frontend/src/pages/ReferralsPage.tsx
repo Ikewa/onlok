@@ -37,7 +37,7 @@ export default function ReferralsPage() {
     fetchReferrals();
   }, []);
   
-  const referralLink = `Onlok.Net/Ref/${user?.first_name ?? 'User'}`;
+  const referralLink = `https://onlok.net/register?ref=${user?.vendor_id ?? user?.id}`;
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(referralLink);
