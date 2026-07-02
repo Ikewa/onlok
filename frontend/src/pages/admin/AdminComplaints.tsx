@@ -128,7 +128,15 @@ export default function AdminComplaints() {
                       <Avatar sx={{ width: 36, height: 36, bgcolor: '#1A1FE8' }}>{selectedReport.first_name ? selectedReport.first_name[0] : 'A'}</Avatar>
                       <Box>
                         <Typography variant="body2" fontWeight={700} color="#0F172A">{selectedReport.first_name ? `${selectedReport.first_name} ${selectedReport.last_name}` : 'Anonymous'}</Typography>
-                        <Typography variant="caption" color="#64748B">{selectedReport.contact_email || 'No email provided'}</Typography>
+                        <Typography variant="caption" color="#64748B" display="block">{selectedReport.contact_email || 'No email provided'}</Typography>
+                        {selectedReport.phone_number && (
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.3 }}>
+                            <Typography variant="caption" color="#64748B">{selectedReport.phone_number}</Typography>
+                            {selectedReport.is_whatsapp ? (
+                              <Chip size="small" label="WhatsApp" sx={{ height: 16, fontSize: '0.6rem', bgcolor: '#DCFCE7', color: '#16A34A', fontWeight: 700 }} />
+                            ) : null}
+                          </Box>
+                        )}
                       </Box>
                     </Box>
                   </Grid>

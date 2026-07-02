@@ -28,6 +28,7 @@ export default function ReportPage() {
   const [vendorId, setVendorId] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [isWhatsapp, setIsWhatsapp] = useState(false);
   const [category, setCategory] = useState<ReportCategory | ''>('');
   const [context, setContext] = useState('');
   const [agreed, setAgreed] = useState(false);
@@ -58,6 +59,7 @@ export default function ReportPage() {
       formData.append('context', context);
       formData.append('contact_email', email);
       formData.append('phone_number', phone);
+      formData.append('is_whatsapp', isWhatsapp.toString());
       
       files.forEach(file => {
         formData.append('evidence', file);
@@ -156,13 +158,18 @@ export default function ReportPage() {
               <Typography variant="body2" sx={{ fontWeight: 700, color: '#0F172A', mb: 1 }}>Phone Number</Typography>
               <TextField
                 fullWidth
-                placeholder="+1 (555) 000-0000"
+                placeholder="+234 800 000 0000"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 InputProps={{ 
                   startAdornment: <InputAdornment position="start"><PhoneIcon sx={{ color: '#94A3B8' }}/></InputAdornment>,
                   sx: { borderRadius: 2, bgcolor: '#F8FAFC' } 
                 }}
+              />
+              <FormControlLabel
+                control={<Checkbox checked={isWhatsapp} onChange={(e) => setIsWhatsapp(e.target.checked)} sx={{ color: '#CBD5E1', '&.Mui-checked': { color: '#25D366' }, py: 0.5 }} />}
+                label={<Typography variant="caption" sx={{ color: '#475569', fontWeight: 600 }}>Is this number on WhatsApp?</Typography>}
+                sx={{ mt: 0.5, ml: 0 }}
               />
             </Box>
           </Box>

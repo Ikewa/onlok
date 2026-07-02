@@ -92,6 +92,7 @@ async function createTables() {
             reported_vendor_id  VARCHAR(50) NOT NULL,
             contact_email       VARCHAR(255) NULL,
             phone_number        VARCHAR(20) NULL,
+            is_whatsapp         BOOLEAN DEFAULT FALSE,
             category            ENUM('fraud','impersonation','harassment','inaccurate_information', 'others') NOT NULL,
             context             TEXT NOT NULL,
             evidence_files      JSON NULL,
@@ -108,6 +109,7 @@ async function createTables() {
         await pool.query("ALTER TABLE reports ADD COLUMN reference_number VARCHAR(50) UNIQUE NULL AFTER id");
         await pool.query("ALTER TABLE reports ADD COLUMN contact_email VARCHAR(255) NULL AFTER reported_vendor_id");
         await pool.query("ALTER TABLE reports ADD COLUMN phone_number VARCHAR(20) NULL AFTER contact_email");
+        await pool.query("ALTER TABLE reports ADD COLUMN is_whatsapp BOOLEAN DEFAULT FALSE AFTER phone_number");
         await pool.query("ALTER TABLE reports ADD COLUMN evidence_files JSON NULL AFTER context");
         await pool.query("ALTER TABLE reports MODIFY COLUMN reported_vendor_id VARCHAR(50) NOT NULL");
         await pool.query("ALTER TABLE reports MODIFY COLUMN category ENUM('fraud','impersonation','harassment','inaccurate_information', 'others') NOT NULL");
@@ -195,6 +197,7 @@ const COLUMN_MIGRATIONS = [
     { table: 'users', column: 'referred_by', definition: 'INT NULL AFTER vendor_id' },
     // Update referrals status enum
     { table: 'referrals', column: 'status', definition: "ENUM('pending','available','processing','paid','withdrawn','cancelled','reversed') DEFAULT 'pending' AFTER commission_earned" },
+    { table: 'reports', column: 'is_whatsapp', definition: 'BOOLEAN DEFAULT FALSE AFTER phone_number' },
 ];
 
 async function addMissingColumns() {

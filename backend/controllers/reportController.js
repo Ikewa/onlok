@@ -5,7 +5,7 @@ const pool = require('../config/db');
 // @access  Public (anonymous-safe — reporter_id optional)
 const submitReport = async (req, res) => {
     try {
-        const { reported_vendor_id, category, context, contact_email, phone_number } = req.body;
+        const { reported_vendor_id, category, context, contact_email, phone_number, is_whatsapp } = req.body;
 
         // Validate required fields
         if (!reported_vendor_id || !category || !context) {
@@ -30,8 +30,8 @@ const submitReport = async (req, res) => {
         const reference_number = `TP-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
         const query = `
-            INSERT INTO reports (reference_number, reporter_id, reported_vendor_id, contact_email, phone_number, category, context, evidence_files)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO reports (reference_number, reporter_id, reported_vendor_id, contact_email, phone_number, is_whatsapp, category, context, evidence_files)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
         const [result] = await pool.execute(query, [
             reference_number, 
@@ -39,6 +39,7 @@ const submitReport = async (req, res) => {
             reported_vendor_id, 
             contact_email || null, 
             phone_number || null, 
+            is_whatsapp === 'true' || is_whatsapp === true ? 1 : 0,
             category, 
             context, 
             evidence_files
@@ -62,7 +63,7 @@ const submitReport = async (req, res) => {
 const getReports = async (req, res) => {
     try {
         const [reports] = await pool.query(`
-            SELECT r.id, r.reference_number, r.reported_vendor_id, r.contact_email, r.phone_number, r.category, r.context, r.evidence_files, r.status, r.created_at,
+            SELECT r.id, r.reference_number, r.reported_vendor_id, r.contact_email, r.phone_number, r.is_whatsapp, r.category, r.context, r.evidence_files, r.status, r.created_at,
                    u.vendor_id AS reporter_vendor_id, u.first_name, u.last_name
             FROM reports r
             LEFT JOIN users u ON r.reporter_id = u.id
