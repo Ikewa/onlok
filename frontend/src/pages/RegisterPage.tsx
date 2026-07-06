@@ -144,7 +144,7 @@ export default function RegisterPage() {
         
         // Handle NGINX / server limits (e.g. 413 Payload Too Large)
         if (err?.response?.status === 413) {
-          msg = 'Your video file is too large. Please upload a smaller video (max 50MB).';
+          msg = 'Your video file is too large. Please upload a smaller video (max 100MB).';
         } else if (!msg) {
           msg = 'Registration failed or file is too large. Please check your connection and try again.';
         }

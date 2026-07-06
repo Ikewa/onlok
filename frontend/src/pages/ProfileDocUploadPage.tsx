@@ -9,7 +9,7 @@ import UploadIcon from '@mui/icons-material/Upload';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { submitVerification } from '../api/verifications';
 import toast from 'react-hot-toast';
 
 
@@ -95,9 +95,28 @@ function UploadZone({
 export default function ProfileDocUploadPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const initials = `${user?.first_name?.[0] ?? ''}${user?.last_name?.[0] ?? ''}`.toUpperCase();
+  const [govId, setGovId] = useState<File | null>(null);
+  const [cacDoc, setCacDoc] = useState<File | null>(null);
+  const [video, setVideo] = useState<File | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = () => toast.success('Documents submitted for review!');
+  const handleSubmit = async () => {
+    if (!govId || !cacDoc || !video) {
+      toast.error('Please upload all three required files');
+      return;
+    }
+    setLoading(true);
+    try {
+      await submitVerification(govId, cacDoc, video);
+      toast.success('Documents submitted for review!');
+      navigate('/dashboard/verification');
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err?.response?.data?.message || 'Failed to submit verification');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const instructions = [
     'Ensure all 4 corners of the document are visible',
@@ -212,18 +231,21 @@ export default function ProfileDocUploadPage() {
               subtitle="Upload a valid, unexpired government-issued ID."
               accept="image/*,.pdf"
               labels={['Passport', 'National ID', "Driver's License"]}
+              onFile={setGovId}
             />
             <UploadZone
               title="Business Registration"
               subtitle="Upload a valid government-issued ID."
               accept="image/*,.pdf"
               labels={['CAC Certificate']}
+              onFile={setCacDoc}
             />
             <UploadZone
               title="video upload"
               subtitle="Upload two minute of you and your business environment"
               accept="video/mp4"
               labels={['Video']}
+              onFile={setVideo}
             />
           </Box>
 
@@ -243,10 +265,11 @@ export default function ProfileDocUploadPage() {
           <Button
             variant="contained"
             fullWidth
+            disabled={loading}
             onClick={handleSubmit}
             sx={{ bgcolor: '#1A1FE8', color: '#fff', borderRadius: 2.5, py: 1.6, fontWeight: 700, fontSize: '1rem', textTransform: 'none', '&:hover': { bgcolor: '#1318C0' } }}
           >
-            Submit For Review
+            {loading ? 'Submitting...' : 'Submit For Review'}
           </Button>
         </Paper>
       </Box>

@@ -137,9 +137,12 @@ export default function VerificationPage() {
           <Typography sx={{ fontWeight: 700, fontSize: '1.1rem', color: '#0F172A' }}>
             No Verification Submitted Yet
           </Typography>
-          <Typography sx={{ color: '#64748B', fontSize: '0.9rem', maxWidth: 500 }}>
+          <Typography sx={{ color: '#64748B', fontSize: '0.9rem', maxWidth: 500, mb: 2 }}>
             You haven't submitted your verification documents. Complete the "Get Verified" flow to start the process.
           </Typography>
+          <Button variant="contained" onClick={() => window.location.href = '/dashboard/update'} sx={{ bgcolor: '#1A1FE8', textTransform: 'none', borderRadius: 2 }}>
+            Submit Verification
+          </Button>
         </Box>
       )}
 
@@ -246,11 +249,14 @@ export default function VerificationPage() {
                     Please check your email for more details or contact support.
                   </Typography>
                   {record.admin_notes && (
-                    <Box sx={{ bgcolor: '#FEE2E2', p: 2, borderRadius: 2, border: '1px solid #FCA5A5' }}>
+                    <Box sx={{ bgcolor: '#FEE2E2', p: 2, borderRadius: 2, border: '1px solid #FCA5A5', mb: 2 }}>
                       <Typography sx={{ fontWeight: 700, color: '#991B1B', fontSize: '0.85rem', mb: 0.5 }}>Admin Reason:</Typography>
                       <Typography sx={{ color: '#B91C1C', fontSize: '0.9rem' }}>{record.admin_notes}</Typography>
                     </Box>
                   )}
+                  <Button variant="contained" onClick={() => window.location.href = '/dashboard/update'} sx={{ bgcolor: '#DC2626', '&:hover': { bgcolor: '#991B1B' }, textTransform: 'none', borderRadius: 2 }}>
+                    Resubmit Documents
+                  </Button>
                 </Box>
               </Box>
             )}
