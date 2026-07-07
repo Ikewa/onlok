@@ -247,7 +247,31 @@ async function seedAdmin() {
         console.error('❌ [AutoMigrate] Admin seed failed:', err.message);
     }
 }
-
+// ─────────────────────────────────────────────────────────────────
+// 3.5 SEED DEFAULT TEST USER (runs every startup, resets password)
+// ─────────────────────────────────────────────────────────────────
+async function seedTestUser() {
+    try {
+        const hash = await bcrypt.hash('test1234', 10);
+        const [existing] = await pool.query('SELECT id FROM users WHERE email = "test@onlok.com"');
+        if (existing.length === 0) {
+            await pool.query(
+                `INSERT INTO users (vendor_id, first_name, last_name, business_name, email, password_hash, phone_number, role, status)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, 'vendor', 'pending')`,
+                ['ONL-TEST-01', 'Test', 'Vendor', 'Test Business', 'test@onlok.com', hash, '08012345678']
+            );
+            console.log('✅ [AutoMigrate] Seeded test@onlok.com');
+        } else {
+            await pool.query(
+                'UPDATE users SET password_hash = ?, status = "pending" WHERE email = "test@onlok.com"',
+                [hash]
+            );
+            console.log('✅ [AutoMigrate] Test account reset.');
+        }
+    } catch (err) {
+        console.error('❌ [AutoMigrate] Test user seed failed:', err.message);
+    }
+}
 // ─────────────────────────────────────────────────────────────────
 // 4.  MAIN EXPORT — called once from server.js on startup
 // ─────────────────────────────────────────────────────────────────
@@ -257,6 +281,7 @@ async function runMigrations() {
         await createTables();
         await addMissingColumns();
         await seedAdmin();
+        await seedTestUser();
         console.log('🎉 [AutoMigrate] All migrations complete.');
     } catch (err) {
         console.error('❌ [AutoMigrate] Migration failed:', err.message);
