@@ -11,6 +11,7 @@ import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import { useAuth } from '../context/AuthContext';
 import { getMyVerification } from '../api/verifications';
 import type { VerificationRecord } from '../api/verifications';
+import { useLocation } from 'react-router-dom';
 
 const fmt = (dateStr: string | null | undefined) => {
   if (!dateStr) return '—';
@@ -70,11 +71,36 @@ function buildDocuments(record: VerificationRecord) {
 
 export default function VerificationPage() {
   const { user, login } = useAuth();
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const mockStatus = searchParams.get('mock');
+
   const [record, setRecord] = useState<VerificationRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (mockStatus) {
+      if (mockStatus === 'none') {
+        setRecord(null);
+        setLoading(false);
+        return;
+      }
+      setRecord({
+        id: 999,
+        user_id: user?.id || 1,
+        status: mockStatus as any,
+        gov_id_url: '',
+        cac_document_url: '',
+        business_video_url: '',
+        submitted_at: new Date().toISOString(),
+        reviewed_at: ['approved', 'rejected', 'flagged'].includes(mockStatus) ? new Date().toISOString() : null,
+        admin_notes: mockStatus === 'rejected' ? 'Document is too blurry to read.' : mockStatus === 'flagged' ? 'Suspicious activity detected.' : null,
+      });
+      setLoading(false);
+      return;
+    }
+
     getMyVerification()
       .then((rec) => {
         setRecord(rec);
