@@ -20,8 +20,9 @@ export default function DashboardLayout() {
 
   const fullName = `${user?.first_name ?? ''} ${user?.last_name ?? ''}`.trim();
 
-  // Redirect unverified users to the verification status page
-  if (user && user.status !== 'verified' && location.pathname !== '/dashboard/verification') {
+  // Redirect unverified users to the verification status page, but allow them to access the update form
+  const isAllowedForUnverified = location.pathname === '/dashboard/verification' || location.pathname.startsWith('/dashboard/update');
+  if (user && user.status !== 'verified' && !isAllowedForUnverified) {
     return <Navigate to="/dashboard/verification" replace />;
   }
 
