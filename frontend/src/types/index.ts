@@ -62,6 +62,7 @@ export interface VendorSearchResult {
   created_at: string;
   badges: string[];
   last_verified?: string | null;
+  phone_number?: string | null;
   twitter_handle?: string | null;
   instagram_handle?: string | null;
   facebook_handle?: string | null;
