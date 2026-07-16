@@ -30,33 +30,53 @@ interface OnlokBadgeProps {
   showLabel?: boolean;
   tooltip?: boolean;
   vendorId?: string;
+  businessName?: string;
   sx?: object;
   onClick?: () => void;
 }
 
-function OnlokBadgeImage({ tier, size = 120, vendorId }: { tier: BadgeTier; size?: number; vendorId?: string }) {
+function OnlokBadgeImage({ tier, size = 120, vendorId, businessName }: { tier: BadgeTier; size?: number; vendorId?: string; businessName?: string }) {
   const p = T[tier];
 
   return (
     <Box sx={{ position: 'relative', width: size, height: size, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
       <img src={p.src} alt={`${p.label} Badge`} style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', filter: 'drop-shadow(0 4px 10px rgba(0,0,0,0.18))' }} />
-      {vendorId && (
+      {(vendorId || businessName) && (
         <Box sx={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 2, pointerEvents: 'none' }}>
           <svg viewBox="0 0 100 100" width="100%" height="100%">
-            {/* The curve: arches upwards in the middle.
-                Adjust the Q (quadratic bezier) control point to change the curve's height. */}
-            <path id={`ribbon-curve-${tier}`} d="M 18 62 Q 50 54 82 62" fill="transparent" />
-            <text 
-              fill={p.textColor} 
-              fontSize="8.5" 
-              fontWeight="900" 
-              fontFamily="Inter, sans-serif" 
-              letterSpacing="0.05em"
-            >
-              <textPath href={`#ribbon-curve-${tier}`} startOffset="50%" textAnchor="middle">
-                {vendorId}
-              </textPath>
-            </text>
+            {vendorId && (
+              <>
+                {/* The curve: arches upwards in the middle.
+                    Adjust the Q (quadratic bezier) control point to change the curve's height. */}
+                <path id={`ribbon-curve-${tier}`} d="M 18 62 Q 50 54 82 62" fill="transparent" />
+                <text 
+                  fill={p.textColor} 
+                  fontSize="8.5" 
+                  fontWeight="900" 
+                  fontFamily="Inter, sans-serif" 
+                  letterSpacing="0.05em"
+                >
+                  <textPath href={`#ribbon-curve-${tier}`} startOffset="50%" textAnchor="middle">
+                    {vendorId}
+                  </textPath>
+                </text>
+              </>
+            )}
+            {businessName && (
+              <text 
+                x="50" 
+                y="67" 
+                fill={p.textColor} 
+                fontSize="5" 
+                fontWeight="800" 
+                fontFamily="Inter, sans-serif" 
+                textAnchor="middle"
+                opacity="0.85"
+                letterSpacing="0.02em"
+              >
+                {businessName.toUpperCase().slice(0, 16)}
+              </text>
+            )}
           </svg>
         </Box>
       )}
@@ -64,7 +84,7 @@ function OnlokBadgeImage({ tier, size = 120, vendorId }: { tier: BadgeTier; size
   );
 }
 
-export function OnlokBadge({ tier, size = 120, showLabel = false, tooltip = true, vendorId, sx = {}, onClick }: OnlokBadgeProps) {
+export function OnlokBadge({ tier, size = 120, showLabel = false, tooltip = true, vendorId, businessName, sx = {}, onClick }: OnlokBadgeProps) {
   const p = T[tier];
   
   const badge = (
@@ -75,7 +95,7 @@ export function OnlokBadge({ tier, size = 120, showLabel = false, tooltip = true
       '&:hover': onClick ? { transform: 'scale(1.07)' } : {},
       ...sx,
     }}>
-      <OnlokBadgeImage tier={tier} size={size} vendorId={vendorId} />
+      <OnlokBadgeImage tier={tier} size={size} vendorId={vendorId} businessName={businessName} />
       {showLabel && (
         <Typography sx={{ mt: 0.8, fontSize: size * 0.11, fontWeight: 800, color: p.chipColor, letterSpacing: '0.04em' }}>
           {p.label}
