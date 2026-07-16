@@ -214,7 +214,7 @@ export default function PublicProfilePage() {
         </Box>
 
         {/* Profile header */}
-        <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start', mb: 2 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
           <Box sx={{ position: 'relative' }}>
             <Avatar sx={{ width: 80, height: 80, bgcolor: '#334155', fontSize: '1.6rem', fontWeight: 800 }}>
               {initials}
@@ -230,13 +230,13 @@ export default function PublicProfilePage() {
           {isVerified && vendor ? (
             <OnlokBadge
               tier={vendor.badges?.includes('premium') ? 'gold' : (vendor.badges?.includes('verified_vendor') ? 'silver' : 'bronze')}
-              size={70}
+              size={80}
               vendorId={vendor.vendor_id}
               tooltip={true}
             />
           ) : (
-            <Box sx={{ width: 70, height: 70, bgcolor: '#F8FAFC', border: '2.5px dashed #CBD5E1', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.6 }}>
-              <ShieldIcon sx={{ color: '#94A3B8', fontSize: 32 }} />
+            <Box sx={{ width: 80, height: 80, bgcolor: '#F8FAFC', border: '2.5px dashed #CBD5E1', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.6 }}>
+              <ShieldIcon sx={{ color: '#94A3B8', fontSize: 36 }} />
             </Box>
           )}
         </Box>
