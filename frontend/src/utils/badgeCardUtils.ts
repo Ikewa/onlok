@@ -33,9 +33,9 @@ const BADGE_SRC: Record<BadgeTier, string> = {
 
 // Accent colours for the vendor-ID ribbon text per tier
 const TIER_TEXT_COLOR: Record<BadgeTier, string> = {
-  gold:   '#5C3D00',
-  silver: '#2A2A2A',
-  bronze: '#2D0A00',
+  gold:   '#000000ff',
+  silver: '#000000ff',
+  bronze: '#000000ff',
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -248,7 +248,7 @@ export async function renderBadgeCardToCanvas(opts: BadgeCardOptions): Promise<H
   // Mirrors: M 18 62 Q 50 54 82 62  (100×100 viewBox in OnlokBadge.tsx)
   // Y ratios nudged up ~3 pts so the text sits perfectly in the ribbon groove.
   const textColor     = TIER_TEXT_COLOR[opts.tier];
-  const vendorFontSz  = W * 0.036;
+  const vendorFontSz  = W * 0.030;
 
   drawTextAlongQuadraticCurve(
     ctx,
@@ -266,7 +266,7 @@ export async function renderBadgeCardToCanvas(opts: BadgeCardOptions): Promise<H
   ctx.textAlign    = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillStyle    = textColor;
-  ctx.font         = `680 ${W * 0.028}px "Inter", Arial, sans-serif`;
+  ctx.font         = `650 ${W * 0.025}px "Inter", Arial, sans-serif`;
   ctx.fillText(opts.businessName, W / 2, scrollY);
 
   // ── 8. Body paragraph ────────────────────────────────────────────────────
