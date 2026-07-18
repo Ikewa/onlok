@@ -4,71 +4,59 @@ import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined';
 import CodeOutlinedIcon from '@mui/icons-material/CodeOutlined';
 import PictureAsPdfOutlinedIcon from '@mui/icons-material/PictureAsPdfOutlined';
 import { OnlokBadge } from '../components/OnlokBadge';
+import { getTierFromBadgeType } from '../components/OnlokBadge';
 import { useAuth } from '../context/AuthContext';
+import { downloadBadgeAsPNG, downloadBadgeAsSVG, downloadBadgeAsPDF } from '../utils/badgeCardUtils';
+import type { BadgeCardOptions } from '../utils/badgeCardUtils';
 
-import domtoimage from 'dom-to-image';
 import toast from 'react-hot-toast';
 
 export default function BadgePage() {
   const { user } = useAuth();
-  
-  // Assuming tier comes from user data, fallback to gold
-  const badgeTier = (user as any)?.badge_type ?? 'gold';
-  const vendorId = user?.vendor_id ?? 'OL-NG-0000';
 
-  const downloadPNG = async () => {
-    const node = document.getElementById('badge-preview');
-    if (!node) return;
+  // Resolve tier from badge_type field, falling back to 'gold'
+  const rawBadgeType = (user as any)?.badge_type ?? 'gold';
+  const badgeTier = getTierFromBadgeType(rawBadgeType) ?? 'gold';
+
+  const vendorId     = user?.vendor_id     ?? 'OL-NG-0000';
+  const businessName = user?.business_name ?? 'Your Business';
+
+  const cardOpts: BadgeCardOptions = {
+    vendorId,
+    businessName,
+    tier: badgeTier,
+  };
+
+  const handleDownloadPNG = async () => {
+    const toastId = toast.loading('Generating image…');
     try {
-      const dataUrl = await domtoimage.toPng(node, { quality: 1, bgcolor: 'transparent' });
-      const link = document.createElement('a');
-      link.download = `onlok-badge-${vendorId}.png`;
-      link.href = dataUrl;
-      link.click();
-      toast.success('Badge downloaded as PNG!');
+      await downloadBadgeAsPNG(cardOpts);
+      toast.success('Badge card downloaded as PNG!', { id: toastId });
     } catch (err) {
       console.error(err);
-      toast.error('Failed to generate PNG.');
+      toast.error('Failed to generate PNG.', { id: toastId });
     }
   };
 
-  const downloadSVG = async () => {
-    const node = document.getElementById('badge-preview');
-    if (!node) return;
+  const handleDownloadSVG = async () => {
+    const toastId = toast.loading('Generating SVG…');
     try {
-      const dataUrl = await domtoimage.toSvg(node, { quality: 1, bgcolor: 'transparent' });
-      const link = document.createElement('a');
-      link.download = `onlok-badge-${vendorId}.svg`;
-      link.href = dataUrl;
-      link.click();
-      toast.success('Badge downloaded as SVG!');
+      await downloadBadgeAsSVG(cardOpts);
+      toast.success('Badge card downloaded as SVG!', { id: toastId });
     } catch (err) {
       console.error(err);
-      toast.error('Failed to generate SVG.');
+      toast.error('Failed to generate SVG.', { id: toastId });
     }
   };
 
-  const downloadPDF = async () => {
-    const node = document.getElementById('badge-preview');
-    if (!node) return;
+  const handleDownloadPDF = async () => {
+    const toastId = toast.loading('Generating PDF…');
     try {
-      toast.loading('Generating PDF...', { id: 'pdf-toast' });
-      const dataUrl = await domtoimage.toPng(node, { quality: 1, bgcolor: 'transparent' });
-      
-      const { jsPDF } = await import('jspdf');
-      const doc = new jsPDF({
-        orientation: 'portrait',
-        unit: 'px',
-        format: [300, 300]
-      });
-      
-      doc.addImage(dataUrl, 'PNG', 10, 10, 280, 280);
-      doc.save(`onlok-badge-${vendorId}.pdf`);
-      
-      toast.success('Badge downloaded as PDF!', { id: 'pdf-toast' });
+      await downloadBadgeAsPDF(cardOpts);
+      toast.success('Badge card downloaded as PDF!', { id: toastId });
     } catch (err) {
       console.error(err);
-      toast.error('Failed to generate PDF.', { id: 'pdf-toast' });
+      toast.error('Failed to generate PDF.', { id: toastId });
     }
   };
 
@@ -94,7 +82,7 @@ export default function BadgePage() {
           Badge Preview
         </Typography>
         <Box id="badge-preview" sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-          <OnlokBadge tier={badgeTier} size={280} tooltip={false} vendorId={vendorId} />
+          <OnlokBadge tier={badgeTier} size={280} tooltip={false} vendorId={vendorId} businessName={businessName} />
         </Box>
       </Box>
 
@@ -103,12 +91,15 @@ export default function BadgePage() {
         bgcolor: '#FFFFFF', borderRadius: 3, p: { xs: 3, md: 4 }, 
         border: '1px solid #E2E8F0'
       }}>
-        <Typography sx={{ fontWeight: 700, fontSize: '1rem', color: '#0F172A', mb: 3 }}>
+        <Typography sx={{ fontWeight: 700, fontSize: '1rem', color: '#0F172A', mb: 1 }}>
           Download Badge
+        </Typography>
+        <Typography sx={{ color: '#64748B', fontSize: '0.85rem', mb: 3 }}>
+          Downloads a full branded social-media card (1080 × 1350 px) with your vendor details.
         </Typography>
         <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
           <Button 
-            onClick={downloadPNG}
+            onClick={handleDownloadPNG}
             variant="contained" 
             startIcon={<ImageOutlinedIcon />} 
             sx={{ 
@@ -120,9 +111,9 @@ export default function BadgePage() {
             Download PNG
           </Button>
           <Button 
-            onClick={downloadSVG}
+            onClick={handleDownloadSVG}
             variant="outlined" 
-            startIcon={<FileDownloadOutlinedIcon />} 
+            startIcon={<CodeOutlinedIcon />} 
             sx={{ 
               borderColor: '#E2E8F0', color: '#475569', borderRadius: 2, textTransform: 'none', 
               fontWeight: 600, px: 3, py: 1.2, flex: '1 1 200px',
@@ -132,7 +123,7 @@ export default function BadgePage() {
             Download SVG
           </Button>
           <Button 
-            onClick={downloadPDF}
+            onClick={handleDownloadPDF}
             variant="outlined" 
             startIcon={<PictureAsPdfOutlinedIcon />} 
             sx={{ 

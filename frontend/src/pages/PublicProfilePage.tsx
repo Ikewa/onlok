@@ -8,12 +8,66 @@ import LocationOnIcon from '@mui/icons-material/LocationOn';
 import WhatsAppIcon from '@mui/icons-material/WhatsApp';
 import InstagramIcon from '@mui/icons-material/Instagram';
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
+import TwitterIcon from '@mui/icons-material/Twitter';
+import FacebookIcon from '@mui/icons-material/Facebook';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import { Link as RouterLink, useSearchParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { searchVendors } from '../api/dashboard';
 import type { VendorSearchResult } from '../types';
+import { OnlokBadge } from '../components/OnlokBadge';
+
+const countryMap: Record<string, string> = {
+  NG: 'Nigeria',
+  SG: 'Singapore',
+  US: 'United States',
+  GB: 'United Kingdom',
+  UK: 'United Kingdom',
+  GH: 'Ghana',
+  KE: 'Kenya',
+  ZA: 'South Africa',
+};
+
+const getCountryFromVendorId = (vendorId?: string) => {
+  if (!vendorId) return 'Nigeria';
+  const parts = vendorId.split('-');
+  if (parts.length >= 3) {
+    const code = parts[1].toUpperCase();
+    return countryMap[code] ?? code;
+  }
+  return 'Nigeria';
+};
+
+const getSocialUrl = (platform: 'twitter' | 'instagram' | 'facebook' | 'tiktok' | 'whatsapp', val?: string | null) => {
+  if (!val || !val.trim()) return null;
+  const cleanVal = val.trim();
+  if (cleanVal.startsWith('http')) return cleanVal;
+
+  switch (platform) {
+    case 'whatsapp': {
+      const cleanPhone = cleanVal.replace(/\D/g, '');
+      return cleanPhone ? `https://wa.me/${cleanPhone}` : null;
+    }
+    case 'twitter': {
+      const handle = cleanVal.replace(/^@/, '');
+      return `https://x.com/${handle}`;
+    }
+    case 'instagram': {
+      const handle = cleanVal.replace(/^@/, '');
+      return `https://instagram.com/${handle}`;
+    }
+    case 'facebook': {
+      return `https://facebook.com/${cleanVal}`;
+    }
+    case 'tiktok': {
+      const handle = cleanVal.replace(/^@/, '');
+      return `https://tiktok.com/@${handle}`;
+    }
+    default:
+      return cleanVal;
+  }
+};
 
 const verificationItems = [
   { label: 'Identity Verified', desc: 'Biometric liveness check passed' },
@@ -24,8 +78,20 @@ const verificationItems = [
 ];
 
 function SocialRow({ icon, label, sub, url }: { icon: React.ReactNode; label: string; sub: string; url?: string | null }) {
+  const hasUrl = !!url?.trim();
+
   const content = (
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, py: 1 }}>
+    <Box
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 1.5,
+        py: 1,
+        opacity: hasUrl ? 1 : 0.4,
+        cursor: hasUrl ? 'pointer' : 'not-allowed',
+        userSelect: hasUrl ? 'auto' : 'none',
+      }}
+    >
       {icon}
       <Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
@@ -37,8 +103,17 @@ function SocialRow({ icon, label, sub, url }: { icon: React.ReactNode; label: st
     </Box>
   );
 
-  if (url) {
-    return <a href={url.startsWith('http') ? url : `https://${url}`} target="_blank" rel="noreferrer" style={{ textDecoration: 'none', color: 'inherit' }}>{content}</a>;
+  if (hasUrl) {
+    return (
+      <a
+        href={url.startsWith('http') ? url : `https://${url}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{ textDecoration: 'none', color: 'inherit' }}
+      >
+        {content}
+      </a>
+    );
   }
   return content;
 }
@@ -60,17 +135,59 @@ export default function PublicProfilePage() {
     }
   }, [vendorId]);
 
-  const fullName = vendor ? `${vendor.first_name} ${vendor.last_name}`.trim() : 'Munir Musa';
+  const fullName = vendor ? `${vendor.first_name} ${vendor.last_name}`.trim() : '-';
   const initials = fullName.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
-  const isVerified = vendor ? vendor.status === 'verified' : true;
+  const isVerified = vendor ? vendor.status === 'verified' : false;
   const memberSince = vendor
     ? new Date(vendor.created_at).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
-    : 'January 2024';
+    : '-';
   const lastVerified = vendor?.last_verified
     ? new Date(vendor.last_verified).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
-    : 'March 2025';
-  const trustLevel = isVerified ? 4 : 1;
-  const businessName = vendor?.business_name ?? 'Chen Design Studio';
+    : 'Not Verified';
+
+  const trustLevel = vendor?.status === 'verified'
+    ? (vendor?.badges?.includes('premium') ? 5 : (vendor?.badges?.includes('verified_vendor') ? 4 : 3))
+    : (vendor?.status === 'pending' ? 2 : 1);
+
+  const businessName = vendor?.business_name ?? '-';
+  const userRoleText = isVerified ? 'Onlok Verified Vendor' : 'Onlok Vendor';
+  const countryName = getCountryFromVendorId(vendor?.vendor_id);
+
+  const getStatusChipProps = (status: string) => {
+    switch (status) {
+      case 'verified':
+        return {
+          label: 'FULLY VERIFIED',
+          color: '#1A1FE8',
+          bgcolor: '#EEF2FF',
+        };
+      case 'pending':
+        return {
+          label: 'PENDING VERIFICATION',
+          color: '#D97706',
+          bgcolor: '#FEF3C7',
+        };
+      case 'rejected':
+        return {
+          label: 'VERIFICATION REJECTED',
+          color: '#DC2626',
+          bgcolor: '#FEE2E2',
+        };
+      case 'suspended':
+        return {
+          label: 'SUSPENDED',
+          color: '#4B5563',
+          bgcolor: '#F3F4F6',
+        };
+      default:
+        return {
+          label: status.toUpperCase(),
+          color: '#64748B',
+          bgcolor: '#F1F5F9',
+        };
+    }
+  };
+  const statusProps = getStatusChipProps(vendor?.status ?? 'pending');
 
   if (loading) {
     return (
@@ -97,7 +214,7 @@ export default function PublicProfilePage() {
         </Box>
 
         {/* Profile header */}
-        <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start', mb: 2 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
           <Box sx={{ position: 'relative' }}>
             <Avatar sx={{ width: 80, height: 80, bgcolor: '#334155', fontSize: '1.6rem', fontWeight: 800 }}>
               {initials}
@@ -109,32 +226,44 @@ export default function PublicProfilePage() {
             )}
           </Box>
 
-          {/* Shield badge */}
-          <Box sx={{ width: 70, height: 70, background: 'linear-gradient(180deg, #333 0%, #111 100%)', clipPath: 'polygon(50% 0%, 100% 15%, 100% 70%, 50% 100%, 0% 70%, 0% 15%)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <VerifiedIcon sx={{ color: '#C0C0C0', fontSize: 32 }} />
-          </Box>
+          {/* Shield badge or OnlokBadge sticker */}
+          {isVerified && vendor ? (
+            <OnlokBadge
+              tier={vendor.badges?.includes('premium') ? 'gold' : (vendor.badges?.includes('verified_vendor') ? 'silver' : 'bronze')}
+              size={160}
+              vendorId={vendor.vendor_id}
+              businessName={vendor.business_name}
+              tooltip={true}
+            />
+          ) : (
+            <Box sx={{ width: 80, height: 80, bgcolor: '#F8FAFC', border: '2.5px dashed #CBD5E1', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.6 }}>
+              <ShieldIcon sx={{ color: '#94A3B8', fontSize: 36 }} />
+            </Box>
+          )}
         </Box>
 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
           <Typography sx={{ fontWeight: 900, fontSize: '1.3rem', color: '#1A1FE8' }}>{fullName}</Typography>
-          <Chip
-            icon={<ShieldIcon sx={{ fontSize: 14 }} />}
-            label="FULLY VERIFIED"
-            sx={{ bgcolor: '#EEF2FF', color: '#1A1FE8', fontWeight: 700, fontSize: '0.68rem', height: 22, borderRadius: '50px', '& .MuiChip-icon': { color: '#1A1FE8', ml: 0.5 } }}
-          />
+          {vendor && (
+            <Chip
+              icon={<ShieldIcon sx={{ fontSize: 14 }} />}
+              label={statusProps.label}
+              sx={{ bgcolor: statusProps.bgcolor, color: statusProps.color, fontWeight: 700, fontSize: '0.68rem', height: 22, borderRadius: '50px', '& .MuiChip-icon': { color: statusProps.color, ml: 0.5 } }}
+            />
+          )}
         </Box>
         <Typography sx={{ fontWeight: 700, fontSize: '0.88rem', color: '#475569', mb: 1 }}>
-          ID: {vendor?.vendor_id ?? 'ONL-7829-KX'}
+          ID: {vendor?.vendor_id ?? '-'}
         </Typography>
 
         <Box sx={{ display: 'flex', gap: 3, mb: 2, flexWrap: 'wrap' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.6 }}>
             <WorkIcon sx={{ fontSize: 16, color: '#64748B' }} />
-            <Typography sx={{ fontSize: '0.82rem', color: '#475569' }}>UX Designer & Consultant</Typography>
+            <Typography sx={{ fontSize: '0.82rem', color: '#475569' }}>{userRoleText}</Typography>
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.6 }}>
             <LocationOnIcon sx={{ fontSize: 16, color: '#64748B' }} />
-            <Typography sx={{ fontSize: '0.82rem', color: '#475569' }}>Singapore</Typography>
+            <Typography sx={{ fontSize: '0.82rem', color: '#475569' }}>{countryName}</Typography>
           </Box>
         </Box>
 
@@ -154,11 +283,15 @@ export default function PublicProfilePage() {
           <Typography sx={{ fontSize: '0.78rem', color: '#64748B', mb: 2 }}>Reach Out To Us On Our Verified Channels To Place Order And Make Enquiry</Typography>
           <Box sx={{ display: 'flex', gap: 2 }}>
             <Box sx={{ flex: 1 }}>
-              <SocialRow icon={<WhatsAppIcon sx={{ color: '#25D366', fontSize: 32 }} />} label="Whatsapp" sub="Chat To Order" url={vendor?.phone_number ? `https://wa.me/${vendor.phone_number}` : null} />
+              <SocialRow icon={<WhatsAppIcon sx={{ color: '#25D366', fontSize: 32 }} />} label="Whatsapp" sub="Chat To Order" url={getSocialUrl('whatsapp', vendor?.phone_number)} />
               <Divider sx={{ borderColor: '#F1F5F9', my: 0.5 }} />
-              <SocialRow icon={<InstagramIcon sx={{ color: '#E1306C', fontSize: 32 }} />} label="Instagram" sub="View And DM Us" url={vendor?.instagram_handle} />
+              <SocialRow icon={<InstagramIcon sx={{ color: '#E1306C', fontSize: 32 }} />} label="Instagram" sub="View And DM Us" url={getSocialUrl('instagram', vendor?.instagram_handle)} />
               <Divider sx={{ borderColor: '#F1F5F9', my: 0.5 }} />
-              <SocialRow icon={<MusicNoteIcon sx={{ color: '#000', fontSize: 28 }} />} label="TikTok" sub="See Our Latest And DM" url={vendor?.tiktok_handle} />
+              <SocialRow icon={<MusicNoteIcon sx={{ color: '#000', fontSize: 28 }} />} label="TikTok" sub="See Our Latest And DM" url={getSocialUrl('tiktok', vendor?.tiktok_handle)} />
+              <Divider sx={{ borderColor: '#F1F5F9', my: 0.5 }} />
+              <SocialRow icon={<TwitterIcon sx={{ color: '#1DA1F2', fontSize: 32 }} />} label="Twitter" sub="Follow And DM Us" url={getSocialUrl('twitter', vendor?.twitter_handle)} />
+              <Divider sx={{ borderColor: '#F1F5F9', my: 0.5 }} />
+              <SocialRow icon={<FacebookIcon sx={{ color: '#1877F2', fontSize: 32 }} />} label="Facebook" sub="Connect With Us" url={getSocialUrl('facebook', vendor?.facebook_handle)} />
             </Box>
             <Box sx={{ width: 110, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', bgcolor: '#F8FAFC', borderRadius: 2, p: 1.5, gap: 0.5 }}>
               <WhatsAppIcon sx={{ color: '#25D366', fontSize: 28 }} />
@@ -182,7 +315,13 @@ export default function PublicProfilePage() {
             <Box sx={{ width: `${(trustLevel / 5) * 100}%`, height: '100%', bgcolor: '#0EA5E9', borderRadius: 5 }} />
           </Box>
           <Typography sx={{ fontSize: '0.78rem', color: '#94A3B8' }}>
-            High confidence based on comprehensive data points.
+            {trustLevel >= 4
+              ? 'High confidence based on comprehensive data points.'
+              : trustLevel === 3
+              ? 'Moderate confidence. Basic verification completed.'
+              : trustLevel === 2
+              ? 'Under review. Verification in progress.'
+              : 'Caution. This profile is not verified or has been suspended/rejected.'}
           </Typography>
         </Box>
 
@@ -205,7 +344,9 @@ export default function PublicProfilePage() {
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Box>
               <Typography sx={{ fontWeight: 600, fontSize: '0.92rem', color: '#1A1FE8' }}>{businessName}</Typography>
-              <Typography sx={{ fontSize: '0.75rem', color: '#94A3B8' }}>Reg. 202394827M (Singapore)</Typography>
+              <Typography sx={{ fontSize: '0.75rem', color: '#94A3B8' }}>
+                {isVerified ? `ONLOK Registered Vendor (${countryName})` : `Status: ${vendor?.status || 'Unverified'}`}
+              </Typography>
             </Box>
             <OpenInNewIcon sx={{ fontSize: 18, color: '#64748B' }} />
           </Box>
@@ -214,15 +355,26 @@ export default function PublicProfilePage() {
         {/* Verification Breakdown */}
         <Typography sx={{ fontWeight: 900, fontSize: '1.15rem', color: '#1A1FE8', mb: 1.5 }}>Verification Breakdown</Typography>
         <Box sx={{ border: '1px solid #E2E8F0', borderRadius: 3, p: 2, mb: 3 }}>
-          {verificationItems.map((item, i) => (
-            <Box key={i} sx={{ display: 'flex', gap: 1.5, mb: i < verificationItems.length - 1 ? 2 : 0 }}>
-              <CheckCircleIcon sx={{ color: '#0EA5E9', fontSize: 22, mt: 0.1, flexShrink: 0 }} />
-              <Box>
-                <Typography sx={{ fontWeight: 700, fontSize: '0.9rem', color: '#0EA5E9' }}>{item.label}</Typography>
-                <Typography sx={{ fontSize: '0.77rem', color: '#94A3B8' }}>{item.desc}</Typography>
+          {verificationItems.map((item, i) => {
+            const itemVerified = isVerified;
+            return (
+              <Box key={i} sx={{ display: 'flex', gap: 1.5, mb: i < verificationItems.length - 1 ? 2 : 0, opacity: itemVerified ? 1 : 0.5 }}>
+                {itemVerified ? (
+                  <CheckCircleIcon sx={{ color: '#0EA5E9', fontSize: 22, mt: 0.1, flexShrink: 0 }} />
+                ) : (
+                  <WarningAmberIcon sx={{ color: '#94A3B8', fontSize: 22, mt: 0.1, flexShrink: 0 }} />
+                )}
+                <Box>
+                  <Typography sx={{ fontWeight: 700, fontSize: '0.9rem', color: itemVerified ? '#0EA5E9' : '#64748B' }}>
+                    {item.label}
+                  </Typography>
+                  <Typography sx={{ fontSize: '0.77rem', color: '#94A3B8' }}>
+                    {itemVerified ? (item.label === 'Business Registration Verified' ? `${businessName} Verified` : item.desc) : 'Pending validation'}
+                  </Typography>
+                </Box>
               </Box>
-            </Box>
-          ))}
+            );
+          })}
         </Box>
 
         {/* Report */}

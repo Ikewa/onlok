@@ -61,7 +61,7 @@ const searchVendor = async (req, res) => {
         try {
             const query = `
                 SELECT id, vendor_id, first_name, last_name, business_name, status, created_at,
-                       twitter_handle, instagram_handle, facebook_handle, tiktok_handle
+                       phone_number, twitter_handle, instagram_handle, facebook_handle, tiktok_handle
                 FROM users
                 WHERE (vendor_id LIKE ? OR business_name LIKE ?) AND role = 'vendor'
                 LIMIT ? OFFSET ?
@@ -72,7 +72,7 @@ const searchVendor = async (req, res) => {
                 // tiktok_handle column not yet migrated — retry without it
                 const fallback = `
                     SELECT id, vendor_id, first_name, last_name, business_name, status, created_at,
-                           twitter_handle, instagram_handle, facebook_handle
+                           phone_number, twitter_handle, instagram_handle, facebook_handle
                     FROM users
                     WHERE (vendor_id LIKE ? OR business_name LIKE ?) AND role = 'vendor'
                     LIMIT ? OFFSET ?
