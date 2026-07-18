@@ -230,7 +230,7 @@ export default function PublicProfilePage() {
           {isVerified && vendor ? (
             <OnlokBadge
               tier={vendor.badges?.includes('premium') ? 'gold' : (vendor.badges?.includes('verified_vendor') ? 'silver' : 'bronze')}
-              size={100}
+              size={160}
               vendorId={vendor.vendor_id}
               businessName={vendor.business_name}
               tooltip={true}
