@@ -10,6 +10,7 @@ export interface User {
   phone_number?: string;
   role: 'vendor' | 'admin';
   status: 'pending' | 'verified' | 'rejected' | 'suspended';
+  profile_picture_url?: string | null;
   token: string;
 }
 
@@ -67,6 +68,7 @@ export interface VendorSearchResult {
   instagram_handle?: string | null;
   facebook_handle?: string | null;
   tiktok_handle?: string | null;
+  profile_picture_url?: string | null;
 }
 
 export type ReportCategory =

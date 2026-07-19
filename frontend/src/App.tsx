@@ -24,6 +24,7 @@ import PaymentSuccessPage from './pages/PaymentSuccessPage';
 import ProfileUpdatePage from './pages/ProfileUpdatePage';
 import ProfileBioEditPage from './pages/ProfileBioEditPage';
 import ProfileDocUploadPage from './pages/ProfileDocUploadPage';
+import ProfilePictureUpdatePage from './pages/ProfilePictureUpdatePage';
 import PublicProfilePage from './pages/PublicProfilePage';
 import BadgeShowcasePage from './pages/BadgeShowcasePage';
 import AdminLayout from './layouts/AdminLayout';
@@ -74,6 +75,7 @@ export default function App() {
               <Route path="update" element={<ProfileUpdatePage />} />
               <Route path="update/bio" element={<ProfileBioEditPage />} />
               <Route path="update/docs" element={<ProfileDocUploadPage />} />
+              <Route path="update/avatar" element={<ProfilePictureUpdatePage />} />
             </Route>
             
             {/* Protected Admin Routes */}

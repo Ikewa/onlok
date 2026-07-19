@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const { registerUser, loginUser, getMe, getUsers, updateUser, deleteUser, getReferrals } = require('../controllers/userController');
+const { registerUser, loginUser, getMe, getUsers, updateUser, deleteUser, getReferrals, uploadProfilePicture } = require('../controllers/userController');
 const { protect } = require('../middlewares/authMiddleware');
+const { uploadAvatar } = require('../middlewares/uploadMiddleware');
 
 router.post('/register', registerUser);
 router.post('/login', loginUser);
@@ -10,5 +11,8 @@ router.get('/referrals', protect, getReferrals);
 router.get('/', getUsers);
 router.put('/:id', protect, updateUser);
 router.delete('/:id', protect, deleteUser);
+
+// Profile picture upload (multer middleware runs before controller)
+router.post('/me/avatar', protect, uploadAvatar.single('profile_picture'), uploadProfilePicture);
 
 module.exports = router;

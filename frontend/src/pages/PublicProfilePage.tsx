@@ -18,6 +18,8 @@ import { searchVendors } from '../api/dashboard';
 import type { VendorSearchResult } from '../types';
 import { OnlokBadge } from '../components/OnlokBadge';
 
+const API_BASE = import.meta.env.PROD ? '' : (import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000');
+
 const countryMap: Record<string, string> = {
   NG: 'Nigeria',
   SG: 'Singapore',
@@ -138,6 +140,7 @@ export default function PublicProfilePage() {
   const fullName = vendor ? `${vendor.first_name} ${vendor.last_name}`.trim() : '-';
   const initials = fullName.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
   const isVerified = vendor ? vendor.status === 'verified' : false;
+  const avatarSrc = vendor?.profile_picture_url ? `${API_BASE}${vendor.profile_picture_url}` : undefined;
   const memberSince = vendor
     ? new Date(vendor.created_at).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
     : '-';
@@ -216,7 +219,10 @@ export default function PublicProfilePage() {
         {/* Profile header */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
           <Box sx={{ position: 'relative' }}>
-            <Avatar sx={{ width: 80, height: 80, bgcolor: '#334155', fontSize: '1.6rem', fontWeight: 800 }}>
+            <Avatar
+              src={avatarSrc}
+              sx={{ width: 80, height: 80, bgcolor: '#334155', fontSize: '1.6rem', fontWeight: 800 }}
+            >
               {initials}
             </Avatar>
             {isVerified && (
