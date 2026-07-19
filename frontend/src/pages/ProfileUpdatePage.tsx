@@ -8,6 +8,7 @@ import PaymentsIcon from '@mui/icons-material/Payments';
 import AutorenewIcon from '@mui/icons-material/Autorenew';
 import BusinessIcon from '@mui/icons-material/Business';
 import ArticleIcon from '@mui/icons-material/Article';
+import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
@@ -32,6 +33,12 @@ const options = [
     title: 'Update Document',
     desc: 'Make The Necessary Change By Updating Your Information',
     route: '/dashboard/update/docs',
+  },
+  {
+    icon: <AccountCircleIcon sx={{ color: '#1A1FE8', fontSize: 22 }} />,
+    title: 'Update Profile Picture',
+    desc: 'Upload A New Photo For Your Public Vendor Profile',
+    route: '/dashboard/update/avatar',
   },
 ];
 

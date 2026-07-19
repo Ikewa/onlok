@@ -43,7 +43,8 @@ async function createTables() {
             twitter_handle  VARCHAR(255) NULL,
             instagram_handle VARCHAR(255) NULL,
             facebook_handle VARCHAR(255) NULL,
-            tiktok_handle   VARCHAR(255) NULL,
+            tiktok_handle          VARCHAR(255) NULL,
+            profile_picture_url    VARCHAR(500) NULL,
             created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         )
@@ -206,6 +207,8 @@ const COLUMN_MIGRATIONS = [
     // Update referrals status enum
     { table: 'referrals', column: 'status', definition: "ENUM('pending','available','processing','paid','withdrawn','cancelled','reversed') DEFAULT 'pending' AFTER commission_earned" },
     { table: 'reports', column: 'is_whatsapp', definition: 'BOOLEAN DEFAULT FALSE AFTER phone_number' },
+    // Profile picture
+    { table: 'users', column: 'profile_picture_url', definition: 'VARCHAR(500) NULL AFTER tiktok_handle' },
 ];
 
 async function addMissingColumns() {

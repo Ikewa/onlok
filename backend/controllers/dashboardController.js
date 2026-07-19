@@ -8,7 +8,12 @@ const getVendorDashboard = async (req, res) => {
         const userId = req.user.id;
 
         // Fetch User Info
-        const [users] = await pool.query('SELECT id, vendor_id, first_name, last_name, business_name, email, phone_number, role, status FROM users WHERE id = ?', [userId]);
+        const [users] = await pool.query(
+            `SELECT id, vendor_id, first_name, last_name, business_name, email,
+                    phone_number, role, status, profile_picture_url
+             FROM users WHERE id = ?`,
+            [userId]
+        );
 
         if (users.length === 0) {
             return res.status(404).json({ message: 'User not found' });
@@ -56,12 +61,13 @@ const searchVendor = async (req, res) => {
         const { page, limit, startIndex } = req.pagination;
         const searchQuery = `%${q}%`;
 
-        // Try with tiktok_handle; if the column doesn't exist yet fall back
+        // Try with tiktok_handle and profile_picture_url; if columns don't exist yet fall back
         let vendors;
         try {
             const query = `
                 SELECT id, vendor_id, first_name, last_name, business_name, status, created_at,
-                       phone_number, twitter_handle, instagram_handle, facebook_handle, tiktok_handle
+                       phone_number, twitter_handle, instagram_handle, facebook_handle,
+                       tiktok_handle, profile_picture_url
                 FROM users
                 WHERE (vendor_id LIKE ? OR business_name LIKE ?) AND role = 'vendor'
                 LIMIT ? OFFSET ?
@@ -69,7 +75,7 @@ const searchVendor = async (req, res) => {
             [vendors] = await pool.query(query, [searchQuery, searchQuery, limit, startIndex]);
         } catch (colErr) {
             if (colErr.code === 'ER_BAD_FIELD_ERROR') {
-                // tiktok_handle column not yet migrated — retry without it
+                // Column(s) not yet migrated — retry without them
                 const fallback = `
                     SELECT id, vendor_id, first_name, last_name, business_name, status, created_at,
                            phone_number, twitter_handle, instagram_handle, facebook_handle
@@ -78,7 +84,7 @@ const searchVendor = async (req, res) => {
                     LIMIT ? OFFSET ?
                 `;
                 [vendors] = await pool.query(fallback, [searchQuery, searchQuery, limit, startIndex]);
-                vendors = vendors.map(v => ({ ...v, tiktok_handle: null }));
+                vendors = vendors.map(v => ({ ...v, tiktok_handle: null, profile_picture_url: null }));
             } else {
                 throw colErr;
             }

@@ -6,19 +6,19 @@ export type BadgeTier = 'gold' | 'silver' | 'bronze';
 const T = {
   gold: {
     label: 'Gold Verified',
-    textColor: '#5C3D00',
+    textColor: '#000000ff',
     src: '/badges/badge-gold.png',
     chipColor: '#C8960C',
   },
   silver: {
     label: 'Silver Verified',
-    textColor: '#2A2A2A',
+    textColor: '#000000ff',
     src: '/badges/badge-silver.png',
     chipColor: '#9E9E9E',
   },
   bronze: {
     label: 'Bronze Verified',
-    textColor: '#2D0A00',
+    textColor: '#000000ff',
     src: '/badges/badge-bronze.png',
     chipColor: '#A0522D',
   },
@@ -43,7 +43,7 @@ function OnlokBadgeImage({ tier, size = 120, vendorId, businessName }: { tier: B
       <img src={p.src} alt={`${p.label} Badge`} style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', filter: 'drop-shadow(0 4px 10px rgba(0,0,0,0.18))' }} />
       {(vendorId || businessName) && (
         <Box sx={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 2, pointerEvents: 'none' }}>
-          <svg viewBox="0 0 100 100" width="100%" height="100%">
+          <svg viewBox="0 0 100 103" width="100%" height="100%">
             {vendorId && (
               <>
                 {/* The curve: arches upwards in the middle.
@@ -51,7 +51,7 @@ function OnlokBadgeImage({ tier, size = 120, vendorId, businessName }: { tier: B
                 <path id={`ribbon-curve-${tier}`} d="M 18 62 Q 50 54 82 62" fill="transparent" />
                 <text 
                   fill={p.textColor} 
-                  fontSize="8.5" 
+                  fontSize="7.0" 
                   fontWeight="900" 
                   fontFamily="Inter, sans-serif" 
                   letterSpacing="0.05em"
@@ -65,7 +65,7 @@ function OnlokBadgeImage({ tier, size = 120, vendorId, businessName }: { tier: B
             {businessName && (
               <text 
                 x="50" 
-                y="67" 
+                y="67.5" 
                 fill={p.textColor} 
                 fontSize="5" 
                 fontWeight="800" 

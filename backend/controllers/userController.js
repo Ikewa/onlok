@@ -1,6 +1,10 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const pool = require('../config/db');
+const path = require('path');
+const fs = require('fs');
+const sharp = require('sharp');
+const { AVATAR_DIR } = require('../middlewares/uploadMiddleware');
 const { generateVendorId } = require('../utils/generateId');
 const { generateQRCode } = require('../utils/qrCodeGenerator');
 
@@ -126,7 +130,10 @@ const loginUser = async (req, res) => {
 // @access  Private
 const getMe = async (req, res) => {
     try {
-        const [rows] = await pool.query('SELECT id, vendor_id, first_name, last_name, business_name, email, phone_number, role, status FROM users WHERE id = ?', [req.user.id]);
+        const [rows] = await pool.query(
+            'SELECT id, vendor_id, first_name, last_name, business_name, email, phone_number, role, status, profile_picture_url FROM users WHERE id = ?',
+            [req.user.id]
+        );
         
         if (rows.length === 0) {
             return res.status(404).json({ message: 'User not found' });
@@ -304,6 +311,111 @@ const getReferrals = async (req, res) => {
     }
 };
 
+// ─── MAGIC BYTES for image validation (Layer 2 security) ────────────────────
+const MAGIC_BYTES = [
+    { bytes: [0xFF, 0xD8, 0xFF], type: 'jpeg' },           // JPEG
+    { bytes: [0x89, 0x50, 0x4E, 0x47], type: 'png' },      // PNG
+    { bytes: [0x52, 0x49, 0x46, 0x46], type: 'webp' },     // WebP (RIFF header)
+];
+
+const isValidImageMagicBytes = (filePath) => {
+    try {
+        const buf = Buffer.alloc(4);
+        const fd = fs.openSync(filePath, 'r');
+        fs.readSync(fd, buf, 0, 4, 0);
+        fs.closeSync(fd);
+        return MAGIC_BYTES.some(({ bytes }) => bytes.every((b, i) => buf[i] === b));
+    } catch {
+        return false;
+    }
+};
+
+// ─── Safe old-file deletion ───────────────────────────────────────────────────
+const safeDeleteOldAvatar = (oldUrl) => {
+    if (!oldUrl) return;
+    // Only delete files that live inside uploads/avatars/ — never anything else
+    if (!oldUrl.startsWith('/uploads/avatars/')) return;
+    const filename = path.basename(oldUrl);
+    // Reject any filename containing path traversal characters
+    if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) return;
+    const fullPath = path.join(AVATAR_DIR, filename);
+    // Final absolute-path check ensures we stay inside AVATAR_DIR
+    if (!fullPath.startsWith(AVATAR_DIR)) return;
+    fs.unlink(fullPath, (err) => {
+        if (err && err.code !== 'ENOENT') {
+            console.error('Failed to delete old avatar:', err.message);
+        }
+    });
+};
+
+// @desc    Upload / update profile picture
+// @route   POST /api/users/me/avatar
+// @access  Private
+const uploadProfilePicture = async (req, res) => {
+    const uploadedFilePath = req.file ? req.file.path : null;
+
+    try {
+        // 1. Multer should have set req.file — guard just in case
+        if (!req.file) {
+            return res.status(400).json({ message: 'No image file provided.' });
+        }
+
+        // 2. Magic bytes check (Layer 2 — defeats polyglot/renamed files)
+        if (!isValidImageMagicBytes(uploadedFilePath)) {
+            fs.unlink(uploadedFilePath, () => {});
+            return res.status(400).json({ message: 'Invalid image file. Only JPEG, PNG, and WebP are accepted.' });
+        }
+
+        // 3. Per-user rate limit: reject if profile was updated within last 60 seconds
+        const [userRows] = await pool.query(
+            'SELECT updated_at, profile_picture_url FROM users WHERE id = ?',
+            [req.user.id]
+        );
+        if (userRows.length === 0) {
+            fs.unlink(uploadedFilePath, () => {});
+            return res.status(404).json({ message: 'User not found.' });
+        }
+        const { updated_at, profile_picture_url: oldUrl } = userRows[0];
+        const secondsSinceUpdate = (Date.now() - new Date(updated_at).getTime()) / 1000;
+        if (secondsSinceUpdate < 60) {
+            fs.unlink(uploadedFilePath, () => {});
+            return res.status(429).json({ message: 'Please wait a moment before uploading another picture.' });
+        }
+
+        // 4. Resize to 400×400 with sharp and save as JPEG — replace the temp file
+        const finalFilename = path.basename(uploadedFilePath);
+        const finalPath = path.join(AVATAR_DIR, finalFilename);
+
+        await sharp(uploadedFilePath)
+            .resize(400, 400, { fit: 'cover', position: 'center' })
+            .jpeg({ quality: 85 })
+            .toFile(finalPath + '.tmp');
+
+        // Atomically replace original with resized version
+        fs.unlinkSync(uploadedFilePath);
+        fs.renameSync(finalPath + '.tmp', finalPath);
+
+        const profilePictureUrl = `/uploads/avatars/${finalFilename}`;
+
+        // 5. Safe-delete the old avatar
+        safeDeleteOldAvatar(oldUrl);
+
+        // 6. Persist new URL to DB
+        await pool.execute(
+            'UPDATE users SET profile_picture_url = ? WHERE id = ?',
+            [profilePictureUrl, req.user.id]
+        );
+
+        res.status(200).json({ profile_picture_url: profilePictureUrl });
+
+    } catch (error) {
+        // Clean up uploaded file on any unexpected error
+        if (uploadedFilePath) fs.unlink(uploadedFilePath, () => {});
+        console.error('Upload Profile Picture Error:', error);
+        res.status(500).json({ message: 'Server error uploading profile picture.' });
+    }
+};
+
 module.exports = {
     registerUser,
     loginUser,
@@ -311,5 +423,6 @@ module.exports = {
     getUsers,
     updateUser,
     deleteUser,
-    getReferrals
+    getReferrals,
+    uploadProfilePicture,
 };
