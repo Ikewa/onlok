@@ -67,13 +67,8 @@ export default function DashboardPage() {
   const dashUser = data?.user ?? user;
   const firstName = dashUser?.first_name ?? 'Munir';
   const fullName = `${dashUser?.first_name ?? 'Muhammad'} ${dashUser?.last_name ?? 'Munir'}`.trim();
-  const initials = `${dashUser?.first_name?.[0] ?? ''}${dashUser?.last_name?.[0] ?? ''}`.toUpperCase();
   const vendorId = dashUser?.vendor_id ?? 'ONL-7829-KX';
   const profileLink = `https://onlok.net/profile?id=${vendorId}`;
-
-  // Build absolute URL for the avatar (relative /uploads/... path from the API)
-  const API_BASE = import.meta.env.PROD ? '' : (import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000');
-  const avatarSrc = dashUser?.profile_picture_url ? `${API_BASE}${dashUser.profile_picture_url}` : undefined;
 
   const cardStyle = { p: 2.5, borderRadius: 3, border: '1px solid #E2E8F0', boxShadow: 'none', bgcolor: '#F8FAFC', mb: 2.5 };
 
@@ -129,12 +124,6 @@ export default function DashboardPage() {
                 </Box>
                 <Box sx={{ width: '60%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                    <Avatar
-                      src={avatarSrc}
-                      sx={{ width: 36, height: 36, fontSize: '0.9rem', fontWeight: 800, bgcolor: '#334155' }}
-                    >
-                      {initials}
-                    </Avatar>
                     <Typography sx={{ fontWeight: 800, fontSize: { xs: '1.1rem', sm: '1.4rem' }, color: '#0F172A' }}>{fullName}</Typography>
                     <VerifiedIcon sx={{ color: '#1A1FE8', fontSize: { xs: 18, sm: 22 } }} />
                   </Box>
@@ -295,12 +284,9 @@ export default function DashboardPage() {
           <Box sx={{ width: { xs: '100%', sm: '40%' }, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 0 }}>
             {/* Profile Status */}
             <Paper sx={{ ...cardStyle, display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Avatar
-                src={avatarSrc}
-                sx={{ width: 52, height: 52, fontSize: '1.1rem', fontWeight: 800, bgcolor: '#334155', flexShrink: 0 }}
-              >
-                {initials}
-              </Avatar>
+              <Box sx={{ width: 45, height: 45, bgcolor: '#F4F7FB', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <VerifiedIcon sx={{ color: '#84CC16', fontSize: 28 }} />
+              </Box>
               <Box>
                 <Typography sx={{ fontWeight: 800, fontSize: '1.1rem', color: '#475569' }}>Profile Status</Typography>
                 <Typography sx={{ fontSize: '0.85rem', color: '#0F172A', mt: 0.5 }}>
