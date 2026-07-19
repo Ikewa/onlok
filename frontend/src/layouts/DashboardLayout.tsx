@@ -19,6 +19,9 @@ export default function DashboardLayout() {
   };
 
   const fullName = `${user?.first_name ?? ''} ${user?.last_name ?? ''}`.trim();
+  const initials = `${user?.first_name?.[0] ?? ''}${user?.last_name?.[0] ?? ''}`.toUpperCase();
+  const API_BASE = import.meta.env.PROD ? '' : (import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000');
+  const avatarSrc = user?.profile_picture_url ? `${API_BASE}${user.profile_picture_url}` : undefined;
 
   // Redirect unverified users to the verification status page, but allow them to access the update form
   const isAllowedForUnverified = location.pathname === '/dashboard/verification' || location.pathname.startsWith('/dashboard/update');
@@ -78,7 +81,22 @@ export default function DashboardLayout() {
             <NotificationsNoneIcon />
           </IconButton>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <Avatar src={user?.avatar} sx={{ width: 36, height: 36 }} />
+            <Avatar
+              src={avatarSrc}
+              sx={{
+                width: 36,
+                height: 36,
+                fontSize: '0.85rem',
+                fontWeight: 800,
+                bgcolor: '#334155',
+                border: '2px solid #E2E8F0',
+                cursor: 'pointer',
+                transition: 'border-color 0.2s',
+                '&:hover': { borderColor: '#1A1FE8' },
+              }}
+            >
+              {initials}
+            </Avatar>
             <Typography sx={{ display: { xs: 'none', md: 'block' }, fontWeight: 600, color: '#0F172A', fontSize: '0.95rem' }}>
               {fullName}
             </Typography>
