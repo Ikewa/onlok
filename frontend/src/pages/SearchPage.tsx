@@ -9,7 +9,7 @@ import FlagIcon from '@mui/icons-material/Flag';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import ShieldIcon from '@mui/icons-material/Shield';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import { useSearchParams, Link as RouterLink } from 'react-router-dom';
+import { useSearchParams, Link as RouterLink, useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import { searchVendors } from '../api/dashboard';
 import type { VendorSearchResult } from '../types';
@@ -17,8 +17,12 @@ import toast from 'react-hot-toast';
 
 type SearchState = 'idle' | 'loading' | 'found' | 'not_found' | 'error';
 
+// Matches Onlok IDs like OL-NG-00545 (case-insensitive)
+const ONLOK_ID_REGEX = /^OL-[A-Z]{2}-\d{4,6}$/i;
+
 export default function SearchPage() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const initialQuery = searchParams.get('q') ?? '';
 
   const [query, setQuery] = useState(initialQuery);
@@ -27,6 +31,11 @@ export default function SearchPage() {
 
   const doSearch = useCallback(async (q: string) => {
     if (!q.trim()) return;
+    // If the query looks like an Onlok ID, go straight to the public profile page
+    if (ONLOK_ID_REGEX.test(q.trim())) {
+      navigate(`/profile?id=${encodeURIComponent(q.trim())}`);
+      return;
+    }
     setState('loading');
     try {
       const res = await searchVendors(q);
@@ -40,7 +49,7 @@ export default function SearchPage() {
     } catch {
       setState('error');
     }
-  }, []);
+  }, [navigate]);
 
   useEffect(() => {
     if (initialQuery) doSearch(initialQuery);

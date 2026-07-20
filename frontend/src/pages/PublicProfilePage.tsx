@@ -1,4 +1,4 @@
-import { Box, Typography, Button, Chip, Avatar, Divider, LinearProgress } from '@mui/material';
+import { Box, Typography, Button, Chip, Avatar, Divider, LinearProgress, Dialog, DialogTitle, DialogContent, IconButton, List, ListItem, ListItemAvatar, ListItemText } from '@mui/material';
 import VerifiedIcon from '@mui/icons-material/Verified';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ShieldIcon from '@mui/icons-material/Shield';
@@ -12,6 +12,7 @@ import TwitterIcon from '@mui/icons-material/Twitter';
 import FacebookIcon from '@mui/icons-material/Facebook';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import CloseIcon from '@mui/icons-material/Close';
 import { Link as RouterLink, useSearchParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { searchVendors } from '../api/dashboard';
@@ -53,18 +54,18 @@ const getSocialUrl = (platform: 'twitter' | 'instagram' | 'facebook' | 'tiktok' 
     }
     case 'twitter': {
       const handle = cleanVal.replace(/^@/, '');
-      return `https://x.com/${handle}`;
+      return handle;
     }
     case 'instagram': {
       const handle = cleanVal.replace(/^@/, '');
-      return `https://instagram.com/${handle}`;
+      return handle;
     }
     case 'facebook': {
-      return `https://facebook.com/${cleanVal}`;
+      return cleanVal;
     }
     case 'tiktok': {
       const handle = cleanVal.replace(/^@/, '');
-      return `https://tiktok.com/@${handle}`;
+      return handle;
     }
     default:
       return cleanVal;
@@ -156,6 +157,41 @@ export default function PublicProfilePage() {
   const userRoleText = isVerified ? 'Onlok Verified Vendor' : 'Onlok Vendor';
   const countryName = getCountryFromVendorId(vendor?.vendor_id);
 
+  const [contactOpen, setContactOpen] = useState(false);
+
+  const contactChannels = [
+    {
+      label: 'WhatsApp',
+      sub: 'Chat to order',
+      icon: <WhatsAppIcon sx={{ color: '#25D366', fontSize: 30 }} />,
+      href: vendor?.phone_number ? `https://wa.me/${vendor.phone_number.replace(/\D/g, '')}` : null,
+    },
+    {
+      label: 'Instagram',
+      sub: 'View & DM',
+      icon: <InstagramIcon sx={{ color: '#E1306C', fontSize: 30 }} />,
+      href: vendor?.instagram_handle ? `https://instagram.com/${vendor.instagram_handle.replace(/^@/, '')}` : null,
+    },
+    {
+      label: 'TikTok',
+      sub: 'See latest & DM',
+      icon: <MusicNoteIcon sx={{ fontSize: 28, color: '#000' }} />,
+      href: vendor?.tiktok_handle ? `https://tiktok.com/@${vendor.tiktok_handle.replace(/^@/, '')}` : null,
+    },
+    {
+      label: 'Twitter / X',
+      sub: 'Follow & DM',
+      icon: <TwitterIcon sx={{ color: '#1DA1F2', fontSize: 30 }} />,
+      href: vendor?.twitter_handle ? `https://x.com/${vendor.twitter_handle.replace(/^@/, '')}` : null,
+    },
+    {
+      label: 'Facebook',
+      sub: 'Connect & message',
+      icon: <FacebookIcon sx={{ color: '#1877F2', fontSize: 30 }} />,
+      href: vendor?.facebook_handle ? `https://facebook.com/${vendor.facebook_handle}` : null,
+    },
+  ];
+
   const getStatusChipProps = (status: string) => {
     switch (status) {
       case 'verified':
@@ -196,6 +232,94 @@ export default function PublicProfilePage() {
     return (
       <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <LinearProgress sx={{ width: 200 }} />
+      </Box>
+    );
+  }
+
+  if (!vendor) {
+    return (
+      <Box
+        sx={{
+          minHeight: '100vh',
+          bgcolor: '#fff',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          px: 3,
+          gap: 0,
+        }}
+      >
+        {/* Icon */}
+        <Box
+          sx={{
+            width: 72,
+            height: 72,
+            borderRadius: '50%',
+            bgcolor: '#F1F5F9',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            mb: 3,
+          }}
+        >
+          <ShieldIcon sx={{ fontSize: 36, color: '#94A3B8' }} />
+        </Box>
+
+        {/* Heading */}
+        <Typography sx={{ fontWeight: 800, fontSize: '1.25rem', color: '#0F172A', mb: 0.5 }}>
+          No Record Found
+        </Typography>
+
+        {/* Searched ID */}
+        {vendorId && (
+          <Typography sx={{ fontFamily: 'monospace', fontWeight: 700, color: '#1A1FE8', fontSize: '0.95rem', mb: 1.5 }}>
+            {vendorId}
+          </Typography>
+        )}
+
+        {/* Description */}
+        <Typography sx={{ fontSize: '0.88rem', color: '#64748B', textAlign: 'center', maxWidth: 320, mb: 4, lineHeight: 1.6 }}>
+          This ID does not match any registered vendor on Onlok. The vendor may not be registered or the ID may be incorrect.
+        </Typography>
+
+        {/* Actions */}
+        <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', justifyContent: 'center' }}>
+          <Button
+            component={RouterLink}
+            to="/search"
+            variant="contained"
+            sx={{
+              bgcolor: '#1A1FE8',
+              borderRadius: '8px',
+              px: 3,
+              py: 1,
+              textTransform: 'none',
+              fontWeight: 700,
+              '&:hover': { bgcolor: '#0F14B0' },
+            }}
+          >
+            ‹ Back to Search
+          </Button>
+          <Button
+            component={RouterLink}
+            to={`/report?vendor=${vendorId}`}
+            variant="outlined"
+            startIcon={<WarningAmberIcon sx={{ fontSize: 16 }} />}
+            sx={{
+              borderColor: '#E2E8F0',
+              color: '#64748B',
+              borderRadius: '8px',
+              px: 3,
+              py: 1,
+              textTransform: 'none',
+              fontWeight: 700,
+              '&:hover': { borderColor: '#94A3B8', bgcolor: '#F8FAFC' },
+            }}
+          >
+            Report This ID
+          </Button>
+        </Box>
       </Box>
     );
   }
@@ -275,9 +399,70 @@ export default function PublicProfilePage() {
 
         {/* Action buttons */}
         <Box sx={{ display: 'flex', gap: 1.5, mb: 3 }}>
-          <Button variant="contained" startIcon={<EmailIcon />} sx={{ flex: 1, bgcolor: '#1A1FE8', borderRadius: 2, textTransform: 'none', fontWeight: 700, '&:hover': { bgcolor: '#1318C0' } }}>
+          <Button
+            variant="contained"
+            startIcon={<EmailIcon />}
+            onClick={() => setContactOpen(true)}
+            sx={{ flex: 1, bgcolor: '#1A1FE8', borderRadius: 2, textTransform: 'none', fontWeight: 700, '&:hover': { bgcolor: '#1318C0' } }}
+          >
             Contact
           </Button>
+
+          {/* Contact channels dialog */}
+          <Dialog
+            open={contactOpen}
+            onClose={() => setContactOpen(false)}
+            fullWidth
+            maxWidth="xs"
+            PaperProps={{ sx: { borderRadius: 3, px: 0.5 } }}
+          >
+            <DialogTitle sx={{ fontWeight: 800, fontSize: '1.05rem', color: '#0F172A', pr: 6 }}>
+              Contact {businessName}
+              <IconButton
+                onClick={() => setContactOpen(false)}
+                size="small"
+                sx={{ position: 'absolute', right: 12, top: 12, color: '#94A3B8' }}
+              >
+                <CloseIcon fontSize="small" />
+              </IconButton>
+            </DialogTitle>
+            <DialogContent sx={{ pt: 0, pb: 2 }}>
+              <Typography sx={{ fontSize: '0.8rem', color: '#64748B', mb: 1.5 }}>
+                Reach out via any verified channel below.
+              </Typography>
+              <List disablePadding>
+                {contactChannels.map((ch) => (
+                  <ListItem
+                    key={ch.label}
+                    disableGutters
+                    component={ch.href ? 'a' : 'div'}
+                    href={ch.href ?? undefined}
+                    target={ch.href ? '_blank' : undefined}
+                    rel={ch.href ? 'noopener noreferrer' : undefined}
+                    sx={{
+                      borderRadius: 2,
+                      mb: 0.5,
+                      px: 1.5,
+                      py: 1,
+                      textDecoration: 'none',
+                      opacity: ch.href ? 1 : 0.4,
+                      cursor: ch.href ? 'pointer' : 'not-allowed',
+                      '&:hover': ch.href ? { bgcolor: '#F8FAFC' } : {},
+                    }}
+                  >
+                    <ListItemAvatar sx={{ minWidth: 44 }}>
+                      {ch.icon}
+                    </ListItemAvatar>
+                    <ListItemText
+                      primary={<Typography sx={{ fontWeight: 700, fontSize: '0.9rem', color: '#0F172A' }}>{ch.label}</Typography>}
+                      secondary={<Typography sx={{ fontSize: '0.75rem', color: '#64748B' }}>{ch.href ? ch.sub : 'Not set'}</Typography>}
+                    />
+                    {ch.href && <OpenInNewIcon sx={{ fontSize: 16, color: '#94A3B8' }} />}
+                  </ListItem>
+                ))}
+              </List>
+            </DialogContent>
+          </Dialog>
           <Button variant="outlined" startIcon={<CheckCircleIcon />} sx={{ flex: 1, borderColor: '#0EA5E9', color: '#0EA5E9', borderRadius: 2, textTransform: 'none', fontWeight: 700, '&:hover': { bgcolor: '#EFF9FF' } }}>
             Proceed With Confidence
           </Button>
