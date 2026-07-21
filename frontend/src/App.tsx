@@ -34,6 +34,7 @@ import AdminLoginPage from './pages/admin/AdminLoginPage';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminAlerts from './pages/admin/AdminAlerts';
 import AdminComplaints from './pages/admin/AdminComplaints';
+import AdminComplaintDetail from './pages/admin/AdminComplaintDetail';
 import AdminSettings from './pages/admin/AdminSettings';
 import AdminReferrals from './pages/admin/AdminReferrals';
 import { Navigate } from 'react-router-dom';
@@ -86,6 +87,7 @@ export default function App() {
               <Route path="/admin/dashboard" element={<AdminDashboard />} />
               <Route path="/admin/alerts" element={<AdminAlerts />} />
               <Route path="/admin/complaints" element={<AdminComplaints />} />
+              <Route path="/admin/complaints/:id" element={<AdminComplaintDetail />} />
               <Route path="/admin/settings" element={<AdminSettings />} />
               <Route path="/admin/referrals" element={<AdminReferrals />} />
             </Route>

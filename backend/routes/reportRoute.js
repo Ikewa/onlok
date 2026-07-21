@@ -3,7 +3,7 @@ const router = express.Router();
 const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
-const { submitReport, getReports, updateReportStatus } = require('../controllers/reportController');
+const { submitReport, getReports, getReportById, getReportStats, updateReport } = require('../controllers/reportController');
 const { protect } = require('../middlewares/authMiddleware');
 
 // Configure Multer for evidence file uploads
@@ -23,11 +23,12 @@ const storage = multer.diskStorage({
 const upload = multer({ storage: storage });
 
 // Public — anonymous reports allowed (no protect middleware)
-// Expecting an array of files under the field name 'evidence'
 router.post('/', upload.array('evidence', 5), submitReport);
 
-// Admin only (protect used as basic auth guard — extend with role-check middleware later)
-router.get('/', protect, getReports);
-router.patch('/:id', protect, updateReportStatus);
+// Admin only — order matters: /stats must come before /:id to avoid route conflict
+router.get('/stats', protect, getReportStats);
+router.get('/',      protect, getReports);
+router.get('/:id',   protect, getReportById);
+router.patch('/:id', protect, updateReport);
 
 module.exports = router;
