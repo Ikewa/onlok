@@ -106,26 +106,36 @@ async function createTables() {
             context             TEXT NOT NULL,
             evidence_files      JSON NULL,
             status              ENUM('pending','reviewed','dismissed') DEFAULT 'pending',
+            priority            ENUM('low','medium','high') DEFAULT 'medium',
             created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (reporter_id) REFERENCES users(id) ON DELETE SET NULL
         )
     `);
 
-    // Add new columns if the table already existed before this update
-    try {
-        await pool.query("ALTER TABLE users MODIFY COLUMN vendor_id VARCHAR(20) NULL");
-        await pool.query("ALTER TABLE verifications ADD COLUMN cac_url VARCHAR(255) NULL AFTER gov_id_url");
-        await pool.query("ALTER TABLE reports ADD COLUMN reference_number VARCHAR(50) UNIQUE NULL AFTER id");
-        await pool.query("ALTER TABLE reports ADD COLUMN contact_email VARCHAR(255) NULL AFTER reported_vendor_id");
-        await pool.query("ALTER TABLE reports ADD COLUMN phone_number VARCHAR(20) NULL AFTER contact_email");
-        await pool.query("ALTER TABLE reports ADD COLUMN is_whatsapp BOOLEAN DEFAULT FALSE AFTER phone_number");
-        await pool.query("ALTER TABLE reports ADD COLUMN evidence_files JSON NULL AFTER context");
-        await pool.query("ALTER TABLE reports MODIFY COLUMN reported_vendor_id VARCHAR(50) NOT NULL");
-        await pool.query("ALTER TABLE reports MODIFY COLUMN category ENUM('fraud','impersonation','harassment','inaccurate_information', 'others') NOT NULL");
-    } catch (err) {
-        // Ignore errors if columns already exist
-        if (err.code !== 'ER_DUP_FIELDNAME') {
-            console.log('Notice: Some ALTER TABLE queries for reports failed (might already be updated):', err.message);
+    // Add new columns if the table already existed before this update.
+    // Each statement has its own try/catch so one failure doesn't skip the rest.
+    const alterQueries = [
+        "ALTER TABLE users MODIFY COLUMN vendor_id VARCHAR(20) NULL",
+        "ALTER TABLE verifications ADD COLUMN cac_url VARCHAR(255) NULL AFTER gov_id_url",
+        "ALTER TABLE reports ADD COLUMN reference_number VARCHAR(50) UNIQUE NULL AFTER id",
+        "ALTER TABLE reports ADD COLUMN contact_email VARCHAR(255) NULL AFTER reported_vendor_id",
+        "ALTER TABLE reports ADD COLUMN phone_number VARCHAR(20) NULL AFTER contact_email",
+        "ALTER TABLE reports ADD COLUMN is_whatsapp BOOLEAN DEFAULT FALSE AFTER phone_number",
+        "ALTER TABLE reports ADD COLUMN evidence_files JSON NULL AFTER context",
+        "ALTER TABLE reports ADD COLUMN priority ENUM('low','medium','high') DEFAULT 'medium' AFTER status",
+        "ALTER TABLE reports MODIFY COLUMN reported_vendor_id VARCHAR(50) NOT NULL",
+        "ALTER TABLE reports MODIFY COLUMN category ENUM('fraud','impersonation','harassment','inaccurate_information', 'others') NOT NULL",
+    ];
+    for (const sql of alterQueries) {
+        try {
+            await pool.query(sql);
+        } catch (err) {
+            // ER_DUP_FIELDNAME  = column already exists (safe to ignore)
+            // ER_DUP_KEYNAME    = unique key already exists (safe to ignore)
+            const ignored = ['ER_DUP_FIELDNAME', 'ER_DUP_KEYNAME'];
+            if (!ignored.includes(err.code)) {
+                console.log(`Notice: ALTER TABLE skipped — ${err.message}`);
+            }
         }
     }
 
@@ -181,6 +191,31 @@ async function createTables() {
         )
     `);
 
+    // Report Notes — internal admin-only notes per complaint
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS report_notes (
+            id         INT AUTO_INCREMENT PRIMARY KEY,
+            report_id  INT NOT NULL,
+            admin_id   INT NOT NULL,
+            note       TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (report_id) REFERENCES reports(id) ON DELETE CASCADE,
+            FOREIGN KEY (admin_id)  REFERENCES users(id)   ON DELETE CASCADE
+        )
+    `);
+
+    // Report Timeline — immutable ordered event log per complaint
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS report_timeline (
+            id          INT AUTO_INCREMENT PRIMARY KEY,
+            report_id   INT NOT NULL,
+            event_type  VARCHAR(100) NOT NULL,
+            description TEXT NOT NULL,
+            created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (report_id) REFERENCES reports(id) ON DELETE CASCADE
+        )
+    `);
+
     console.log('✅ [AutoMigrate] All tables verified / created.');
 }
 
@@ -209,6 +244,8 @@ const COLUMN_MIGRATIONS = [
     { table: 'reports', column: 'is_whatsapp', definition: 'BOOLEAN DEFAULT FALSE AFTER phone_number' },
     // Profile picture
     { table: 'users', column: 'profile_picture_url', definition: 'VARCHAR(500) NULL AFTER tiktok_handle' },
+    // Complaint case management
+    { table: 'reports', column: 'assigned_to', definition: 'VARCHAR(255) NULL AFTER priority' },
 ];
 
 async function addMissingColumns() {

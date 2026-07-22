@@ -57,6 +57,21 @@ export interface AuditLog {
 export type ReportStatus   = 'pending' | 'reviewed' | 'dismissed';
 export type ReportPriority = 'low' | 'medium' | 'high';
 
+export interface ReportNote {
+  id: number;
+  note: string;
+  created_at: string;
+  admin_first_name: string;
+  admin_last_name: string;
+}
+
+export interface TimelineEvent {
+  id: number;
+  event_type: string;
+  description: string;
+  created_at: string;
+}
+
 export interface Report {
   id: number;
   reference_number: string;
@@ -69,10 +84,14 @@ export interface Report {
   evidence_files: string[] | null;
   status: ReportStatus;
   priority: ReportPriority;
+  assigned_to: string | null;
   created_at: string;
   reporter_vendor_id: string | null;
   first_name: string | null;
   last_name: string | null;
+  // Detail-only fields (present when fetched by ID)
+  notes?: ReportNote[];
+  timeline?: TimelineEvent[];
 }
 
 export interface ReportListResponse {
@@ -232,8 +251,16 @@ export const getAdminReportStats = async (): Promise<ReportStats> => {
 
 export const updateAdminReport = async (
   id: number,
-  payload: { status?: ReportStatus; priority?: ReportPriority }
+  payload: { status?: ReportStatus; priority?: ReportPriority; assigned_to?: string | null }
 ): Promise<{ message: string }> => {
   const { data } = await api.patch(`/reports/${id}`, payload);
+  return data;
+};
+
+export const addAdminReportNote = async (
+  reportId: number,
+  note: string
+): Promise<ReportNote> => {
+  const { data } = await api.post(`/reports/${reportId}/notes`, { note });
   return data;
 };

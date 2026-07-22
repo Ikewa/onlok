@@ -8,7 +8,7 @@ import {
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import ReportProblemOutlinedIcon from '@mui/icons-material/ReportProblemOutlined';
 import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
-import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutlined';
 import AssignmentOutlinedIcon from '@mui/icons-material/AssignmentOutlined';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import {
@@ -222,61 +222,67 @@ export default function AdminComplaints() {
   // ── Main render ──────────────────────────────────────────────────────────────
   return (
     <Box sx={{ maxWidth: 1200 }}>
+
       {/* ── Page Header ─────────────────────────────────────────────────────── */}
-      <Typography variant="h4" fontWeight={800} color="#0F172A" mb={0.5}>
-        Report / Complains
-      </Typography>
-      <Typography variant="body2" color="#64748B" mb={4}>
-        Identify and report behaviours that violate our community standards.
-        This report is secure and confidential.
-      </Typography>
+      <Box mb={5}>
+        <Typography variant="h4" fontWeight={800} color="#0F172A" mb={0.5}>
+          Report / Complains
+        </Typography>
+        <Typography variant="body2" color="#64748B" sx={{ maxWidth: 520 }}>
+          Identify and report behaviours that violate our community standards.
+          This report is secure and confidential.
+        </Typography>
+      </Box>
 
       {/* ── Overview Cards ──────────────────────────────────────────────────── */}
-      <Grid container spacing={2.5} mb={4}>
-        <Grid item xs={12} sm={6} md={12 / 5}>
-          <StatCard
-            title="Total Disputes"
-            value={statsLoading ? '—' : stats.total}
-            icon={<AssignmentOutlinedIcon sx={{ fontSize: 24 }} />}
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} md={12 / 5}>
-          <StatCard
-            title="Pending"
-            value={statsLoading ? '—' : stats.pending}
-            icon={<HourglassEmptyIcon sx={{ fontSize: 24 }} />}
-            subLabel="Awaiting review"
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} md={12 / 5}>
-          <StatCard
-            title="In Review"
-            value={statsLoading ? '—' : stats.reviewed}
-            icon={<ReportProblemOutlinedIcon sx={{ fontSize: 24 }} />}
-            subLabel={stats.pending > 0 ? 'Requires attention' : undefined}
-            subLabelColor={stats.pending > 0 ? '#F59E0B' : undefined}
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} md={12 / 5}>
-          <StatCard
-            title="Resolved"
-            value={statsLoading ? '—' : stats.dismissed}
-            icon={<CheckCircleOutlineIcon sx={{ fontSize: 24 }} />}
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} md={12 / 5}>
-          <StatCard
-            title="High Priority"
-            value={statsLoading ? '—' : stats.highPriority}
-            icon={<WarningAmberIcon sx={{ fontSize: 24 }} />}
-            subLabel={stats.highPriority > 0 ? `${stats.pendingHighPriority} still pending` : 'None outstanding'}
-            variant="danger"
-          />
-        </Grid>
+      <Grid container spacing={2.5} mb={5} sx={{ flexWrap: 'nowrap' }}>
+        {[
+          {
+            title: 'Total Disputes',
+            value: statsLoading ? '—' : stats.total,
+            icon: <AssignmentOutlinedIcon sx={{ fontSize: 22 }} />,
+          },
+          {
+            title: 'Pending',
+            value: statsLoading ? '—' : stats.pending,
+            icon: <HourglassEmptyIcon sx={{ fontSize: 22 }} />,
+            subLabel: 'Awaiting review',
+          },
+          {
+            title: 'In Review',
+            value: statsLoading ? '—' : stats.reviewed,
+            icon: <ReportProblemOutlinedIcon sx={{ fontSize: 22 }} />,
+            subLabel: stats.pending > 0 ? 'Requires attention' : undefined,
+            subLabelColor: stats.pending > 0 ? '#F59E0B' : undefined,
+          },
+          {
+            title: 'Resolved',
+            value: statsLoading ? '—' : stats.dismissed,
+            icon: <CheckCircleOutlineIcon sx={{ fontSize: 22 }} />,
+          },
+          {
+            title: 'High Priority',
+            value: statsLoading ? '—' : stats.highPriority,
+            icon: <WarningAmberIcon sx={{ fontSize: 22 }} />,
+            subLabel: stats.highPriority > 0
+              ? `${stats.pendingHighPriority} still pending`
+              : 'None outstanding',
+            variant: 'danger' as const,
+          },
+        ].map((card) => (
+          <Grid
+            key={card.title}
+            item
+            sx={{ flex: '1 1 0', minWidth: 0 }}
+          >
+            <StatCard {...card} />
+          </Grid>
+        ))}
       </Grid>
 
       {/* ── Charts + Categories row ─────────────────────────────────────────── */}
-      <Grid container spacing={2.5} mb={4}>
+      <Box sx={{ overflow: 'hidden', mb: 5, mt: 5 }}>
+        <Grid container spacing={2.5}>
         {/* Monthly Trend Chart */}
         <Grid item xs={12} md={7}>
           <Paper
@@ -330,7 +336,7 @@ export default function AdminComplaints() {
             elevation={0}
             sx={{ p: 3, borderRadius: 3, border: '1px solid #E2E8F0', bgcolor: '#fff', height: '100%' }}
           >
-            <Typography variant="h6" fontWeight={700} color="#0F172A" mb={2.5}>
+            <Typography variant="h6" fontWeight={700} color="#0F172A" mb={3}>
               Complaint Categories
             </Typography>
 
@@ -343,10 +349,10 @@ export default function AdminComplaints() {
                 No data yet
               </Typography>
             ) : (
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
                 {categoryData.map(({ category, pct }) => (
                   <Box key={category}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.75 }}>
                       <Typography variant="body2" color="#334155" fontWeight={500}>
                         {formatCategory(category)}
                       </Typography>
@@ -354,12 +360,12 @@ export default function AdminComplaints() {
                         {pct}%
                       </Typography>
                     </Box>
-                    <Box sx={{ height: 6, borderRadius: 3, bgcolor: '#F1F5F9', overflow: 'hidden' }}>
+                    <Box sx={{ height: 7, borderRadius: 99, bgcolor: '#F1F5F9', overflow: 'hidden' }}>
                       <Box
                         sx={{
                           height: '100%',
                           width: `${pct}%`,
-                          borderRadius: 3,
+                          borderRadius: 99,
                           bgcolor: CATEGORY_COLORS[category] ?? '#1A1FE8',
                           transition: 'width 0.6s ease',
                         }}
@@ -371,35 +377,39 @@ export default function AdminComplaints() {
             )}
           </Paper>
         </Grid>
-      </Grid>
+        </Grid>
+      </Box>
 
       {/* ── Active Complaints Table ──────────────────────────────────────────── */}
       <Paper elevation={0} sx={{ borderRadius: 3, border: '1px solid #E2E8F0', bgcolor: '#fff', overflow: 'hidden' }}>
-        {/* Table header + filters */}
+
+        {/* Toolbar: title + filters */}
         <Box
           sx={{
-            p: 3,
-            borderBottom: '1px solid #F1F5F9',
+            px: 3,
+            py: 2.5,
+            borderBottom: '1px solid #E2E8F0',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             flexWrap: 'wrap',
             gap: 2,
+            bgcolor: '#FAFBFC',
           }}
         >
           <Typography variant="h6" fontWeight={700} color="#0F172A">
             Active Complaints
           </Typography>
 
-          <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+          <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
             {/* Status filter */}
-            <FormControl size="small" sx={{ minWidth: 130 }}>
-              <InputLabel sx={{ fontSize: '0.85rem' }}>Status</InputLabel>
+            <FormControl size="small" sx={{ minWidth: 140 }}>
+              <InputLabel sx={{ fontSize: '0.83rem' }}>Status</InputLabel>
               <Select
                 value={statusFilter}
                 label="Status"
                 onChange={handleStatusChange}
-                sx={{ borderRadius: 2, fontSize: '0.85rem' }}
+                sx={{ borderRadius: 2, fontSize: '0.83rem', bgcolor: '#fff' }}
               >
                 <MenuItem value="">All Statuses</MenuItem>
                 <MenuItem value="pending">Pending</MenuItem>
@@ -409,13 +419,13 @@ export default function AdminComplaints() {
             </FormControl>
 
             {/* Priority filter */}
-            <FormControl size="small" sx={{ minWidth: 130 }}>
-              <InputLabel sx={{ fontSize: '0.85rem' }}>Priority</InputLabel>
+            <FormControl size="small" sx={{ minWidth: 140 }}>
+              <InputLabel sx={{ fontSize: '0.83rem' }}>Priority</InputLabel>
               <Select
                 value={priorityFilter}
                 label="Priority"
                 onChange={handlePriorityChange}
-                sx={{ borderRadius: 2, fontSize: '0.85rem' }}
+                sx={{ borderRadius: 2, fontSize: '0.83rem', bgcolor: '#fff' }}
               >
                 <MenuItem value="">All Priorities</MenuItem>
                 <MenuItem value="high">High</MenuItem>
@@ -429,14 +439,22 @@ export default function AdminComplaints() {
         {/* Table */}
         <TableContainer>
           <Table sx={{ minWidth: 800 }}>
-            <TableHead sx={{ bgcolor: '#F8FAFC' }}>
-              <TableRow>
+            <TableHead>
+              <TableRow sx={{ bgcolor: '#F8FAFC' }}>
                 {['Complaint ID', 'Date Received', 'Complainant', 'Reported Vendor', 'Category', 'Priority', 'Status', 'Actions'].map(
                   (col) => (
                     <TableCell
                       key={col}
-                      sx={{ fontWeight: 700, color: '#475569', fontSize: '0.78rem', textTransform: 'uppercase',
-                            letterSpacing: '0.04em', borderBottom: '1px solid #E2E8F0', py: 1.5 }}
+                      sx={{
+                        fontWeight: 700,
+                        color: '#64748B',
+                        fontSize: '0.72rem',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.06em',
+                        borderBottom: '1px solid #E2E8F0',
+                        py: 1.75,
+                        whiteSpace: 'nowrap',
+                      }}
                     >
                       {col}
                     </TableCell>
@@ -448,13 +466,13 @@ export default function AdminComplaints() {
             <TableBody>
               {tableLoading ? (
                 <TableRow>
-                  <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={8} align="center" sx={{ py: 8 }}>
                     <CircularProgress size={28} sx={{ color: '#1A1FE8' }} />
                   </TableCell>
                 </TableRow>
               ) : reports.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} align="center" sx={{ py: 6, color: '#94A3B8' }}>
+                  <TableCell colSpan={8} align="center" sx={{ py: 8, color: '#94A3B8', fontSize: '0.875rem' }}>
                     No complaints found for the selected filters.
                   </TableCell>
                 </TableRow>
@@ -472,37 +490,38 @@ export default function AdminComplaints() {
                         cursor: 'pointer',
                         '&:last-child td': { border: 0 },
                         '&:hover': { bgcolor: '#F8FAFC' },
+                        transition: 'background 0.15s',
                       }}
                       onClick={() => navigate(`/admin/complaints/${report.id}`)}
                     >
-                      <TableCell sx={{ borderBottom: '1px solid #F1F5F9' }}>
-                        <Typography variant="body2" fontFamily="monospace" fontWeight={600} color="#0F172A">
+                      <TableCell sx={{ borderBottom: '1px solid #F1F5F9', py: 2 }}>
+                        <Typography variant="body2" fontFamily="monospace" fontWeight={600} color="#1A1FE8" fontSize="0.82rem">
                           #{report.reference_number}
                         </Typography>
                       </TableCell>
 
-                      <TableCell sx={{ borderBottom: '1px solid #F1F5F9', color: '#475569', fontSize: '0.875rem' }}>
+                      <TableCell sx={{ borderBottom: '1px solid #F1F5F9', color: '#64748B', fontSize: '0.875rem', py: 2, whiteSpace: 'nowrap' }}>
                         {formatDate(report.created_at)}
                       </TableCell>
 
-                      <TableCell sx={{ borderBottom: '1px solid #F1F5F9' }}>
+                      <TableCell sx={{ borderBottom: '1px solid #F1F5F9', py: 2 }}>
                         <Typography variant="body2" fontWeight={600} color="#0F172A">
                           {complainantName}
                         </Typography>
                         {report.reporter_vendor_id && (
-                          <Typography variant="caption" color="#64748B" display="block">
+                          <Typography variant="caption" color="#94A3B8" display="block">
                             {report.reporter_vendor_id}
                           </Typography>
                         )}
                       </TableCell>
 
-                      <TableCell sx={{ borderBottom: '1px solid #F1F5F9' }}>
+                      <TableCell sx={{ borderBottom: '1px solid #F1F5F9', py: 2 }}>
                         <Typography variant="body2" fontWeight={600} color="#0F172A">
                           {report.reported_vendor_id}
                         </Typography>
                       </TableCell>
 
-                      <TableCell sx={{ borderBottom: '1px solid #F1F5F9' }}>
+                      <TableCell sx={{ borderBottom: '1px solid #F1F5F9', py: 2 }}>
                         <Chip
                           label={formatCategory(report.category)}
                           size="small"
@@ -516,23 +535,27 @@ export default function AdminComplaints() {
                         />
                       </TableCell>
 
-                      <TableCell sx={{ borderBottom: '1px solid #F1F5F9' }}>
+                      <TableCell sx={{ borderBottom: '1px solid #F1F5F9', py: 2 }}>
                         {renderPriorityChip(report.priority)}
                       </TableCell>
 
-                      <TableCell sx={{ borderBottom: '1px solid #F1F5F9' }}>
+                      <TableCell sx={{ borderBottom: '1px solid #F1F5F9', py: 2 }}>
                         {renderStatusChip(report.status)}
                       </TableCell>
 
-                      <TableCell sx={{ borderBottom: '1px solid #F1F5F9' }}>
+                      <TableCell sx={{ borderBottom: '1px solid #F1F5F9', py: 2 }}>
                         <Tooltip title="View details">
                           <IconButton
                             size="small"
                             onClick={(e) => {
-                              e.stopPropagation(); // prevent double-navigate from row click
+                              e.stopPropagation();
                               navigate(`/admin/complaints/${report.id}`);
                             }}
-                            sx={{ color: '#94A3B8', '&:hover': { color: '#1A1FE8' } }}
+                            sx={{
+                              color: '#94A3B8',
+                              '&:hover': { color: '#1A1FE8', bgcolor: '#EEF2FF' },
+                              transition: 'all 0.15s',
+                            }}
                           >
                             <VisibilityOutlinedIcon fontSize="small" />
                           </IconButton>
@@ -557,9 +580,15 @@ export default function AdminComplaints() {
             setRowsPerPage(parseInt(e.target.value, 10));
             setPage(0);
           }}
-          sx={{ borderTop: '1px solid #F1F5F9', color: '#64748B', fontSize: '0.85rem' }}
+          sx={{
+            borderTop: '1px solid #E2E8F0',
+            color: '#64748B',
+            fontSize: '0.85rem',
+            '.MuiTablePagination-toolbar': { px: 3 },
+          }}
         />
       </Paper>
     </Box>
   );
 }
+

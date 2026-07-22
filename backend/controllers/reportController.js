@@ -23,6 +23,19 @@ const parsePositiveInt = (value) => {
     return Number.isInteger(n) && n > 0 ? n : null;
 };
 
+// ── Helper: insert a timeline event (fire-and-forget safe) ───────────────────
+const addTimelineEvent = async (reportId, eventType, description) => {
+    try {
+        await pool.execute(
+            'INSERT INTO report_timeline (report_id, event_type, description) VALUES (?, ?, ?)',
+            [reportId, eventType, description]
+        );
+    } catch (err) {
+        // Non-fatal — log but don't propagate
+        console.error('[Timeline] Failed to insert event:', err.message);
+    }
+};
+
 // @desc    Submit a report against a vendor
 // @route   POST /api/reports
 // @access  Public (anonymous-safe — reporter_id optional)
@@ -66,6 +79,13 @@ const submitReport = async (req, res) => {
             context,
             evidence_files
         ]);
+
+        // Seed the first timeline event for every new report
+        await addTimelineEvent(
+            result.insertId,
+            'case_opened',
+            'Case opened. System automatically triggered investigation based on submission.'
+        );
 
         res.status(201).json({
             message: 'Report submitted successfully. Our team will review it shortly.',
@@ -122,7 +142,7 @@ const getReports = async (req, res) => {
         const [reports] = await pool.query(
             `SELECT r.id, r.reference_number, r.reported_vendor_id, r.contact_email,
                     r.phone_number, r.is_whatsapp, r.category, r.context,
-                    r.evidence_files, r.status, r.priority, r.created_at,
+                    r.evidence_files, r.status, r.priority, r.assigned_to, r.created_at,
                     u.vendor_id AS reporter_vendor_id, u.first_name, u.last_name
              FROM reports r
              LEFT JOIN users u ON r.reporter_id = u.id
@@ -142,7 +162,7 @@ const getReports = async (req, res) => {
     }
 };
 
-// @desc    Get a single report by ID (Admin use)
+// @desc    Get a single report by ID — includes notes and timeline (Admin use)
 // @route   GET /api/reports/:id
 // @access  Private (Admin only)
 const getReportById = async (req, res) => {
@@ -152,10 +172,11 @@ const getReportById = async (req, res) => {
             return res.status(400).json({ message: 'Invalid report ID.' });
         }
 
+        // Fetch core report row
         const [rows] = await pool.execute(
             `SELECT r.id, r.reference_number, r.reported_vendor_id, r.contact_email,
                     r.phone_number, r.is_whatsapp, r.category, r.context,
-                    r.evidence_files, r.status, r.priority, r.created_at,
+                    r.evidence_files, r.status, r.priority, r.assigned_to, r.created_at,
                     u.vendor_id AS reporter_vendor_id, u.first_name, u.last_name
              FROM reports r
              LEFT JOIN users u ON r.reporter_id = u.id
@@ -167,7 +188,29 @@ const getReportById = async (req, res) => {
             return res.status(404).json({ message: 'Report not found.' });
         }
 
-        res.status(200).json(parseEvidenceFiles(rows[0]));
+        const report = parseEvidenceFiles(rows[0]);
+
+        // Fetch internal admin notes (newest first)
+        const [notes] = await pool.execute(
+            `SELECT rn.id, rn.note, rn.created_at,
+                    u.first_name AS admin_first_name, u.last_name AS admin_last_name
+             FROM report_notes rn
+             JOIN users u ON rn.admin_id = u.id
+             WHERE rn.report_id = ?
+             ORDER BY rn.created_at DESC`,
+            [id]
+        );
+
+        // Fetch timeline events (oldest first for chronological display)
+        const [timeline] = await pool.execute(
+            `SELECT id, event_type, description, created_at
+             FROM report_timeline
+             WHERE report_id = ?
+             ORDER BY created_at ASC`,
+            [id]
+        );
+
+        res.status(200).json({ ...report, notes, timeline });
 
     } catch (error) {
         console.error('Get Report By ID Error:', error);
@@ -186,8 +229,8 @@ const getReportStats = async (req, res) => {
                 SUM(status = 'pending')                       AS pending,
                 SUM(status = 'reviewed')                      AS reviewed,
                 SUM(status = 'dismissed')                     AS dismissed,
-                SUM(priority = 'high')                        AS high_priority,
-                SUM(status = 'pending' AND priority = 'high') AS pending_high_priority
+                SUM(priority = 'high')                        AS \`high_priority\`,
+                SUM(status = 'pending' AND priority = 'high') AS \`pending_high_priority\`
              FROM reports`
         );
 
@@ -209,7 +252,7 @@ const getReportStats = async (req, res) => {
     }
 };
 
-// @desc    Update report status and/or priority (Admin use)
+// @desc    Update report status, priority, and/or assigned_to (Admin use)
 // @route   PATCH /api/reports/:id
 // @access  Private (Admin only)
 const updateReport = async (req, res) => {
@@ -219,11 +262,11 @@ const updateReport = async (req, res) => {
             return res.status(400).json({ message: 'Invalid report ID.' });
         }
 
-        const { status, priority } = req.body;
+        const { status, priority, assigned_to } = req.body;
 
         // At least one field must be provided
-        if (!status && !priority) {
-            return res.status(400).json({ message: 'Provide at least one of: status, priority.' });
+        if (!status && !priority && assigned_to === undefined) {
+            return res.status(400).json({ message: 'Provide at least one of: status, priority, assigned_to.' });
         }
 
         if (status && !ALLOWED_STATUSES.includes(status)) {
@@ -233,6 +276,11 @@ const updateReport = async (req, res) => {
         if (priority && !ALLOWED_PRIORITIES.includes(priority)) {
             return res.status(400).json({ message: `Priority must be one of: ${ALLOWED_PRIORITIES.join(', ')}` });
         }
+
+        // Sanitise assigned_to — strip to plain text, cap at 200 chars
+        const sanitisedAssignedTo = assigned_to !== undefined
+            ? (String(assigned_to).replace(/<[^>]*>/g, '').trim().slice(0, 200) || null)
+            : undefined;
 
         // Build SET clause dynamically
         const setClauses = [];
@@ -248,6 +296,11 @@ const updateReport = async (req, res) => {
             params.push(priority);
         }
 
+        if (sanitisedAssignedTo !== undefined) {
+            setClauses.push('assigned_to = ?');
+            params.push(sanitisedAssignedTo);
+        }
+
         params.push(id);
 
         const [result] = await pool.execute(
@@ -259,11 +312,88 @@ const updateReport = async (req, res) => {
             return res.status(404).json({ message: 'Report not found.' });
         }
 
+        // Auto-write timeline events for meaningful status transitions
+        const adminName = req.user
+            ? `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() || 'Admin'
+            : 'Admin';
+
+        if (status === 'reviewed') {
+            await addTimelineEvent(id, 'status_reviewed', `Case marked as Reviewed by ${adminName}.`);
+        } else if (status === 'dismissed') {
+            await addTimelineEvent(id, 'status_dismissed', `Case dismissed by ${adminName}.`);
+        } else if (status === 'pending') {
+            await addTimelineEvent(id, 'status_reopened', `Case re-opened and set to Pending by ${adminName}.`);
+        }
+
+        if (priority) {
+            await addTimelineEvent(id, 'priority_changed', `Priority updated to ${priority.toUpperCase()} by ${adminName}.`);
+        }
+
+        if (sanitisedAssignedTo) {
+            await addTimelineEvent(id, 'assigned', `Case assigned to ${sanitisedAssignedTo} by ${adminName}.`);
+        }
+
         res.status(200).json({ message: 'Report updated successfully.' });
 
     } catch (error) {
         console.error('Update Report Error:', error);
         res.status(500).json({ message: 'Server error updating report' });
+    }
+};
+
+// @desc    Add an internal admin note to a report
+// @route   POST /api/reports/:id/notes
+// @access  Private (Admin only)
+const addReportNote = async (req, res) => {
+    try {
+        const id = parsePositiveInt(req.params.id);
+        if (!id) {
+            return res.status(400).json({ message: 'Invalid report ID.' });
+        }
+
+        const rawNote = req.body.note;
+        if (!rawNote || typeof rawNote !== 'string') {
+            return res.status(400).json({ message: 'Note text is required.' });
+        }
+
+        // Strip HTML tags and enforce length cap — defence in depth
+        const note = rawNote.replace(/<[^>]*>/g, '').trim().slice(0, 5000);
+        if (note.length === 0) {
+            return res.status(400).json({ message: 'Note cannot be empty.' });
+        }
+
+        // Verify report exists
+        const [check] = await pool.execute('SELECT id FROM reports WHERE id = ?', [id]);
+        if (check.length === 0) {
+            return res.status(404).json({ message: 'Report not found.' });
+        }
+
+        const adminId = req.user.id;
+
+        const [result] = await pool.execute(
+            'INSERT INTO report_notes (report_id, admin_id, note) VALUES (?, ?, ?)',
+            [id, adminId, note]
+        );
+
+        // Add a timeline event for the note
+        const adminName = `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() || 'Admin';
+        await addTimelineEvent(id, 'note_added', `Internal note added by ${adminName}.`);
+
+        // Return the newly created note with admin details
+        const [rows] = await pool.execute(
+            `SELECT rn.id, rn.note, rn.created_at,
+                    u.first_name AS admin_first_name, u.last_name AS admin_last_name
+             FROM report_notes rn
+             JOIN users u ON rn.admin_id = u.id
+             WHERE rn.id = ?`,
+            [result.insertId]
+        );
+
+        res.status(201).json(rows[0]);
+
+    } catch (error) {
+        console.error('Add Report Note Error:', error);
+        res.status(500).json({ message: 'Server error adding note' });
     }
 };
 
@@ -273,4 +403,5 @@ module.exports = {
     getReportById,
     getReportStats,
     updateReport,
+    addReportNote,
 };
