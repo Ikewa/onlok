@@ -1,4 +1,5 @@
 import api from './axiosInstance';
+import type { ReportCategory } from '../types';
 
 export interface AdminVerification {
   verification_id: number;
@@ -49,6 +50,72 @@ export interface AuditLog {
   first_name: string | null;
   last_name: string | null;
   email: string | null;
+}
+
+// ── Report types ─────────────────────────────────────────────────────────────
+
+export type ReportStatus   = 'pending' | 'reviewed' | 'dismissed';
+export type ReportPriority = 'low' | 'medium' | 'high';
+
+export interface ReportNote {
+  id: number;
+  note: string;
+  created_at: string;
+  admin_first_name: string;
+  admin_last_name: string;
+}
+
+export interface TimelineEvent {
+  id: number;
+  event_type: string;
+  description: string;
+  created_at: string;
+}
+
+export interface Report {
+  id: number;
+  reference_number: string;
+  reported_vendor_id: string;
+  contact_email: string | null;
+  phone_number: string | null;
+  is_whatsapp: boolean;
+  category: ReportCategory;
+  context: string;
+  evidence_files: string[] | null;
+  status: ReportStatus;
+  priority: ReportPriority;
+  assigned_to: string | null;
+  created_at: string;
+  reporter_vendor_id: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  // Detail-only fields (present when fetched by ID)
+  notes?: ReportNote[];
+  timeline?: TimelineEvent[];
+}
+
+export interface ReportListResponse {
+  results: Report[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export interface ReportStats {
+  total: number;
+  pending: number;
+  reviewed: number;
+  dismissed: number;
+  highPriority: number;
+  pendingHighPriority: number;
+}
+
+export interface ReportFilters {
+  status?: ReportStatus | '';
+  category?: ReportCategory | '';
+  priority?: ReportPriority | '';
+  page?: number;
+  limit?: number;
 }
 
 // ── Map mock user → AdminVerification shape ─────────────────────────────────
@@ -160,13 +227,40 @@ export const updateSettings = async (settings: Record<string, string>) => {
   return data;
 };
 
-export const getAdminReports = async () => {
-  const { data } = await api.get('/reports');
-  return data;
-};
-
 export const getWebsiteHits = async (period: 'week' | 'month' | 'quarterly' | 'all' = 'all'): Promise<{totalHits: number}> => {
   const { data } = await api.get('/admin/website-hits', { params: { period } });
   return data;
 };
 
+// ── Reports API ───────────────────────────────────────────────────────────────
+
+export const getAdminReports = async (filters: ReportFilters = {}): Promise<ReportListResponse> => {
+  const { data } = await api.get('/reports', { params: filters });
+  return data;
+};
+
+export const getAdminReportById = async (id: number): Promise<Report> => {
+  const { data } = await api.get(`/reports/${id}`);
+  return data;
+};
+
+export const getAdminReportStats = async (): Promise<ReportStats> => {
+  const { data } = await api.get('/reports/stats');
+  return data;
+};
+
+export const updateAdminReport = async (
+  id: number,
+  payload: { status?: ReportStatus; priority?: ReportPriority; assigned_to?: string | null }
+): Promise<{ message: string }> => {
+  const { data } = await api.patch(`/reports/${id}`, payload);
+  return data;
+};
+
+export const addAdminReportNote = async (
+  reportId: number,
+  note: string
+): Promise<ReportNote> => {
+  const { data } = await api.post(`/reports/${reportId}/notes`, { note });
+  return data;
+};

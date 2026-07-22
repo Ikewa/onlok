@@ -1,203 +1,594 @@
-import { useState, useEffect } from 'react';
-import { Box, Typography, Paper, Divider, CircularProgress, Chip, Grid, Button, Avatar, Dialog, DialogTitle, DialogContent, IconButton } from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close';
-import DescriptionIcon from '@mui/icons-material/Description';
-
-import { getAdminReports } from '../../api/admin';
+import { useState, useEffect, useCallback } from 'react';
+import {
+  Box, Typography, Grid, Paper, Chip, CircularProgress,
+  Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
+  TablePagination, IconButton, Tooltip, Select, MenuItem,
+  FormControl, InputLabel, type SelectChangeEvent,
+} from '@mui/material';
+import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
+import ReportProblemOutlinedIcon from '@mui/icons-material/ReportProblemOutlined';
+import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutlined';
+import AssignmentOutlinedIcon from '@mui/icons-material/AssignmentOutlined';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
+  ResponsiveContainer, Legend,
+} from 'recharts';
+import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
-export default function AdminComplaints() {
-  const [reports, setReports] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedReport, setSelectedReport] = useState<any | null>(null);
+import StatCard from '../../components/admin/StatCard';
+import {
+  getAdminReports,
+  getAdminReportStats,
+  type Report,
+  type ReportStatus,
+  type ReportPriority,
+} from '../../api/admin';
 
-  useEffect(() => {
-    const fetchReports = async () => {
-      try {
-        const data = await getAdminReports();
-        setReports(data);
-      } catch (err) {
-        toast.error('Failed to load reports');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchReports();
-  }, []);
+// ── Style maps ────────────────────────────────────────────────────────────────
 
-  if (loading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', py: 10 }}>
-        <CircularProgress sx={{ color: '#1A1FE8' }} />
-      </Box>
-    );
+const STATUS_STYLES: Record<ReportStatus, { bg: string; color: string }> = {
+  pending:   { bg: '#FEF3C7', color: '#D97706' },
+  reviewed:  { bg: '#DCFCE7', color: '#15803D' },
+  dismissed: { bg: '#F1F5F9', color: '#475569' },
+};
+
+const PRIORITY_STYLES: Record<ReportPriority, { bg: string; color: string }> = {
+  high:   { bg: '#FEE2E2', color: '#B91C1C' },
+  medium: { bg: '#FEF3C7', color: '#D97706' },
+  low:    { bg: '#DCFCE7', color: '#15803D' },
+};
+
+const CATEGORY_COLORS: Record<string, string> = {
+  fraud:                '#EF4444',
+  impersonation:        '#F97316',
+  harassment:           '#8B5CF6',
+  inaccurate_information: '#3B82F6',
+  others:               '#64748B',
+};
+
+// ── Month grouping helpers ────────────────────────────────────────────────────
+
+const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+function buildTrendData(reports: Report[]) {
+  const now = new Date();
+  // Build the last 6 calendar months (including current)
+  const months: { year: number; month: number; label: string }[] = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push({ year: d.getFullYear(), month: d.getMonth(), label: MONTH_LABELS[d.getMonth()] });
   }
 
-  const handleOpenDetails = (report: any) => {
-    setSelectedReport(report);
+  return months.map(({ year, month, label }) => {
+    const inMonth = reports.filter((r) => {
+      const d = new Date(r.created_at);
+      return d.getFullYear() === year && d.getMonth() === month;
+    });
+    return {
+      month: label,
+      pending:   inMonth.filter((r) => r.status === 'pending').length,
+      reviewed:  inMonth.filter((r) => r.status === 'reviewed').length,
+      dismissed: inMonth.filter((r) => r.status === 'dismissed').length,
+    };
+  });
+}
+
+function buildCategoryData(reports: Report[]) {
+  const counts: Record<string, number> = {};
+  reports.forEach((r) => {
+    counts[r.category] = (counts[r.category] || 0) + 1;
+  });
+  const total = reports.length || 1;
+  return Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([category, count]) => ({
+      category,
+      count,
+      pct: Math.round((count / total) * 100),
+    }));
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
+export default function AdminComplaints() {
+  const navigate = useNavigate();
+
+  // Stats (overview cards)
+  const [stats, setStats] = useState({
+    total: 0, pending: 0, reviewed: 0, dismissed: 0,
+    highPriority: 0, pendingHighPriority: 0,
+  });
+  const [statsLoading, setStatsLoading] = useState(true);
+
+  // Table data
+  const [reports, setReports] = useState<Report[]>([]);
+  const [total, setTotal] = useState(0);
+  const [tableLoading, setTableLoading] = useState(true);
+
+  // Chart & category data (derived from an unfiltered fetch)
+  const [allReports, setAllReports] = useState<Report[]>([]);
+  const [chartsLoading, setChartsLoading] = useState(true);
+
+  // Filters
+  const [statusFilter, setStatusFilter]     = useState<ReportStatus | ''>('');
+  const [priorityFilter, setPriorityFilter] = useState<ReportPriority | ''>('');
+
+  // Pagination
+  const [page, setPage]               = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+
+  // ── Fetch stats once ────────────────────────────────────────────────────────
+  useEffect(() => {
+    const fetch = async () => {
+      try {
+        const data = await getAdminReportStats();
+        setStats(data);
+      } catch {
+        toast.error('Failed to load report statistics');
+      } finally {
+        setStatsLoading(false);
+      }
+    };
+    fetch();
+  }, []);
+
+  // ── Fetch all reports (for chart + category breakdown) once ─────────────────
+  useEffect(() => {
+    const fetch = async () => {
+      try {
+        // Use a high limit to get enough data for chart grouping;
+        // for production at very high volumes this should be a dedicated endpoint.
+        const res = await getAdminReports({ limit: 500, page: 1 });
+        setAllReports(res.results);
+      } catch {
+        // Non-critical — charts just won't render
+        toast.error('Failed to load chart data');
+      } finally {
+        setChartsLoading(false);
+      }
+    };
+    fetch();
+  }, []);
+
+  // ── Fetch paginated/filtered table data ─────────────────────────────────────
+  const fetchTable = useCallback(async () => {
+    setTableLoading(true);
+    try {
+      const res = await getAdminReports({
+        page: page + 1, // API is 1-based
+        limit: rowsPerPage,
+        ...(statusFilter   ? { status: statusFilter }     : {}),
+        ...(priorityFilter ? { priority: priorityFilter } : {}),
+      });
+      setReports(res.results);
+      setTotal(res.total);
+    } catch {
+      toast.error('Failed to load complaints');
+    } finally {
+      setTableLoading(false);
+    }
+  }, [page, rowsPerPage, statusFilter, priorityFilter]);
+
+  useEffect(() => {
+    fetchTable();
+  }, [fetchTable]);
+
+  // Reset to page 0 when filters change
+  const handleStatusChange = (e: SelectChangeEvent) => {
+    setStatusFilter(e.target.value as ReportStatus | '');
+    setPage(0);
+  };
+  const handlePriorityChange = (e: SelectChangeEvent) => {
+    setPriorityFilter(e.target.value as ReportPriority | '');
+    setPage(0);
   };
 
-  const handleCloseDetails = () => {
-    setSelectedReport(null);
+  // ── Derived data ─────────────────────────────────────────────────────────────
+  const trendData    = buildTrendData(allReports);
+  const categoryData = buildCategoryData(allReports);
+
+  // ── Render helpers ───────────────────────────────────────────────────────────
+  const renderStatusChip = (status: ReportStatus) => {
+    const s = STATUS_STYLES[status] ?? { bg: '#F1F5F9', color: '#475569' };
+    return (
+      <Chip
+        label={status.charAt(0).toUpperCase() + status.slice(1)}
+        size="small"
+        sx={{ bgcolor: s.bg, color: s.color, fontWeight: 700, fontSize: '0.72rem', borderRadius: '12px' }}
+      />
+    );
   };
 
+  const renderPriorityChip = (priority: ReportPriority) => {
+    const p = PRIORITY_STYLES[priority] ?? { bg: '#F1F5F9', color: '#475569' };
+    return (
+      <Chip
+        label={priority.toUpperCase()}
+        size="small"
+        sx={{ bgcolor: p.bg, color: p.color, fontWeight: 700, fontSize: '0.72rem', borderRadius: '12px' }}
+      />
+    );
+  };
+
+  const formatDate = (iso: string) =>
+    new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+
+  const formatCategory = (cat: string) =>
+    cat.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+
+  // ── Main render ──────────────────────────────────────────────────────────────
   return (
     <Box sx={{ maxWidth: 1200 }}>
-      <Typography variant="h4" fontWeight={800} color="#0F172A" mb={0.5}>
-        Complaints & Reports
-      </Typography>
-      <Typography variant="body1" color="#64748B" mb={4}>
-        Review and manage user reports and dispute cases.
-      </Typography>
 
-      <Grid container spacing={4}>
-        {/* Reports List */}
-        <Grid item xs={12} md={selectedReport ? 5 : 12} sx={{ transition: 'all 0.3s' }}>
-          <Paper elevation={0} sx={{ borderRadius: 3, border: '1px solid #E2E8F0', bgcolor: '#fff', mb: 4, overflow: 'hidden' }}>
-            <Box sx={{ p: 3, borderBottom: '1px solid #F1F5F9' }}>
-              <Typography variant="h6" fontWeight={700} color="#0F172A">
-                Recent Reports
-              </Typography>
+      {/* ── Page Header ─────────────────────────────────────────────────────── */}
+      <Box mb={5}>
+        <Typography variant="h4" fontWeight={800} color="#0F172A" mb={0.5}>
+          Report / Complains
+        </Typography>
+        <Typography variant="body2" color="#64748B" sx={{ maxWidth: 520 }}>
+          Identify and report behaviours that violate our community standards.
+          This report is secure and confidential.
+        </Typography>
+      </Box>
+
+      {/* ── Overview Cards ──────────────────────────────────────────────────── */}
+      <Grid container spacing={2.5} mb={5} sx={{ flexWrap: 'nowrap' }}>
+        {[
+          {
+            title: 'Total Disputes',
+            value: statsLoading ? '—' : stats.total,
+            icon: <AssignmentOutlinedIcon sx={{ fontSize: 22 }} />,
+          },
+          {
+            title: 'Pending',
+            value: statsLoading ? '—' : stats.pending,
+            icon: <HourglassEmptyIcon sx={{ fontSize: 22 }} />,
+            subLabel: 'Awaiting review',
+          },
+          {
+            title: 'In Review',
+            value: statsLoading ? '—' : stats.reviewed,
+            icon: <ReportProblemOutlinedIcon sx={{ fontSize: 22 }} />,
+            subLabel: stats.pending > 0 ? 'Requires attention' : undefined,
+            subLabelColor: stats.pending > 0 ? '#F59E0B' : undefined,
+          },
+          {
+            title: 'Resolved',
+            value: statsLoading ? '—' : stats.dismissed,
+            icon: <CheckCircleOutlineIcon sx={{ fontSize: 22 }} />,
+          },
+          {
+            title: 'High Priority',
+            value: statsLoading ? '—' : stats.highPriority,
+            icon: <WarningAmberIcon sx={{ fontSize: 22 }} />,
+            subLabel: stats.highPriority > 0
+              ? `${stats.pendingHighPriority} still pending`
+              : 'None outstanding',
+            variant: 'danger' as const,
+          },
+        ].map((card) => (
+          <Grid
+            key={card.title}
+            item
+            sx={{ flex: '1 1 0', minWidth: 0 }}
+          >
+            <StatCard {...card} />
+          </Grid>
+        ))}
+      </Grid>
+
+      {/* ── Charts + Categories row ─────────────────────────────────────────── */}
+      <Box sx={{ overflow: 'hidden', mb: 5, mt: 5 }}>
+        <Grid container spacing={2.5}>
+        {/* Monthly Trend Chart */}
+        <Grid item xs={12} md={7}>
+          <Paper
+            elevation={0}
+            sx={{ p: 3, borderRadius: 3, border: '1px solid #E2E8F0', bgcolor: '#fff', height: '100%' }}
+          >
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 0.5 }}>
+              <Box>
+                <Typography variant="h6" fontWeight={700} color="#0F172A">
+                  Monthly Dispute Trends
+                </Typography>
+                <Typography variant="caption" color="#64748B">
+                  Volume comparison across status over 6 months
+                </Typography>
+              </Box>
+              <Chip
+                label="Last 6 Months"
+                size="small"
+                sx={{ bgcolor: '#F1F5F9', color: '#475569', fontWeight: 600, borderRadius: '8px' }}
+              />
             </Box>
-            
-            <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-              {reports.length === 0 && (
-                <Typography variant="body2" color="#64748B" textAlign="center" py={4}>No reports found</Typography>
-              )}
-              {reports.map((report, idx) => (
-                <Box key={report.id}>
-                  <Box 
-                    sx={{ 
-                      p: 3, 
-                      cursor: 'pointer',
-                      bgcolor: selectedReport?.id === report.id ? '#F8FAFC' : '#fff',
-                      '&:hover': { bgcolor: '#F8FAFC' }
-                    }}
-                    onClick={() => handleOpenDetails(report)}
-                  >
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                      <Typography variant="body2" fontWeight={700} color="#0F172A">
-                        {report.reference_number || `Report #${report.id}`}
-                      </Typography>
-                      <Chip 
-                        label={report.status.toUpperCase()} 
-                        size="small"
-                        sx={{ 
-                          bgcolor: report.status === 'pending' ? '#FEF3C7' : '#DCFCE7', 
-                          color: report.status === 'pending' ? '#D97706' : '#16A34A', 
-                          fontWeight: 700,
-                          fontSize: '0.7rem',
-                          borderRadius: 1
-                        }} 
-                      />
-                    </Box>
-                    <Typography variant="body2" color="#64748B" mb={1}>
-                      Vendor: <Typography component="span" fontWeight={600} color="#0F172A">{report.reported_vendor_id}</Typography>
-                    </Typography>
-                    <Typography variant="caption" color="#94A3B8">
-                      {new Date(report.created_at).toLocaleString()}
-                    </Typography>
-                  </Box>
-                  {idx < reports.length - 1 && <Divider sx={{ borderColor: '#F1F5F9' }} />}
-                </Box>
-              ))}
-            </Box>
+
+            {chartsLoading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+                <CircularProgress size={28} sx={{ color: '#1A1FE8' }} />
+              </Box>
+            ) : (
+              <Box sx={{ mt: 3, height: 220 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={trendData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
+                    <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#94A3B8' }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 12, fill: '#94A3B8' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                    <RechartsTooltip
+                      contentStyle={{ borderRadius: 8, border: '1px solid #E2E8F0', fontSize: 12 }}
+                    />
+                    <Legend wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
+                    <Line type="monotone" dataKey="pending"   stroke="#F59E0B" strokeWidth={2} dot={{ r: 3 }} name="Pending" />
+                    <Line type="monotone" dataKey="reviewed"  stroke="#1A1FE8" strokeWidth={2} dot={{ r: 3 }} name="Reviewed" />
+                    <Line type="monotone" dataKey="dismissed" stroke="#94A3B8" strokeWidth={2} dot={{ r: 3 }} name="Dismissed" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </Box>
+            )}
           </Paper>
         </Grid>
 
-        {/* Report Details Panel */}
-        {selectedReport && (
-          <Grid item xs={12} md={7}>
-            <Paper elevation={0} sx={{ borderRadius: 3, border: '1px solid #E2E8F0', bgcolor: '#fff', position: 'relative' }}>
-              <IconButton onClick={handleCloseDetails} sx={{ position: 'absolute', top: 12, right: 12 }}>
-                <CloseIcon />
-              </IconButton>
-              
-              <Box sx={{ p: 4 }}>
-                <Typography variant="h5" fontWeight={800} color="#0F172A" mb={1}>
-                  Complaint Details
-                </Typography>
-                <Typography variant="body2" color="#64748B" mb={4}>
-                  Reference: {selectedReport.reference_number} • Submitted on {new Date(selectedReport.created_at).toLocaleString()}
-                </Typography>
+        {/* Complaint Categories */}
+        <Grid item xs={12} md={5}>
+          <Paper
+            elevation={0}
+            sx={{ p: 3, borderRadius: 3, border: '1px solid #E2E8F0', bgcolor: '#fff', height: '100%' }}
+          >
+            <Typography variant="h6" fontWeight={700} color="#0F172A" mb={3}>
+              Complaint Categories
+            </Typography>
 
-                <Grid container spacing={3} sx={{ mb: 4 }}>
-                  <Grid item xs={12} sm={6}>
-                    <Typography variant="caption" fontWeight={700} color="#64748B" textTransform="uppercase">Complainant (Reporter)</Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mt: 1 }}>
-                      <Avatar sx={{ width: 36, height: 36, bgcolor: '#1A1FE8' }}>{selectedReport.first_name ? selectedReport.first_name[0] : 'A'}</Avatar>
-                      <Box>
-                        <Typography variant="body2" fontWeight={700} color="#0F172A">{selectedReport.first_name ? `${selectedReport.first_name} ${selectedReport.last_name}` : 'Anonymous'}</Typography>
-                        <Typography variant="caption" color="#64748B" display="block">{selectedReport.contact_email || 'No email provided'}</Typography>
-                        {selectedReport.phone_number && (
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.3 }}>
-                            <Typography variant="caption" color="#64748B">{selectedReport.phone_number}</Typography>
-                            {selectedReport.is_whatsapp ? (
-                              <Chip size="small" label="WhatsApp" sx={{ height: 16, fontSize: '0.6rem', bgcolor: '#DCFCE7', color: '#16A34A', fontWeight: 700 }} />
-                            ) : null}
-                          </Box>
-                        )}
-                      </Box>
+            {chartsLoading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
+                <CircularProgress size={28} sx={{ color: '#1A1FE8' }} />
+              </Box>
+            ) : categoryData.length === 0 ? (
+              <Typography variant="body2" color="#94A3B8" textAlign="center" py={4}>
+                No data yet
+              </Typography>
+            ) : (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+                {categoryData.map(({ category, pct }) => (
+                  <Box key={category}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.75 }}>
+                      <Typography variant="body2" color="#334155" fontWeight={500}>
+                        {formatCategory(category)}
+                      </Typography>
+                      <Typography variant="body2" fontWeight={700} color="#0F172A">
+                        {pct}%
+                      </Typography>
                     </Box>
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <Typography variant="caption" fontWeight={700} color="#64748B" textTransform="uppercase">Reported Vendor</Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mt: 1 }}>
-                      <Avatar sx={{ width: 36, height: 36, bgcolor: '#EF4444' }}>V</Avatar>
-                      <Box>
-                        <Typography variant="body2" fontWeight={700} color="#0F172A">{selectedReport.reported_vendor_id}</Typography>
-                        <Typography variant="caption" color="#64748B">Category: {selectedReport.category}</Typography>
-                      </Box>
-                    </Box>
-                  </Grid>
-                </Grid>
-
-                <Divider sx={{ my: 3, borderColor: '#F1F5F9' }} />
-
-                <Typography variant="caption" fontWeight={700} color="#64748B" textTransform="uppercase" display="block" mb={1}>
-                  Detailed Description
-                </Typography>
-                <Paper elevation={0} sx={{ p: 2.5, bgcolor: '#F8FAFC', borderRadius: 2, border: '1px solid #E2E8F0', mb: 4 }}>
-                  <Typography variant="body2" color="#334155" sx={{ whiteSpace: 'pre-wrap' }}>
-                    {selectedReport.context}
-                  </Typography>
-                </Paper>
-
-                {selectedReport.evidence_files && selectedReport.evidence_files.length > 0 && (
-                  <Box sx={{ mb: 4 }}>
-                    <Typography variant="caption" fontWeight={700} color="#64748B" textTransform="uppercase" display="block" mb={1.5}>
-                      Evidence Files
-                    </Typography>
-                    <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                      {selectedReport.evidence_files.map((file: string, i: number) => (
-                        <Button 
-                          key={i} 
-                          variant="outlined" 
-                          startIcon={<DescriptionIcon />} 
-                          href={file} 
-                          target="_blank"
-                          sx={{ textTransform: 'none', borderRadius: 2, color: '#0F172A', borderColor: '#E2E8F0' }}
-                        >
-                          View Attachment {i + 1}
-                        </Button>
-                      ))}
+                    <Box sx={{ height: 7, borderRadius: 99, bgcolor: '#F1F5F9', overflow: 'hidden' }}>
+                      <Box
+                        sx={{
+                          height: '100%',
+                          width: `${pct}%`,
+                          borderRadius: 99,
+                          bgcolor: CATEGORY_COLORS[category] ?? '#1A1FE8',
+                          transition: 'width 0.6s ease',
+                        }}
+                      />
                     </Box>
                   </Box>
-                )}
-
-                <Box sx={{ display: 'flex', gap: 2 }}>
-                  <Button variant="contained" color="success" sx={{ flex: 1, borderRadius: 2, fontWeight: 700 }}>
-                    Mark as Reviewed
-                  </Button>
-                  <Button variant="outlined" color="error" sx={{ flex: 1, borderRadius: 2, fontWeight: 700 }}>
-                    Dismiss Report
-                  </Button>
-                </Box>
+                ))}
               </Box>
-            </Paper>
-          </Grid>
-        )}
-      </Grid>
+            )}
+          </Paper>
+        </Grid>
+        </Grid>
+      </Box>
+
+      {/* ── Active Complaints Table ──────────────────────────────────────────── */}
+      <Paper elevation={0} sx={{ borderRadius: 3, border: '1px solid #E2E8F0', bgcolor: '#fff', overflow: 'hidden' }}>
+
+        {/* Toolbar: title + filters */}
+        <Box
+          sx={{
+            px: 3,
+            py: 2.5,
+            borderBottom: '1px solid #E2E8F0',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 2,
+            bgcolor: '#FAFBFC',
+          }}
+        >
+          <Typography variant="h6" fontWeight={700} color="#0F172A">
+            Active Complaints
+          </Typography>
+
+          <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
+            {/* Status filter */}
+            <FormControl size="small" sx={{ minWidth: 140 }}>
+              <InputLabel sx={{ fontSize: '0.83rem' }}>Status</InputLabel>
+              <Select
+                value={statusFilter}
+                label="Status"
+                onChange={handleStatusChange}
+                sx={{ borderRadius: 2, fontSize: '0.83rem', bgcolor: '#fff' }}
+              >
+                <MenuItem value="">All Statuses</MenuItem>
+                <MenuItem value="pending">Pending</MenuItem>
+                <MenuItem value="reviewed">Reviewed</MenuItem>
+                <MenuItem value="dismissed">Dismissed</MenuItem>
+              </Select>
+            </FormControl>
+
+            {/* Priority filter */}
+            <FormControl size="small" sx={{ minWidth: 140 }}>
+              <InputLabel sx={{ fontSize: '0.83rem' }}>Priority</InputLabel>
+              <Select
+                value={priorityFilter}
+                label="Priority"
+                onChange={handlePriorityChange}
+                sx={{ borderRadius: 2, fontSize: '0.83rem', bgcolor: '#fff' }}
+              >
+                <MenuItem value="">All Priorities</MenuItem>
+                <MenuItem value="high">High</MenuItem>
+                <MenuItem value="medium">Medium</MenuItem>
+                <MenuItem value="low">Low</MenuItem>
+              </Select>
+            </FormControl>
+          </Box>
+        </Box>
+
+        {/* Table */}
+        <TableContainer>
+          <Table sx={{ minWidth: 800 }}>
+            <TableHead>
+              <TableRow sx={{ bgcolor: '#F8FAFC' }}>
+                {['Complaint ID', 'Date Received', 'Complainant', 'Reported Vendor', 'Category', 'Priority', 'Status', 'Actions'].map(
+                  (col) => (
+                    <TableCell
+                      key={col}
+                      sx={{
+                        fontWeight: 700,
+                        color: '#64748B',
+                        fontSize: '0.72rem',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.06em',
+                        borderBottom: '1px solid #E2E8F0',
+                        py: 1.75,
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {col}
+                    </TableCell>
+                  )
+                )}
+              </TableRow>
+            </TableHead>
+
+            <TableBody>
+              {tableLoading ? (
+                <TableRow>
+                  <TableCell colSpan={8} align="center" sx={{ py: 8 }}>
+                    <CircularProgress size={28} sx={{ color: '#1A1FE8' }} />
+                  </TableCell>
+                </TableRow>
+              ) : reports.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} align="center" sx={{ py: 8, color: '#94A3B8', fontSize: '0.875rem' }}>
+                    No complaints found for the selected filters.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                reports.map((report) => {
+                  const complainantName = report.first_name
+                    ? `${report.first_name} ${report.last_name ?? ''}`.trim()
+                    : report.contact_email ?? 'Anonymous';
+
+                  return (
+                    <TableRow
+                      key={report.id}
+                      hover
+                      sx={{
+                        cursor: 'pointer',
+                        '&:last-child td': { border: 0 },
+                        '&:hover': { bgcolor: '#F8FAFC' },
+                        transition: 'background 0.15s',
+                      }}
+                      onClick={() => navigate(`/admin/complaints/${report.id}`)}
+                    >
+                      <TableCell sx={{ borderBottom: '1px solid #F1F5F9', py: 2 }}>
+                        <Typography variant="body2" fontFamily="monospace" fontWeight={600} color="#1A1FE8" fontSize="0.82rem">
+                          #{report.reference_number}
+                        </Typography>
+                      </TableCell>
+
+                      <TableCell sx={{ borderBottom: '1px solid #F1F5F9', color: '#64748B', fontSize: '0.875rem', py: 2, whiteSpace: 'nowrap' }}>
+                        {formatDate(report.created_at)}
+                      </TableCell>
+
+                      <TableCell sx={{ borderBottom: '1px solid #F1F5F9', py: 2 }}>
+                        <Typography variant="body2" fontWeight={600} color="#0F172A">
+                          {complainantName}
+                        </Typography>
+                        {report.reporter_vendor_id && (
+                          <Typography variant="caption" color="#94A3B8" display="block">
+                            {report.reporter_vendor_id}
+                          </Typography>
+                        )}
+                      </TableCell>
+
+                      <TableCell sx={{ borderBottom: '1px solid #F1F5F9', py: 2 }}>
+                        <Typography variant="body2" fontWeight={600} color="#0F172A">
+                          {report.reported_vendor_id}
+                        </Typography>
+                      </TableCell>
+
+                      <TableCell sx={{ borderBottom: '1px solid #F1F5F9', py: 2 }}>
+                        <Chip
+                          label={formatCategory(report.category)}
+                          size="small"
+                          sx={{
+                            bgcolor: `${CATEGORY_COLORS[report.category] ?? '#1A1FE8'}18`,
+                            color:   CATEGORY_COLORS[report.category] ?? '#1A1FE8',
+                            fontWeight: 600,
+                            fontSize: '0.72rem',
+                            borderRadius: '8px',
+                          }}
+                        />
+                      </TableCell>
+
+                      <TableCell sx={{ borderBottom: '1px solid #F1F5F9', py: 2 }}>
+                        {renderPriorityChip(report.priority)}
+                      </TableCell>
+
+                      <TableCell sx={{ borderBottom: '1px solid #F1F5F9', py: 2 }}>
+                        {renderStatusChip(report.status)}
+                      </TableCell>
+
+                      <TableCell sx={{ borderBottom: '1px solid #F1F5F9', py: 2 }}>
+                        <Tooltip title="View details">
+                          <IconButton
+                            size="small"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/admin/complaints/${report.id}`);
+                            }}
+                            sx={{
+                              color: '#94A3B8',
+                              '&:hover': { color: '#1A1FE8', bgcolor: '#EEF2FF' },
+                              transition: 'all 0.15s',
+                            }}
+                          >
+                            <VisibilityOutlinedIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+
+        <TablePagination
+          rowsPerPageOptions={[10, 20, 50]}
+          component="div"
+          count={total}
+          rowsPerPage={rowsPerPage}
+          page={page}
+          onPageChange={(_, newPage) => setPage(newPage)}
+          onRowsPerPageChange={(e) => {
+            setRowsPerPage(parseInt(e.target.value, 10));
+            setPage(0);
+          }}
+          sx={{
+            borderTop: '1px solid #E2E8F0',
+            color: '#64748B',
+            fontSize: '0.85rem',
+            '.MuiTablePagination-toolbar': { px: 3 },
+          }}
+        />
+      </Paper>
     </Box>
   );
 }
+
