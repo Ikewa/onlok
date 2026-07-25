@@ -261,7 +261,7 @@ export default function AdminComplaints() {
       </Grid>
 
       {/* ── Charts + Categories row ─────────────────────────────────────────── */}
-      <Box sx={{ overflow: 'hidden', mb: 3 }}>
+      <Box sx={{ overflow: 'hidden', mb: 3, mt: 3 }}>
         <Grid container spacing={2.5}>
         {/* Monthly Trend Chart */}
         <Grid item xs={12} md={7}>

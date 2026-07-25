@@ -165,7 +165,7 @@ export default function AdminSettings() {
         </Grid>
       </Grid>
 
-      <Paper elevation={0} sx={{ borderRadius: '12px', border: '1px solid #E5E7EB', bgcolor: '#FFFFFF', overflow: 'hidden' }}>
+      <Paper elevation={0} sx={{ borderRadius: '12px', border: '1px solid #E5E7EB', bgcolor: '#FFFFFF', overflow: 'hidden', mt: 3 }}>
         <Box sx={{ p: 2.5, borderBottom: '1px solid #F3F4F6' }}>
           <Typography variant="h6" fontWeight={600} color="#111827" sx={{ fontSize: '1.05rem' }}>
             Audit Log
