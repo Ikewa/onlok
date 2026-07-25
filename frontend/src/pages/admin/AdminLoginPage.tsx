@@ -17,7 +17,6 @@ export default function AdminLoginPage() {
     setLoading(true);
     try {
       const { data } = await api.post('/admin/login', { email, password });
-      // The AuthContext login method just stores user state and token, it works for any user type.
       login(data);
       toast.success('Admin login successful!');
       navigate('/admin/verifications');
@@ -29,17 +28,17 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: '#F8FAFC' }}>
+    <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: '#F4F5FA', fontFamily: 'Inter, sans-serif' }}>
       <Container maxWidth="xs">
-        <Paper elevation={0} sx={{ p: 4, borderRadius: 3, border: '1px solid #E2E8F0', textAlign: 'center' }}>
-          <Box sx={{ mb: 4, display: 'inline-block' }}>
-            <Box sx={{ height: 50, width: 180, overflow: 'hidden', position: 'relative', mb: 1 }}>
+        <Paper elevation={0} sx={{ p: 4, borderRadius: '12px', border: '1px solid #E5E7EB', bgcolor: '#FFFFFF', textAlign: 'center' }}>
+          <Box sx={{ mb: 3, display: 'inline-block' }}>
+            <Box sx={{ height: 45, width: 160, overflow: 'hidden', position: 'relative', mb: 0.5 }}>
               <Box component="img" src="/logo.png" alt="Onlok Logo" sx={{ width: '180%', height: 'auto', position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }} />
             </Box>
-            <Typography variant="caption" sx={{ color: '#64748B', fontWeight: 600 }}>Admin Portal</Typography>
+            <Typography variant="caption" sx={{ color: '#6B7280', fontWeight: 500, letterSpacing: '0.05em' }}>Admin Portal</Typography>
           </Box>
 
-          <Typography variant="h5" fontWeight={800} color="#0F172A" mb={3}>
+          <Typography variant="h5" fontWeight={700} color="#111827" mb={3} sx={{ fontSize: '1.4rem' }}>
             Admin Login
           </Typography>
 
@@ -52,7 +51,7 @@ export default function AdminLoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px', bgcolor: '#F3F4F6', '& fieldset': { border: 'none' }, fontSize: '0.88rem' } }}
             />
             <TextField
               fullWidth
@@ -62,22 +61,22 @@ export default function AdminLoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px', bgcolor: '#F3F4F6', '& fieldset': { border: 'none' }, fontSize: '0.88rem' } }}
             />
             <Button
               type="submit"
               variant="contained"
               disabled={loading}
               sx={{
-                bgcolor: '#1A1FE8',
-                color: '#fff',
-                py: 1.5,
+                bgcolor: '#5B5FEC',
+                color: '#FFFFFF',
+                py: 1.25,
                 mt: 1,
-                borderRadius: 2,
-                fontWeight: 700,
+                borderRadius: '8px',
+                fontWeight: 600,
                 textTransform: 'none',
-                fontSize: '1rem',
-                '&:hover': { bgcolor: '#0F14B0' }
+                fontSize: '0.92rem',
+                '&:hover': { bgcolor: '#4F52D4' }
               }}
             >
               {loading ? 'Authenticating...' : 'Sign In'}

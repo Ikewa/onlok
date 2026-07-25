@@ -1,200 +1,199 @@
-import { Box, Typography, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip, CircularProgress, Button, MenuItem, Select, FormControl, InputLabel, Tabs, Tab } from '@mui/material';
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Box } from '@mui/material';
+import { useSearchParams } from 'react-router-dom';
 import axiosInstance from '../../api/axiosInstance';
 import toast from 'react-hot-toast';
-import GroupOutlinedIcon from '@mui/icons-material/GroupOutlined';
-import PriceCheckOutlinedIcon from '@mui/icons-material/PriceCheckOutlined';
-import SavingsOutlinedIcon from '@mui/icons-material/SavingsOutlined';
-import AccountBalanceWalletOutlinedIcon from '@mui/icons-material/AccountBalanceWalletOutlined';
+import ReferralHeader from '../../components/admin/ReferralHeader';
+import ReferralOverview from '../../components/admin/ReferralOverview';
+import ReferralRecordsTable from '../../components/admin/ReferralRecordsTable';
+import WithdrawalsTable from '../../components/admin/WithdrawalsTable';
 
 export default function AdminReferrals() {
-  const [loading, setLoading] = useState(true);
-  const [data, setData] = useState<any>(null);
-  const [withdrawals, setWithdrawals] = useState<any[]>([]);
-  const [tabIndex, setTabIndex] = useState(0);
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  const fetchData = async () => {
+  // Active tab index derived from URL search parameter '?tab='
+  const getInitialTab = () => {
+    const tab = searchParams.get('tab');
+    if (tab === 'records') return 1;
+    if (tab === 'withdrawals') return 2;
+    return 0;
+  };
+
+  const [tabIndex, setTabIndex] = useState<number>(getInitialTab);
+  const [loading, setLoading] = useState<boolean>(true);
+
+  // Overview & Referral Records Data
+  const [overviewData, setOverviewData] = useState<any>(null);
+  const [recordsSearch, setRecordsSearch] = useState<string>('');
+  const [recordsStatusFilter, setRecordsStatusFilter] = useState<string>('all');
+  const [recordsPagination, setRecordsPagination] = useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 1,
+  });
+
+  // Withdrawals Data
+  const [withdrawals, setWithdrawals] = useState<any[]>([]);
+  const [withdrawalsSearch, setWithdrawalsSearch] = useState<string>('');
+  const [withdrawalsStatusFilter, setWithdrawalsStatusFilter] = useState<string>('all');
+  const [withdrawalsPagination, setWithdrawalsPagination] = useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 1,
+  });
+
+  // Update tab index and URL query parameter
+  const handleTabChange = (newIndex: number) => {
+    setTabIndex(newIndex);
+    const tabNames = ['overview', 'records', 'withdrawals'];
+    setSearchParams({ tab: tabNames[newIndex] }, { replace: true });
+  };
+
+  // Fetch overview & referral records
+  const fetchReferrals = useCallback(async () => {
     setLoading(true);
     try {
-      const [refRes, withRes] = await Promise.all([
-        axiosInstance.get('/admin/referrals'),
-        axiosInstance.get('/admin/withdrawals')
-      ]);
-      setData(refRes.data);
-      setWithdrawals(withRes.data);
+      const res = await axiosInstance.get('/admin/referrals', {
+        params: {
+          search: recordsSearch,
+          status: recordsStatusFilter,
+          page: recordsPagination.page,
+          limit: recordsPagination.limit,
+        },
+      });
+      setOverviewData(res.data);
+      if (res.data.pagination) {
+        setRecordsPagination((prev) => ({
+          ...prev,
+          total: res.data.pagination.total,
+          totalPages: res.data.pagination.totalPages,
+        }));
+      }
     } catch (error) {
       console.error(error);
       toast.error('Failed to load referral data');
     } finally {
       setLoading(false);
     }
-  };
+  }, [recordsSearch, recordsStatusFilter, recordsPagination.page, recordsPagination.limit]);
+
+  // Fetch withdrawal requests
+  const fetchWithdrawals = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await axiosInstance.get('/admin/withdrawals', {
+        params: {
+          search: withdrawalsSearch,
+          status: withdrawalsStatusFilter,
+          page: withdrawalsPagination.page,
+          limit: withdrawalsPagination.limit,
+        },
+      });
+      const items = res.data.results || (Array.isArray(res.data) ? res.data : []);
+      setWithdrawals(items);
+      if (res.data.pagination) {
+        setWithdrawalsPagination((prev) => ({
+          ...prev,
+          total: res.data.pagination.total,
+          totalPages: res.data.pagination.totalPages,
+        }));
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to load withdrawal requests');
+    } finally {
+      setLoading(false);
+    }
+  }, [withdrawalsSearch, withdrawalsStatusFilter, withdrawalsPagination.page, withdrawalsPagination.limit]);
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (tabIndex === 0 || tabIndex === 1) {
+      fetchReferrals();
+    }
+    if (tabIndex === 2) {
+      fetchWithdrawals();
+    }
+  }, [tabIndex, fetchReferrals, fetchWithdrawals]);
 
-  const handleUpdateWithdrawal = async (id: number, status: string) => {
+  const handleUpdateWithdrawalStatus = async (id: number, status: string) => {
     try {
       await axiosInstance.put(`/admin/withdrawals/${id}/status`, { status });
-      toast.success('Withdrawal status updated');
-      fetchData();
+      toast.success(`Withdrawal request marked as ${status}`);
+      fetchWithdrawals();
+      fetchReferrals(); // Refresh stats
     } catch (error) {
-      toast.error('Failed to update withdrawal');
+      console.error(error);
+      toast.error('Failed to update withdrawal status');
     }
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(amount);
+    return new Intl.NumberFormat('en-NG', {
+      style: 'currency',
+      currency: 'NGN',
+      maximumFractionDigits: 0,
+    }).format(amount);
   };
 
   return (
-    <Box sx={{ p: { xs: 2, md: 4 }, fontFamily: 'Inter, sans-serif' }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-        <Box>
-          <Typography variant="h5" sx={{ fontWeight: 800, color: '#0F172A', mb: 0.5 }}>
-            Referral & Payout Management
-          </Typography>
-          <Typography sx={{ color: '#64748B', fontSize: '0.9rem' }}>
-            Monitor global referral commissions and process withdrawals.
-          </Typography>
-        </Box>
-      </Box>
+    <Box
+      sx={{
+        minHeight: '100vh',
+        fontFamily: 'Inter, sans-serif',
+      }}
+    >
+      {/* Header and Sub-Navigation Tabs */}
+      <ReferralHeader activeTab={tabIndex} onTabChange={handleTabChange} />
 
-      {/* Analytics Overview */}
-      <Box sx={{ display: 'flex', gap: 2, mb: 4, flexWrap: 'wrap' }}>
-        <StatCard title="Total Referrals" value={data?.stats?.totalReferrals ?? 0} icon={<GroupOutlinedIcon sx={{ color: '#3B82F6' }} />} />
-        <StatCard title="Total Generated" value={formatCurrency(data?.stats?.totalCommissionsGenerated ?? 0)} icon={<PriceCheckOutlinedIcon sx={{ color: '#8B5CF6' }} />} />
-        <StatCard title="Pending Payouts" value={formatCurrency(data?.stats?.totalPendingCommissions ?? 0)} icon={<SavingsOutlinedIcon sx={{ color: '#F59E0B' }} />} />
-        <StatCard title="Available to Withdraw" value={formatCurrency(data?.stats?.totalAvailableCommissions ?? 0)} icon={<AccountBalanceWalletOutlinedIcon sx={{ color: '#10B981' }} />} />
-        <StatCard title="Total Paid Out" value={formatCurrency(data?.stats?.totalCommissionsPaid ?? 0)} icon={<PriceCheckOutlinedIcon sx={{ color: '#22C55E' }} />} />
-      </Box>
-
-      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
-        <Tabs value={tabIndex} onChange={(_, newVal) => setTabIndex(newVal)}>
-          <Tab label="Referral Records" sx={{ fontWeight: 600, textTransform: 'none' }} />
-          <Tab label="Withdrawal Requests" sx={{ fontWeight: 600, textTransform: 'none' }} />
-        </Tabs>
-      </Box>
-
+      {/* Tab 0: Overview */}
       {tabIndex === 0 && (
-        <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid #E2E8F0', borderRadius: 3 }}>
-          <Table>
-            <TableHead sx={{ bgcolor: '#F8FAFC' }}>
-              <TableRow>
-                <TableCell sx={{ fontWeight: 600, color: '#475569' }}>Referrer Name</TableCell>
-                <TableCell sx={{ fontWeight: 600, color: '#475569' }}>Referred Vendor</TableCell>
-                <TableCell sx={{ fontWeight: 600, color: '#475569' }}>Plan</TableCell>
-                <TableCell sx={{ fontWeight: 600, color: '#475569' }}>Commission</TableCell>
-                <TableCell sx={{ fontWeight: 600, color: '#475569' }}>Date</TableCell>
-                <TableCell sx={{ fontWeight: 600, color: '#475569' }}>Status</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {loading ? (
-                <TableRow><TableCell colSpan={6} align="center" sx={{ py: 3 }}><CircularProgress size={24} /></TableCell></TableRow>
-              ) : data?.referrals?.length > 0 ? (
-                data.referrals.map((row: any) => (
-                  <TableRow key={row.id}>
-                    <TableCell>{row.referrer_first_name} {row.referrer_last_name}</TableCell>
-                    <TableCell>{row.referred_business_name || `${row.referred_first_name} ${row.referred_last_name}`}</TableCell>
-                    <TableCell>{row.subscription_plan}</TableCell>
-                    <TableCell>{formatCurrency(row.commission_earned)}</TableCell>
-                    <TableCell>{new Date(row.created_at).toLocaleDateString()}</TableCell>
-                    <TableCell><StatusChip status={row.status} /></TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow><TableCell colSpan={6} align="center" sx={{ py: 3, color: '#64748B' }}>No referral records found.</TableCell></TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
+        <ReferralOverview data={overviewData} formatCurrency={formatCurrency} />
       )}
 
+      {/* Tab 1: Referral Records */}
       {tabIndex === 1 && (
-        <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid #E2E8F0', borderRadius: 3 }}>
-          <Table>
-            <TableHead sx={{ bgcolor: '#F8FAFC' }}>
-              <TableRow>
-                <TableCell sx={{ fontWeight: 600, color: '#475569' }}>User</TableCell>
-                <TableCell sx={{ fontWeight: 600, color: '#475569' }}>Amount</TableCell>
-                <TableCell sx={{ fontWeight: 600, color: '#475569' }}>Payment Details</TableCell>
-                <TableCell sx={{ fontWeight: 600, color: '#475569' }}>Date</TableCell>
-                <TableCell sx={{ fontWeight: 600, color: '#475569' }}>Status</TableCell>
-                <TableCell sx={{ fontWeight: 600, color: '#475569' }}>Action</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {loading ? (
-                <TableRow><TableCell colSpan={6} align="center" sx={{ py: 3 }}><CircularProgress size={24} /></TableCell></TableRow>
-              ) : withdrawals.length > 0 ? (
-                withdrawals.map((row: any) => (
-                  <TableRow key={row.id}>
-                    <TableCell>{row.first_name} {row.last_name}</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>{formatCurrency(row.amount)}</TableCell>
-                    <TableCell sx={{ maxWidth: 200, whiteSpace: 'pre-wrap' }}>{row.payment_method}</TableCell>
-                    <TableCell>{new Date(row.created_at).toLocaleDateString()}</TableCell>
-                    <TableCell><StatusChip status={row.status} /></TableCell>
-                    <TableCell>
-                      {row.status === 'processing' ? (
-                        <Box sx={{ display: 'flex', gap: 1 }}>
-                          <Button size="small" variant="contained" color="success" onClick={() => handleUpdateWithdrawal(row.id, 'paid')} sx={{ textTransform: 'none' }}>
-                            Mark Paid
-                          </Button>
-                          <Button size="small" variant="outlined" color="error" onClick={() => handleUpdateWithdrawal(row.id, 'failed')} sx={{ textTransform: 'none' }}>
-                            Fail
-                          </Button>
-                        </Box>
-                      ) : (
-                        <Typography sx={{ color: '#64748B', fontSize: '0.85rem' }}>Resolved</Typography>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow><TableCell colSpan={6} align="center" sx={{ py: 3, color: '#64748B' }}>No withdrawal requests found.</TableCell></TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
+        <ReferralRecordsTable
+          loading={loading}
+          records={overviewData?.referrals || []}
+          search={recordsSearch}
+          onSearchChange={(val) => {
+            setRecordsSearch(val);
+            setRecordsPagination((p) => ({ ...p, page: 1 }));
+          }}
+          statusFilter={recordsStatusFilter}
+          onStatusFilterChange={(val) => {
+            setRecordsStatusFilter(val);
+            setRecordsPagination((p) => ({ ...p, page: 1 }));
+          }}
+          pagination={recordsPagination}
+          onPageChange={(newPage) => setRecordsPagination((p) => ({ ...p, page: newPage }))}
+          formatCurrency={formatCurrency}
+        />
       )}
 
+      {/* Tab 2: Withdrawal Requests */}
+      {tabIndex === 2 && (
+        <WithdrawalsTable
+          loading={loading}
+          withdrawals={withdrawals}
+          search={withdrawalsSearch}
+          onSearchChange={(val) => {
+            setWithdrawalsSearch(val);
+            setWithdrawalsPagination((p) => ({ ...p, page: 1 }));
+          }}
+          statusFilter={withdrawalsStatusFilter}
+          onStatusFilterChange={(val) => {
+            setWithdrawalsStatusFilter(val);
+            setWithdrawalsPagination((p) => ({ ...p, page: 1 }));
+          }}
+          pagination={withdrawalsPagination}
+          onPageChange={(newPage) => setWithdrawalsPagination((p) => ({ ...p, page: newPage }))}
+          onUpdateStatus={handleUpdateWithdrawalStatus}
+          formatCurrency={formatCurrency}
+        />
+      )}
     </Box>
   );
 }
-
-const StatCard = ({ title, value, icon }: any) => (
-  <Box sx={{ flex: '1 1 180px', bgcolor: '#F8FAFC', borderRadius: 3, p: 2.5, border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column' }}>
-    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-      <Typography sx={{ color: '#64748B', fontSize: '0.85rem', fontWeight: 600 }}>{title}</Typography>
-      {icon}
-    </Box>
-    <Typography sx={{ fontWeight: 800, fontSize: '1.6rem', color: '#0F172A', lineHeight: 1 }}>{value}</Typography>
-  </Box>
-);
-
-const StatusChip = ({ status }: { status: string }) => {
-  let color: "warning" | "success" | "info" | "error" | "default" = "default";
-  
-  switch(status.toLowerCase()) {
-    case 'pending':
-    case 'processing':
-      color = 'warning';
-      break;
-    case 'available':
-    case 'paid':
-      color = 'success';
-      break;
-    case 'withdrawn':
-      color = 'info';
-      break;
-    case 'failed':
-    case 'cancelled':
-    case 'reversed':
-      color = 'error';
-      break;
-  }
-
-  return <Chip label={status} color={color} size="small" sx={{ fontWeight: 600, textTransform: 'capitalize' }} />;
-};

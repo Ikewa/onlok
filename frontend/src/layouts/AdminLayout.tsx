@@ -31,12 +31,12 @@ export default function AdminLayout() {
   }
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: '#F8FAFC' }}>
+    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: '#F4F5FA', fontFamily: 'Inter, sans-serif' }}>
       {/* Sidebar */}
       <Box 
         sx={{ 
           width: 260, 
-          bgcolor: '#1A1FE8', 
+          bgcolor: '#0B0F3D', 
           color: '#fff', 
           display: 'flex', 
           flexDirection: 'column',
@@ -44,11 +44,11 @@ export default function AdminLayout() {
         }}
       >
         {/* Logo Area */}
-        <Box sx={{ p: 3, pb: 4, borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+        <Box sx={{ p: 3, pb: 4, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
           <Box sx={{ height: 45, width: 150, overflow: 'hidden', position: 'relative', mb: 1, filter: 'brightness(0) invert(1)' }}>
             <Box component="img" src="/logo.png" alt="Onlok Logo" sx={{ width: '180%', height: 'auto', position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }} />
           </Box>
-          <Typography variant="caption" sx={{ color: '#94A3B8', ml: 4 }}>
+          <Typography variant="caption" sx={{ color: '#9CA3AF', ml: 4, letterSpacing: '0.05em' }}>
             Admin Dashboard
           </Typography>
         </Box>
@@ -63,18 +63,19 @@ export default function AdminLayout() {
                   component={RouterLink}
                   to={item.path}
                   sx={{
-                    borderRadius: 2,
-                    bgcolor: isSelected ? 'rgba(255,255,255,0.15)' : 'transparent',
-                    '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' },
-                    py: 1.5
+                    borderRadius: '8px',
+                    bgcolor: isSelected ? '#5B5FEC' : 'transparent',
+                    '&:hover': { bgcolor: isSelected ? '#5B5FEC' : 'rgba(255,255,255,0.08)' },
+                    py: 1.25,
+                    px: 2
                   }}
                 >
-                  <ListItemIcon sx={{ color: '#fff', minWidth: 40 }}>
+                  <ListItemIcon sx={{ color: '#fff', minWidth: 36 }}>
                     {item.icon}
                   </ListItemIcon>
                   <ListItemText 
                     primary={item.text} 
-                    primaryTypographyProps={{ fontWeight: isSelected ? 700 : 500, fontSize: '0.95rem' }} 
+                    primaryTypographyProps={{ fontWeight: isSelected ? 700 : 500, fontSize: '0.9rem', fontFamily: 'Inter, sans-serif' }} 
                   />
                 </ListItemButton>
               </ListItem>
@@ -83,20 +84,20 @@ export default function AdminLayout() {
         </List>
 
         {/* Admin User Profile */}
-        <Box sx={{ p: 3, borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Avatar sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: '#fff', width: 40, height: 40, fontWeight: 700, fontSize: '0.9rem' }}>
+        <Box sx={{ p: 3, borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Avatar sx={{ bgcolor: '#5B5FEC', color: '#fff', width: 40, height: 40, fontWeight: 700, fontSize: '0.9rem' }}>
             AU
           </Avatar>
           <Box>
-            <Typography variant="body2" fontWeight={700}>Admin User</Typography>
-            <Typography variant="caption" sx={{ color: '#94A3B8' }}>{user?.email || 'admin@onlok.com'}</Typography>
+            <Typography variant="body2" fontWeight={700} sx={{ color: '#FFFFFF', fontSize: '0.88rem' }}>Admin User</Typography>
+            <Typography variant="caption" sx={{ color: '#9CA3AF', fontSize: '0.78rem' }}>{user?.email || 'admin@onlok.com'}</Typography>
           </Box>
         </Box>
       </Box>
 
       {/* Main Content */}
       <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <Box sx={{ flexGrow: 1, overflowY: 'auto', p: { xs: 3, md: 5 } }}>
+        <Box sx={{ flexGrow: 1, overflowY: 'auto', p: { xs: 2.5, md: 4 } }}>
            <Outlet />
         </Box>
       </Box>

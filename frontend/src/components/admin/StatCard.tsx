@@ -26,33 +26,29 @@ export default function StatCard({
       elevation={0}
       sx={{
         p: 2.5,
-        borderRadius: 3,
-        border: isDanger ? '1px solid #FECACA' : '1px solid #E2E8F0',
-        bgcolor: isDanger ? '#EF4444' : '#fff',
+        borderRadius: '12px',
+        border: isDanger ? '1px solid #FEE2E2' : '1px solid #E5E7EB',
+        bgcolor: isDanger ? '#DC2626' : '#FFFFFF',
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
-        minHeight: 120,
+        minHeight: 110,
         position: 'relative',
         overflow: 'hidden',
-        transition: 'box-shadow 0.2s',
-        '&:hover': {
-          boxShadow: isDanger
-            ? '0 4px 24px rgba(239,68,68,0.25)'
-            : '0 4px 16px rgba(0,0,0,0.06)',
-        },
+        boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
       }}
     >
       {/* Top row: title + icon */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <Typography
           variant="caption"
-          fontWeight={700}
+          fontWeight={600}
           sx={{
-            color: isDanger ? 'rgba(255,255,255,0.85)' : '#64748B',
+            color: isDanger ? 'rgba(255,255,255,0.9)' : '#6B7280',
             textTransform: 'uppercase',
             letterSpacing: '0.05em',
+            fontSize: '0.72rem',
             lineHeight: 1.3,
             maxWidth: '75%',
           }}
@@ -62,7 +58,7 @@ export default function StatCard({
         {icon && (
           <Box
             sx={{
-              color: isDanger ? 'rgba(255,255,255,0.7)' : '#94A3B8',
+              color: isDanger ? 'rgba(255,255,255,0.8)' : '#9CA3AF',
               display: 'flex',
               alignItems: 'center',
             }}
@@ -73,14 +69,14 @@ export default function StatCard({
       </Box>
 
       {/* Value */}
-      <Box>
+      <Box sx={{ mt: 1 }}>
         <Typography
           variant="h4"
-          fontWeight={800}
+          fontWeight={700}
           sx={{
-            color: isDanger ? '#fff' : '#0F172A',
+            color: isDanger ? '#FFFFFF' : '#111827',
             lineHeight: 1.1,
-            mt: 1,
+            fontSize: '1.5rem',
             mb: subLabel ? 0.5 : 0,
           }}
         >
@@ -91,10 +87,11 @@ export default function StatCard({
         {subLabel && (
           <Typography
             variant="caption"
-            fontWeight={600}
+            fontWeight={500}
             sx={{
-              color: subLabelColor ?? (isDanger ? 'rgba(255,255,255,0.85)' : '#64748B'),
+              color: subLabelColor ?? (isDanger ? 'rgba(255,255,255,0.9)' : '#6B7280'),
               display: 'block',
+              fontSize: '0.75rem',
             }}
           >
             {subLabel}

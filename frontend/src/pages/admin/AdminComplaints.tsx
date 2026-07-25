@@ -31,31 +31,28 @@ import {
 
 const STATUS_STYLES: Record<ReportStatus, { bg: string; color: string }> = {
   pending:   { bg: '#FEF3C7', color: '#D97706' },
-  reviewed:  { bg: '#DCFCE7', color: '#15803D' },
-  dismissed: { bg: '#F1F5F9', color: '#475569' },
+  reviewed:  { bg: '#DCFCE7', color: '#16A34A' },
+  dismissed: { bg: '#F3F4F6', color: '#6B7280' },
 };
 
 const PRIORITY_STYLES: Record<ReportPriority, { bg: string; color: string }> = {
-  high:   { bg: '#FEE2E2', color: '#B91C1C' },
+  high:   { bg: '#FEE2E2', color: '#DC2626' },
   medium: { bg: '#FEF3C7', color: '#D97706' },
-  low:    { bg: '#DCFCE7', color: '#15803D' },
+  low:    { bg: '#DCFCE7', color: '#16A34A' },
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
-  fraud:                '#EF4444',
-  impersonation:        '#F97316',
-  harassment:           '#8B5CF6',
-  inaccurate_information: '#3B82F6',
-  others:               '#64748B',
+  fraud:                '#DC2626',
+  impersonation:        '#D97706',
+  harassment:           '#5B5FEC',
+  inaccurate_information: '#2563EB',
+  others:               '#6B7280',
 };
-
-// ── Month grouping helpers ────────────────────────────────────────────────────
 
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 function buildTrendData(reports: Report[]) {
   const now = new Date();
-  // Build the last 6 calendar months (including current)
   const months: { year: number; month: number; label: string }[] = [];
   for (let i = 5; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
@@ -91,36 +88,28 @@ function buildCategoryData(reports: Report[]) {
     }));
 }
 
-// ── Component ─────────────────────────────────────────────────────────────────
-
 export default function AdminComplaints() {
   const navigate = useNavigate();
 
-  // Stats (overview cards)
   const [stats, setStats] = useState({
     total: 0, pending: 0, reviewed: 0, dismissed: 0,
     highPriority: 0, pendingHighPriority: 0,
   });
   const [statsLoading, setStatsLoading] = useState(true);
 
-  // Table data
   const [reports, setReports] = useState<Report[]>([]);
   const [total, setTotal] = useState(0);
   const [tableLoading, setTableLoading] = useState(true);
 
-  // Chart & category data (derived from an unfiltered fetch)
   const [allReports, setAllReports] = useState<Report[]>([]);
   const [chartsLoading, setChartsLoading] = useState(true);
 
-  // Filters
   const [statusFilter, setStatusFilter]     = useState<ReportStatus | ''>('');
   const [priorityFilter, setPriorityFilter] = useState<ReportPriority | ''>('');
 
-  // Pagination
   const [page, setPage]               = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
-  // ── Fetch stats once ────────────────────────────────────────────────────────
   useEffect(() => {
     const fetch = async () => {
       try {
@@ -135,16 +124,12 @@ export default function AdminComplaints() {
     fetch();
   }, []);
 
-  // ── Fetch all reports (for chart + category breakdown) once ─────────────────
   useEffect(() => {
     const fetch = async () => {
       try {
-        // Use a high limit to get enough data for chart grouping;
-        // for production at very high volumes this should be a dedicated endpoint.
         const res = await getAdminReports({ limit: 500, page: 1 });
         setAllReports(res.results);
       } catch {
-        // Non-critical — charts just won't render
         toast.error('Failed to load chart data');
       } finally {
         setChartsLoading(false);
@@ -153,12 +138,11 @@ export default function AdminComplaints() {
     fetch();
   }, []);
 
-  // ── Fetch paginated/filtered table data ─────────────────────────────────────
   const fetchTable = useCallback(async () => {
     setTableLoading(true);
     try {
       const res = await getAdminReports({
-        page: page + 1, // API is 1-based
+        page: page + 1,
         limit: rowsPerPage,
         ...(statusFilter   ? { status: statusFilter }     : {}),
         ...(priorityFilter ? { priority: priorityFilter } : {}),
@@ -176,7 +160,6 @@ export default function AdminComplaints() {
     fetchTable();
   }, [fetchTable]);
 
-  // Reset to page 0 when filters change
   const handleStatusChange = (e: SelectChangeEvent) => {
     setStatusFilter(e.target.value as ReportStatus | '');
     setPage(0);
@@ -186,29 +169,27 @@ export default function AdminComplaints() {
     setPage(0);
   };
 
-  // ── Derived data ─────────────────────────────────────────────────────────────
   const trendData    = buildTrendData(allReports);
   const categoryData = buildCategoryData(allReports);
 
-  // ── Render helpers ───────────────────────────────────────────────────────────
   const renderStatusChip = (status: ReportStatus) => {
-    const s = STATUS_STYLES[status] ?? { bg: '#F1F5F9', color: '#475569' };
+    const s = STATUS_STYLES[status] ?? { bg: '#F3F4F6', color: '#6B7280' };
     return (
       <Chip
         label={status.charAt(0).toUpperCase() + status.slice(1)}
         size="small"
-        sx={{ bgcolor: s.bg, color: s.color, fontWeight: 700, fontSize: '0.72rem', borderRadius: '12px' }}
+        sx={{ bgcolor: s.bg, color: s.color, fontWeight: 600, fontSize: '0.75rem', borderRadius: '9999px', px: 0.5 }}
       />
     );
   };
 
   const renderPriorityChip = (priority: ReportPriority) => {
-    const p = PRIORITY_STYLES[priority] ?? { bg: '#F1F5F9', color: '#475569' };
+    const p = PRIORITY_STYLES[priority] ?? { bg: '#F3F4F6', color: '#6B7280' };
     return (
       <Chip
         label={priority.toUpperCase()}
         size="small"
-        sx={{ bgcolor: p.bg, color: p.color, fontWeight: 700, fontSize: '0.72rem', borderRadius: '12px' }}
+        sx={{ bgcolor: p.bg, color: p.color, fontWeight: 600, fontSize: '0.75rem', borderRadius: '9999px', px: 0.5 }}
       />
     );
   };
@@ -219,51 +200,50 @@ export default function AdminComplaints() {
   const formatCategory = (cat: string) =>
     cat.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 
-  // ── Main render ──────────────────────────────────────────────────────────────
   return (
-    <Box sx={{ maxWidth: 1200 }}>
+    <Box sx={{ maxWidth: 1200, fontFamily: 'Inter, sans-serif' }}>
 
       {/* ── Page Header ─────────────────────────────────────────────────────── */}
-      <Box mb={5}>
-        <Typography variant="h4" fontWeight={800} color="#0F172A" mb={0.5}>
+      <Box mb={3}>
+        <Typography variant="h4" fontWeight={700} color="#111827" mb={0.5} sx={{ fontSize: { xs: '1.5rem', md: '1.75rem' }, lineHeight: 1.2 }}>
           Report / Complains
         </Typography>
-        <Typography variant="body2" color="#64748B" sx={{ maxWidth: 520 }}>
+        <Typography variant="body2" color="#6B7280" sx={{ maxWidth: 520, fontSize: '0.88rem' }}>
           Identify and report behaviours that violate our community standards.
           This report is secure and confidential.
         </Typography>
       </Box>
 
       {/* ── Overview Cards ──────────────────────────────────────────────────── */}
-      <Grid container spacing={2.5} mb={5} sx={{ flexWrap: 'nowrap' }}>
+      <Grid container spacing={2.5} mb={3} sx={{ flexWrap: 'nowrap' }}>
         {[
           {
             title: 'Total Disputes',
             value: statsLoading ? '—' : stats.total,
-            icon: <AssignmentOutlinedIcon sx={{ fontSize: 22 }} />,
+            icon: <AssignmentOutlinedIcon sx={{ fontSize: 20 }} />,
           },
           {
             title: 'Pending',
             value: statsLoading ? '—' : stats.pending,
-            icon: <HourglassEmptyIcon sx={{ fontSize: 22 }} />,
+            icon: <HourglassEmptyIcon sx={{ fontSize: 20 }} />,
             subLabel: 'Awaiting review',
           },
           {
             title: 'In Review',
             value: statsLoading ? '—' : stats.reviewed,
-            icon: <ReportProblemOutlinedIcon sx={{ fontSize: 22 }} />,
+            icon: <ReportProblemOutlinedIcon sx={{ fontSize: 20 }} />,
             subLabel: stats.pending > 0 ? 'Requires attention' : undefined,
-            subLabelColor: stats.pending > 0 ? '#F59E0B' : undefined,
+            subLabelColor: stats.pending > 0 ? '#D97706' : undefined,
           },
           {
             title: 'Resolved',
             value: statsLoading ? '—' : stats.dismissed,
-            icon: <CheckCircleOutlineIcon sx={{ fontSize: 22 }} />,
+            icon: <CheckCircleOutlineIcon sx={{ fontSize: 20 }} />,
           },
           {
             title: 'High Priority',
             value: statsLoading ? '—' : stats.highPriority,
-            icon: <WarningAmberIcon sx={{ fontSize: 22 }} />,
+            icon: <WarningAmberIcon sx={{ fontSize: 20 }} />,
             subLabel: stats.highPriority > 0
               ? `${stats.pendingHighPriority} still pending`
               : 'None outstanding',
@@ -281,48 +261,48 @@ export default function AdminComplaints() {
       </Grid>
 
       {/* ── Charts + Categories row ─────────────────────────────────────────── */}
-      <Box sx={{ overflow: 'hidden', mb: 5, mt: 5 }}>
+      <Box sx={{ overflow: 'hidden', mb: 3, mt: 3 }}>
         <Grid container spacing={2.5}>
         {/* Monthly Trend Chart */}
         <Grid item xs={12} md={7}>
           <Paper
             elevation={0}
-            sx={{ p: 3, borderRadius: 3, border: '1px solid #E2E8F0', bgcolor: '#fff', height: '100%' }}
+            sx={{ p: 3, borderRadius: '12px', border: '1px solid #E5E7EB', bgcolor: '#FFFFFF', height: '100%' }}
           >
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 0.5 }}>
               <Box>
-                <Typography variant="h6" fontWeight={700} color="#0F172A">
+                <Typography variant="h6" fontWeight={600} color="#111827" sx={{ fontSize: '1.05rem' }}>
                   Monthly Dispute Trends
                 </Typography>
-                <Typography variant="caption" color="#64748B">
+                <Typography variant="caption" color="#6B7280" sx={{ fontSize: '0.78rem' }}>
                   Volume comparison across status over 6 months
                 </Typography>
               </Box>
               <Chip
                 label="Last 6 Months"
                 size="small"
-                sx={{ bgcolor: '#F1F5F9', color: '#475569', fontWeight: 600, borderRadius: '8px' }}
+                sx={{ bgcolor: '#F3F4F6', color: '#4B5563', fontWeight: 500, borderRadius: '8px', fontSize: '0.78rem' }}
               />
             </Box>
 
             {chartsLoading ? (
               <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-                <CircularProgress size={28} sx={{ color: '#1A1FE8' }} />
+                <CircularProgress size={28} sx={{ color: '#5B5FEC' }} />
               </Box>
             ) : (
               <Box sx={{ mt: 3, height: 220 }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={trendData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
-                    <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#94A3B8' }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 12, fill: '#94A3B8' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
+                    <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} allowDecimals={false} />
                     <RechartsTooltip
-                      contentStyle={{ borderRadius: 8, border: '1px solid #E2E8F0', fontSize: 12 }}
+                      contentStyle={{ borderRadius: 8, border: '1px solid #E5E7EB', fontSize: 12 }}
                     />
                     <Legend wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
-                    <Line type="monotone" dataKey="pending"   stroke="#F59E0B" strokeWidth={2} dot={{ r: 3 }} name="Pending" />
-                    <Line type="monotone" dataKey="reviewed"  stroke="#1A1FE8" strokeWidth={2} dot={{ r: 3 }} name="Reviewed" />
-                    <Line type="monotone" dataKey="dismissed" stroke="#94A3B8" strokeWidth={2} dot={{ r: 3 }} name="Dismissed" />
+                    <Line type="monotone" dataKey="pending"   stroke="#D97706" strokeWidth={2} dot={{ r: 3 }} name="Pending" />
+                    <Line type="monotone" dataKey="reviewed"  stroke="#5B5FEC" strokeWidth={2} dot={{ r: 3 }} name="Reviewed" />
+                    <Line type="monotone" dataKey="dismissed" stroke="#9CA3AF" strokeWidth={2} dot={{ r: 3 }} name="Dismissed" />
                   </LineChart>
                 </ResponsiveContainer>
               </Box>
@@ -334,39 +314,39 @@ export default function AdminComplaints() {
         <Grid item xs={12} md={5}>
           <Paper
             elevation={0}
-            sx={{ p: 3, borderRadius: 3, border: '1px solid #E2E8F0', bgcolor: '#fff', height: '100%' }}
+            sx={{ p: 3, borderRadius: '12px', border: '1px solid #E5E7EB', bgcolor: '#FFFFFF', height: '100%' }}
           >
-            <Typography variant="h6" fontWeight={700} color="#0F172A" mb={3}>
+            <Typography variant="h6" fontWeight={600} color="#111827" mb={2.5} sx={{ fontSize: '1.05rem' }}>
               Complaint Categories
             </Typography>
 
             {chartsLoading ? (
               <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
-                <CircularProgress size={28} sx={{ color: '#1A1FE8' }} />
+                <CircularProgress size={28} sx={{ color: '#5B5FEC' }} />
               </Box>
             ) : categoryData.length === 0 ? (
-              <Typography variant="body2" color="#94A3B8" textAlign="center" py={4}>
+              <Typography variant="body2" color="#6B7280" textAlign="center" py={4} sx={{ fontSize: '0.88rem' }}>
                 No data yet
               </Typography>
             ) : (
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                 {categoryData.map(({ category, pct }) => (
                   <Box key={category}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.75 }}>
-                      <Typography variant="body2" color="#334155" fontWeight={500}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                      <Typography variant="body2" color="#374151" fontWeight={500} sx={{ fontSize: '0.85rem' }}>
                         {formatCategory(category)}
                       </Typography>
-                      <Typography variant="body2" fontWeight={700} color="#0F172A">
+                      <Typography variant="body2" fontWeight={600} color="#111827" sx={{ fontSize: '0.85rem' }}>
                         {pct}%
                       </Typography>
                     </Box>
-                    <Box sx={{ height: 7, borderRadius: 99, bgcolor: '#F1F5F9', overflow: 'hidden' }}>
+                    <Box sx={{ height: 6, borderRadius: 99, bgcolor: '#F3F4F6', overflow: 'hidden' }}>
                       <Box
                         sx={{
                           height: '100%',
                           width: `${pct}%`,
                           borderRadius: 99,
-                          bgcolor: CATEGORY_COLORS[category] ?? '#1A1FE8',
+                          bgcolor: CATEGORY_COLORS[category] ?? '#5B5FEC',
                           transition: 'width 0.6s ease',
                         }}
                       />
@@ -381,35 +361,32 @@ export default function AdminComplaints() {
       </Box>
 
       {/* ── Active Complaints Table ──────────────────────────────────────────── */}
-      <Paper elevation={0} sx={{ borderRadius: 3, border: '1px solid #E2E8F0', bgcolor: '#fff', overflow: 'hidden' }}>
+      <Paper elevation={0} sx={{ borderRadius: '12px', border: '1px solid #E5E7EB', bgcolor: '#FFFFFF', overflow: 'hidden' }}>
 
         {/* Toolbar: title + filters */}
         <Box
           sx={{
-            px: 3,
-            py: 2.5,
-            borderBottom: '1px solid #E2E8F0',
+            p: 2.5,
+            borderBottom: '1px solid #E5E7EB',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'space-between',
+            justify: 'space-between',
             flexWrap: 'wrap',
             gap: 2,
-            bgcolor: '#FAFBFC',
           }}
         >
-          <Typography variant="h6" fontWeight={700} color="#0F172A">
+          <Typography variant="h6" fontWeight={600} color="#111827" sx={{ fontSize: '1.05rem' }}>
             Active Complaints
           </Typography>
 
           <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
-            {/* Status filter */}
             <FormControl size="small" sx={{ minWidth: 140 }}>
-              <InputLabel sx={{ fontSize: '0.83rem' }}>Status</InputLabel>
+              <InputLabel sx={{ fontSize: '0.85rem' }}>Status</InputLabel>
               <Select
                 value={statusFilter}
                 label="Status"
                 onChange={handleStatusChange}
-                sx={{ borderRadius: 2, fontSize: '0.83rem', bgcolor: '#fff' }}
+                sx={{ borderRadius: '8px', fontSize: '0.85rem', bgcolor: '#F3F4F6', '& .MuiOutlinedInput-notchedOutline': { border: 'none' } }}
               >
                 <MenuItem value="">All Statuses</MenuItem>
                 <MenuItem value="pending">Pending</MenuItem>
@@ -418,14 +395,13 @@ export default function AdminComplaints() {
               </Select>
             </FormControl>
 
-            {/* Priority filter */}
             <FormControl size="small" sx={{ minWidth: 140 }}>
-              <InputLabel sx={{ fontSize: '0.83rem' }}>Priority</InputLabel>
+              <InputLabel sx={{ fontSize: '0.85rem' }}>Priority</InputLabel>
               <Select
                 value={priorityFilter}
                 label="Priority"
                 onChange={handlePriorityChange}
-                sx={{ borderRadius: 2, fontSize: '0.83rem', bgcolor: '#fff' }}
+                sx={{ borderRadius: '8px', fontSize: '0.85rem', bgcolor: '#F3F4F6', '& .MuiOutlinedInput-notchedOutline': { border: 'none' } }}
               >
                 <MenuItem value="">All Priorities</MenuItem>
                 <MenuItem value="high">High</MenuItem>
@@ -440,19 +416,17 @@ export default function AdminComplaints() {
         <TableContainer>
           <Table sx={{ minWidth: 800 }}>
             <TableHead>
-              <TableRow sx={{ bgcolor: '#F8FAFC' }}>
+              <TableRow sx={{ bgcolor: '#F9FAFB' }}>
                 {['Complaint ID', 'Date Received', 'Complainant', 'Reported Vendor', 'Category', 'Priority', 'Status', 'Actions'].map(
                   (col) => (
                     <TableCell
                       key={col}
                       sx={{
-                        fontWeight: 700,
-                        color: '#64748B',
-                        fontSize: '0.72rem',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.06em',
-                        borderBottom: '1px solid #E2E8F0',
-                        py: 1.75,
+                        fontWeight: 500,
+                        color: '#6B7280',
+                        fontSize: '0.8rem',
+                        borderBottom: '1px solid #E5E7EB',
+                        py: 1.5,
                         whiteSpace: 'nowrap',
                       }}
                     >
@@ -467,12 +441,12 @@ export default function AdminComplaints() {
               {tableLoading ? (
                 <TableRow>
                   <TableCell colSpan={8} align="center" sx={{ py: 8 }}>
-                    <CircularProgress size={28} sx={{ color: '#1A1FE8' }} />
+                    <CircularProgress size={28} sx={{ color: '#5B5FEC' }} />
                   </TableCell>
                 </TableRow>
               ) : reports.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} align="center" sx={{ py: 8, color: '#94A3B8', fontSize: '0.875rem' }}>
+                  <TableCell colSpan={8} align="center" sx={{ py: 6, color: '#6B7280', fontSize: '0.88rem' }}>
                     No complaints found for the selected filters.
                   </TableCell>
                 </TableRow>
@@ -488,62 +462,62 @@ export default function AdminComplaints() {
                       hover
                       sx={{
                         cursor: 'pointer',
-                        '&:last-child td': { border: 0 },
-                        '&:hover': { bgcolor: '#F8FAFC' },
-                        transition: 'background 0.15s',
+                        borderBottom: '1px solid #F3F4F6',
+                        '&:hover': { bgcolor: '#F9FAFB' },
                       }}
                       onClick={() => navigate(`/admin/complaints/${report.id}`)}
                     >
-                      <TableCell sx={{ borderBottom: '1px solid #F1F5F9', py: 2 }}>
-                        <Typography variant="body2" fontFamily="monospace" fontWeight={600} color="#1A1FE8" fontSize="0.82rem">
+                      <TableCell sx={{ py: 2 }}>
+                        <Typography variant="body2" fontFamily="monospace" fontWeight={600} color="#5B5FEC" fontSize="0.85rem">
                           #{report.reference_number}
                         </Typography>
                       </TableCell>
 
-                      <TableCell sx={{ borderBottom: '1px solid #F1F5F9', color: '#64748B', fontSize: '0.875rem', py: 2, whiteSpace: 'nowrap' }}>
+                      <TableCell sx={{ color: '#4B5563', fontSize: '0.85rem', py: 2, whiteSpace: 'nowrap' }}>
                         {formatDate(report.created_at)}
                       </TableCell>
 
-                      <TableCell sx={{ borderBottom: '1px solid #F1F5F9', py: 2 }}>
-                        <Typography variant="body2" fontWeight={600} color="#0F172A">
+                      <TableCell sx={{ py: 2 }}>
+                        <Typography variant="body2" fontWeight={600} color="#111827" fontSize="0.88rem">
                           {complainantName}
                         </Typography>
                         {report.reporter_vendor_id && (
-                          <Typography variant="caption" color="#94A3B8" display="block">
+                          <Typography variant="caption" color="#6B7280" display="block" fontSize="0.78rem">
                             {report.reporter_vendor_id}
                           </Typography>
                         )}
                       </TableCell>
 
-                      <TableCell sx={{ borderBottom: '1px solid #F1F5F9', py: 2 }}>
-                        <Typography variant="body2" fontWeight={600} color="#0F172A">
+                      <TableCell sx={{ py: 2 }}>
+                        <Typography variant="body2" fontWeight={600} color="#111827" fontSize="0.88rem">
                           {report.reported_vendor_id}
                         </Typography>
                       </TableCell>
 
-                      <TableCell sx={{ borderBottom: '1px solid #F1F5F9', py: 2 }}>
+                      <TableCell sx={{ py: 2 }}>
                         <Chip
                           label={formatCategory(report.category)}
                           size="small"
                           sx={{
-                            bgcolor: `${CATEGORY_COLORS[report.category] ?? '#1A1FE8'}18`,
-                            color:   CATEGORY_COLORS[report.category] ?? '#1A1FE8',
+                            bgcolor: `${CATEGORY_COLORS[report.category] ?? '#5B5FEC'}18`,
+                            color:   CATEGORY_COLORS[report.category] ?? '#5B5FEC',
                             fontWeight: 600,
-                            fontSize: '0.72rem',
-                            borderRadius: '8px',
+                            fontSize: '0.75rem',
+                            borderRadius: '9999px',
+                            px: 0.5,
                           }}
                         />
                       </TableCell>
 
-                      <TableCell sx={{ borderBottom: '1px solid #F1F5F9', py: 2 }}>
+                      <TableCell sx={{ py: 2 }}>
                         {renderPriorityChip(report.priority)}
                       </TableCell>
 
-                      <TableCell sx={{ borderBottom: '1px solid #F1F5F9', py: 2 }}>
+                      <TableCell sx={{ py: 2 }}>
                         {renderStatusChip(report.status)}
                       </TableCell>
 
-                      <TableCell sx={{ borderBottom: '1px solid #F1F5F9', py: 2 }}>
+                      <TableCell sx={{ py: 2 }}>
                         <Tooltip title="View details">
                           <IconButton
                             size="small"
@@ -552,9 +526,8 @@ export default function AdminComplaints() {
                               navigate(`/admin/complaints/${report.id}`);
                             }}
                             sx={{
-                              color: '#94A3B8',
-                              '&:hover': { color: '#1A1FE8', bgcolor: '#EEF2FF' },
-                              transition: 'all 0.15s',
+                              color: '#9CA3AF',
+                              '&:hover': { color: '#5B5FEC', bgcolor: 'rgba(91, 95, 236, 0.08)' },
                             }}
                           >
                             <VisibilityOutlinedIcon fontSize="small" />
@@ -581,9 +554,10 @@ export default function AdminComplaints() {
             setPage(0);
           }}
           sx={{
-            borderTop: '1px solid #E2E8F0',
-            color: '#64748B',
+            borderTop: '1px solid #E5E7EB',
+            color: '#6B7280',
             fontSize: '0.85rem',
+            bgcolor: '#F9FAFB',
             '.MuiTablePagination-toolbar': { px: 3 },
           }}
         />
@@ -591,4 +565,3 @@ export default function AdminComplaints() {
     </Box>
   );
 }
-
