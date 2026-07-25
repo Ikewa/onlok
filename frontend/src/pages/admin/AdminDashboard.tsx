@@ -1,19 +1,21 @@
 import { useState, useEffect } from 'react';
-import { Box, Typography, Grid, Paper, Divider, CircularProgress, ToggleButton, ToggleButtonGroup } from '@mui/material';
+import { Box, Typography, Grid, Paper, Divider, CircularProgress, Chip } from '@mui/material';
 import PeopleOutlinedIcon from '@mui/icons-material/PeopleOutlined';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import VerifiedOutlinedIcon from '@mui/icons-material/VerifiedOutlined';
 import HighlightOffIcon from '@mui/icons-material/HighlightOff';
 import ReportProblemOutlinedIcon from '@mui/icons-material/ReportProblemOutlined';
-import { getDashboardMetrics, getAlerts, getWebsiteHits, type DashboardMetrics, type AuditLog } from '../../api/admin';
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
+  ResponsiveContainer, Legend,
+} from 'recharts';
+import { getDashboardMetrics, getAlerts, type DashboardMetrics, type AuditLog } from '../../api/admin';
 import toast from 'react-hot-toast';
 
 export default function AdminDashboard() {
   const [data, setData] = useState<DashboardMetrics | null>(null);
   const [alerts, setAlerts] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
-  const [hits, setHits] = useState<number>(0);
-  const [hitsPeriod, setHitsPeriod] = useState<'week' | 'month' | 'quarterly' | 'all'>('week');
 
   useEffect(() => {
     const fetchMetrics = async () => {
@@ -34,18 +36,6 @@ export default function AdminDashboard() {
     fetchMetrics();
   }, []);
 
-  useEffect(() => {
-    const fetchHits = async () => {
-      try {
-        const res = await getWebsiteHits(hitsPeriod);
-        setHits(res.totalHits);
-      } catch (err) {
-        console.error('Failed to load hits', err);
-      }
-    };
-    fetchHits();
-  }, [hitsPeriod]);
-
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', py: 10 }}>
@@ -61,6 +51,15 @@ export default function AdminDashboard() {
     rejectedVerifications: 0,
     flaggedAccounts: 0
   };
+
+  const userTrends = data?.userTrends || [
+    { month: 'Jan', newUsers: 0, verifiedUsers: 0 },
+    { month: 'Feb', newUsers: 0, verifiedUsers: 0 },
+    { month: 'Mar', newUsers: 0, verifiedUsers: 0 },
+    { month: 'Apr', newUsers: 0, verifiedUsers: 0 },
+    { month: 'May', newUsers: 0, verifiedUsers: 0 },
+    { month: 'Jun', newUsers: 0, verifiedUsers: 0 },
+  ];
 
   const statCards = [
     { title: 'Total Users', value: metrics.totalUsers, accentColor: '#818CF8', icon: <PeopleOutlinedIcon sx={{ color: '#818CF8', fontSize: 24 }} /> },
@@ -116,40 +115,72 @@ export default function AdminDashboard() {
         ))}
       </Grid>
 
+      {/* User Trends Chart */}
       <Paper elevation={0} sx={{ borderRadius: '12px', border: '1px solid #E5E7EB', bgcolor: '#FFFFFF', p: 3, mb: 3 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-          <Typography variant="h6" fontWeight={600} color="#111827" sx={{ fontSize: '1.05rem' }}>
-            Website Hits
-          </Typography>
-          <ToggleButtonGroup
-            value={hitsPeriod}
-            exclusive
-            onChange={(_, newPeriod) => { if (newPeriod) setHitsPeriod(newPeriod); }}
-            size="small"
-            sx={{ 
-              '& .MuiToggleButton-root': { textTransform: 'none', fontWeight: 500, color: '#6B7280', fontSize: '0.82rem', borderRadius: '6px' }, 
-              '& .Mui-selected': { color: '#5B5FEC !important', bgcolor: 'rgba(91, 95, 236, 0.08) !important' } 
-            }}
-          >
-            <ToggleButton value="week">Week</ToggleButton>
-            <ToggleButton value="month">Month</ToggleButton>
-            <ToggleButton value="quarterly">Quarterly</ToggleButton>
-            <ToggleButton value="all">All Time</ToggleButton>
-          </ToggleButtonGroup>
-        </Box>
-        
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', py: 4 }}>
-          <Box sx={{ textAlign: 'center' }}>
-            <Typography variant="h2" fontWeight={800} color="#5B5FEC" sx={{ fontSize: '2.5rem' }}>
-              {hits.toLocaleString()}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+          <Box>
+            <Typography variant="h6" fontWeight={600} color="#111827" sx={{ fontSize: '1.05rem' }}>
+              User Growth & Registration Trends
             </Typography>
-            <Typography variant="body1" color="#6B7280" fontWeight={500} mt={1} sx={{ fontSize: '0.88rem' }}>
-              Total visits this {hitsPeriod === 'quarterly' ? 'quarter' : hitsPeriod === 'all' ? 'time' : hitsPeriod}
+            <Typography variant="caption" color="#6B7280" sx={{ fontSize: '0.78rem' }}>
+              Monthly new user signups vs verified vendor accounts over the past 6 months
             </Typography>
           </Box>
+          <Chip
+            label="Last 6 Months"
+            size="small"
+            sx={{ bgcolor: '#F3F4F6', color: '#4B5563', fontWeight: 500, borderRadius: '8px', fontSize: '0.78rem' }}
+          />
+        </Box>
+        
+        <Box sx={{ mt: 3, height: 260, width: '100%' }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={userTrends} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <defs>
+                <linearGradient id="colorNewUsers" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#5B5FEC" stopOpacity={0.3}/>
+                  <stop offset="95%" stopColor="#5B5FEC" stopOpacity={0}/>
+                </linearGradient>
+                <linearGradient id="colorVerifiedUsers" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#22C55E" stopOpacity={0.3}/>
+                  <stop offset="95%" stopColor="#22C55E" stopOpacity={0}/>
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
+              <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} allowDecimals={false} />
+              <RechartsTooltip
+                contentStyle={{ borderRadius: 8, border: '1px solid #E5E7EB', fontSize: 12 }}
+              />
+              <Legend wrapperStyle={{ fontSize: 12, paddingTop: 10 }} />
+              <Area 
+                type="monotone" 
+                dataKey="newUsers" 
+                stroke="#5B5FEC" 
+                strokeWidth={2.5}
+                dot={{ r: 3, fill: '#5B5FEC' }}
+                activeDot={{ r: 6 }}
+                fillOpacity={1} 
+                fill="url(#colorNewUsers)" 
+                name="New Registrations"
+              />
+              <Area 
+                type="monotone" 
+                dataKey="verifiedUsers" 
+                stroke="#22C55E" 
+                strokeWidth={2.5}
+                dot={{ r: 3, fill: '#22C55E' }}
+                activeDot={{ r: 6 }}
+                fillOpacity={1} 
+                fill="url(#colorVerifiedUsers)" 
+                name="Verified Accounts"
+              />
+            </AreaChart>
+          </ResponsiveContainer>
         </Box>
       </Paper>
 
+      {/* Recent Activity */}
       <Paper elevation={0} sx={{ borderRadius: '12px', border: '1px solid #E5E7EB', bgcolor: '#FFFFFF', p: 3 }}>
         <Typography variant="h6" fontWeight={600} color="#111827" mb={2.5} sx={{ fontSize: '1.05rem' }}>
           Recent Activity
