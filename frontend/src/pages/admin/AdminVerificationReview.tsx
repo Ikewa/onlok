@@ -22,7 +22,7 @@ export default function AdminVerificationReview() {
       try {
         const data = await getVerificationDetails(Number(id));
         setDetails(data);
-        if (data.admin_notes) setNotes(data.admin_notes); // Load existing notes if any
+        if (data.admin_notes) setNotes(data.admin_notes);
       } catch (err) {
         toast.error('Failed to load details');
         navigate('/admin/verifications');
@@ -55,7 +55,7 @@ export default function AdminVerificationReview() {
   };
 
   if (loading || !details) {
-    return <Box sx={{ p: 5, textAlign: 'center' }}><CircularProgress /></Box>;
+    return <Box sx={{ p: 5, textAlign: 'center' }}><CircularProgress sx={{ color: '#5B5FEC' }} /></Box>;
   }
 
   const isApproved = details.status === 'approved';
@@ -64,127 +64,137 @@ export default function AdminVerificationReview() {
   const isPending = details.status === 'pending';
 
   return (
-    <Box sx={{ maxWidth: 1100, pb: 10 }}>
+    <Box sx={{ maxWidth: 1100, pb: 10, fontFamily: 'Inter, sans-serif' }}>
       <Button 
         startIcon={<ArrowBackIcon />} 
         onClick={() => navigate('/admin/verifications')}
-        sx={{ color: '#475569', textTransform: 'none', mb: 3, '&:hover': { bgcolor: 'transparent', textDecoration: 'underline' } }}
+        sx={{ color: '#6B7280', textTransform: 'none', mb: 2, fontWeight: 500, fontSize: '0.88rem', '&:hover': { bgcolor: 'transparent', color: '#111827' } }}
       >
         Back to Queue
       </Button>
 
-      <Typography variant="h4" fontWeight={900} color="#0F172A" mb={4}>
-        User Verification Review
-      </Typography>
+      <Box sx={{ mb: 3 }}>
+        <Typography variant="h4" fontWeight={700} color="#111827" sx={{ fontSize: { xs: '1.5rem', md: '1.75rem' }, lineHeight: 1.2 }}>
+          User Verification Review
+        </Typography>
+      </Box>
 
-      <Grid container spacing={4}>
+      <Grid container spacing={3}>
         {/* Left Column - Main Details */}
         <Grid item xs={12} md={8}>
           
           {/* Identity Information */}
-          <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: '1px solid #E2E8F0', mb: 3, bgcolor: '#FAFAF9' }}>
-            <Typography variant="subtitle1" fontWeight={800} mb={3}>Identity Information</Typography>
-            <Box sx={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-              <Box sx={{ width: 80, height: 80, bgcolor: '#E2E8F0', borderRadius: 2, flexShrink: 0 }} />
-              <Grid container spacing={3} sx={{ flexGrow: 1 }}>
+          <Paper elevation={0} sx={{ p: 3, borderRadius: '12px', border: '1px solid #E5E7EB', mb: 3, bgcolor: '#FFFFFF' }}>
+            <Typography variant="subtitle1" fontWeight={600} color="#111827" mb={2.5} sx={{ fontSize: '1.05rem' }}>
+              Identity Information
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+              <Box sx={{ width: 72, height: 72, bgcolor: '#F3F4F6', borderRadius: '12px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6B7280', fontWeight: 700, fontSize: '1.2rem' }}>
+                {details.first_name?.[0]}{details.last_name?.[0]}
+              </Box>
+              <Grid container spacing={2.5} sx={{ flexGrow: 1 }}>
                 <Grid item xs={6}>
-                  <Typography variant="caption" color="#64748B" display="block">Full Name</Typography>
-                  <Typography variant="body2" fontWeight={700} color="#0F172A">{details.first_name} {details.last_name}</Typography>
+                  <Typography variant="caption" color="#6B7280" display="block" sx={{ fontSize: '0.78rem' }}>Full Name</Typography>
+                  <Typography variant="body2" fontWeight={600} color="#111827" sx={{ fontSize: '0.88rem' }}>{details.first_name} {details.last_name}</Typography>
                 </Grid>
                 <Grid item xs={6}>
-                  <Typography variant="caption" color="#64748B" display="block">ONLOK ID</Typography>
-                  <Typography variant="body2" fontWeight={700} color="#0F172A">{details.vendor_id}</Typography>
+                  <Typography variant="caption" color="#6B7280" display="block" sx={{ fontSize: '0.78rem' }}>ONLOK ID</Typography>
+                  <Typography variant="body2" fontWeight={600} color="#111827" sx={{ fontSize: '0.88rem' }}>{details.vendor_id}</Typography>
                 </Grid>
                 <Grid item xs={6}>
-                  <Typography variant="caption" color="#64748B" display="block">Email</Typography>
-                  <Typography variant="body2" fontWeight={700} color="#0F172A">{details.email}</Typography>
+                  <Typography variant="caption" color="#6B7280" display="block" sx={{ fontSize: '0.78rem' }}>Email</Typography>
+                  <Typography variant="body2" fontWeight={600} color="#111827" sx={{ fontSize: '0.88rem' }}>{details.email}</Typography>
                 </Grid>
                 <Grid item xs={6}>
-                  <Typography variant="caption" color="#64748B" display="block">Business Name</Typography>
-                  <Typography variant="body2" fontWeight={700} color="#0F172A">{details.business_name || 'N/A'}</Typography>
+                  <Typography variant="caption" color="#6B7280" display="block" sx={{ fontSize: '0.78rem' }}>Business Name</Typography>
+                  <Typography variant="body2" fontWeight={600} color="#111827" sx={{ fontSize: '0.88rem' }}>{details.business_name || 'N/A'}</Typography>
                 </Grid>
                 <Grid item xs={6}>
-                  <Typography variant="caption" color="#64748B" display="block">Verification Type</Typography>
-                  <Typography variant="body2" fontWeight={700} color="#0F172A">{details.type}</Typography>
+                  <Typography variant="caption" color="#6B7280" display="block" sx={{ fontSize: '0.78rem' }}>Verification Type</Typography>
+                  <Typography variant="body2" fontWeight={600} color="#111827" sx={{ fontSize: '0.88rem' }}>{details.type}</Typography>
                 </Grid>
                 <Grid item xs={6}>
-                  <Typography variant="caption" color="#64748B" display="block">Submission Date</Typography>
-                  <Typography variant="body2" fontWeight={700} color="#0F172A">{new Date(details.submitted_at).toLocaleDateString()}</Typography>
+                  <Typography variant="caption" color="#6B7280" display="block" sx={{ fontSize: '0.78rem' }}>Submission Date</Typography>
+                  <Typography variant="body2" fontWeight={600} color="#111827" sx={{ fontSize: '0.88rem' }}>{new Date(details.submitted_at).toLocaleDateString()}</Typography>
                 </Grid>
               </Grid>
             </Box>
           </Paper>
 
           {/* Uploaded Documents */}
-          <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: '1px solid #E2E8F0', mb: 3 }}>
-            <Typography variant="subtitle1" fontWeight={800} mb={3}>Uploaded Documents</Typography>
-            <Grid container spacing={3}>
+          <Paper elevation={0} sx={{ p: 3, borderRadius: '12px', border: '1px solid #E5E7EB', mb: 3, bgcolor: '#FFFFFF' }}>
+            <Typography variant="subtitle1" fontWeight={600} color="#111827" mb={2.5} sx={{ fontSize: '1.05rem' }}>
+              Uploaded Documents
+            </Typography>
+            <Grid container spacing={2.5}>
               <Grid item xs={12} sm={4}>
-                <Typography variant="caption" color="#64748B" display="block" mb={1}>ID Document</Typography>
+                <Typography variant="caption" color="#6B7280" display="block" mb={1} sx={{ fontSize: '0.78rem' }}>ID Document</Typography>
                 <Box 
                   sx={{ 
-                    width: '100%', height: 200, bgcolor: '#F1F5F9', borderRadius: 2, overflow: 'hidden', 
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #E2E8F0' 
+                    width: '100%', height: 180, bgcolor: '#F9FAFB', borderRadius: '8px', overflow: 'hidden', 
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #E5E7EB' 
                   }}
                 >
                   {details.gov_id_url ? (
                     details.gov_id_url.endsWith('.pdf') ? 
-                      <Typography variant="body2" color="#1A1FE8" component="a" href={getMediaUrl(details.gov_id_url)} target="_blank">View PDF ID</Typography>
+                      <Typography variant="body2" color="#5B5FEC" component="a" href={getMediaUrl(details.gov_id_url)} target="_blank" sx={{ fontWeight: 600 }}>View PDF ID</Typography>
                     : <Box component="img" src={getMediaUrl(details.gov_id_url)} sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  ) : <Typography variant="caption" color="#94A3B8">No ID uploaded</Typography>}
+                  ) : <Typography variant="caption" color="#9CA3AF">No ID uploaded</Typography>}
                 </Box>
               </Grid>
               
               <Grid item xs={12} sm={4}>
-                <Typography variant="caption" color="#64748B" display="block" mb={1}>CAC Document</Typography>
+                <Typography variant="caption" color="#6B7280" display="block" mb={1} sx={{ fontSize: '0.78rem' }}>CAC Document</Typography>
                 <Box 
                   sx={{ 
-                    width: '100%', height: 200, bgcolor: '#F1F5F9', borderRadius: 2, overflow: 'hidden', 
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #E2E8F0' 
+                    width: '100%', height: 180, bgcolor: '#F9FAFB', borderRadius: '8px', overflow: 'hidden', 
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #E5E7EB' 
                   }}
                 >
                   {details.cac_url ? (
                     details.cac_url.endsWith('.pdf') ? 
-                      <Typography variant="body2" color="#1A1FE8" component="a" href={getMediaUrl(details.cac_url)} target="_blank">View PDF CAC</Typography>
+                      <Typography variant="body2" color="#5B5FEC" component="a" href={getMediaUrl(details.cac_url)} target="_blank" sx={{ fontWeight: 600 }}>View PDF CAC</Typography>
                     : <Box component="img" src={getMediaUrl(details.cac_url)} sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  ) : <Typography variant="caption" color="#94A3B8">No CAC uploaded</Typography>}
+                  ) : <Typography variant="caption" color="#9CA3AF">No CAC uploaded</Typography>}
                 </Box>
               </Grid>
 
               <Grid item xs={12} sm={4}>
-                <Typography variant="caption" color="#64748B" display="block" mb={1}>Business Video</Typography>
+                <Typography variant="caption" color="#6B7280" display="block" mb={1} sx={{ fontSize: '0.78rem' }}>Business Video</Typography>
                 <Box 
                   sx={{ 
-                    width: '100%', height: 200, bgcolor: '#0F172A', borderRadius: 2, overflow: 'hidden', 
+                    width: '100%', height: 180, bgcolor: '#111827', borderRadius: '8px', overflow: 'hidden', 
                     display: 'flex', alignItems: 'center', justifyContent: 'center' 
                   }}
                 >
                   {details.video_url ? (
                     <video controls src={getMediaUrl(details.video_url)} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                  ) : <Typography variant="caption" color="#94A3B8">No video uploaded</Typography>}
+                  ) : <Typography variant="caption" color="#9CA3AF">No video uploaded</Typography>}
                 </Box>
               </Grid>
             </Grid>
           </Paper>
 
           {/* Verification Breakdown */}
-          <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: '1px solid #E2E8F0', bgcolor: '#FAFAF9' }}>
-            <Typography variant="subtitle1" fontWeight={800} mb={3}>Verification Breakdown</Typography>
+          <Paper elevation={0} sx={{ p: 3, borderRadius: '12px', border: '1px solid #E5E7EB', bgcolor: '#FFFFFF' }}>
+            <Typography variant="subtitle1" fontWeight={600} color="#111827" mb={2.5} sx={{ fontSize: '1.05rem' }}>
+              Verification Breakdown
+            </Typography>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography variant="body2" color="#475569">Identity Verification</Typography>
-                {isApproved ? <CheckCircleOutlinedIcon sx={{ color: '#15803D' }} /> : isRejected ? <HighlightOffIcon sx={{ color: '#DC2626' }} /> : <CircularProgress size={20} />}
+                <Typography variant="body2" color="#374151" sx={{ fontSize: '0.88rem' }}>Identity Verification</Typography>
+                {isApproved ? <CheckCircleOutlinedIcon sx={{ color: '#16A34A' }} /> : isRejected ? <HighlightOffIcon sx={{ color: '#DC2626' }} /> : <CircularProgress size={18} sx={{ color: '#5B5FEC' }} />}
               </Box>
-              <Divider />
+              <Divider sx={{ borderColor: '#F3F4F6' }} />
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography variant="body2" color="#475569">Business Verification</Typography>
-                {isApproved ? <CheckCircleOutlinedIcon sx={{ color: '#15803D' }} /> : isRejected ? <HighlightOffIcon sx={{ color: '#DC2626' }} /> : <CircularProgress size={20} />}
+                <Typography variant="body2" color="#374151" sx={{ fontSize: '0.88rem' }}>Business Verification</Typography>
+                {isApproved ? <CheckCircleOutlinedIcon sx={{ color: '#16A34A' }} /> : isRejected ? <HighlightOffIcon sx={{ color: '#DC2626' }} /> : <CircularProgress size={18} sx={{ color: '#5B5FEC' }} />}
               </Box>
-              <Divider />
+              <Divider sx={{ borderColor: '#F3F4F6' }} />
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Box>
-                  <Typography variant="body2" color="#475569">Referral Link</Typography>
-                  <Typography variant="caption" color="#64748B" display="block">
+                  <Typography variant="body2" color="#374151" sx={{ fontSize: '0.88rem' }}>Referral Link</Typography>
+                  <Typography variant="caption" color="#6B7280" display="block" sx={{ fontSize: '0.78rem' }}>
                     https://onlok.net/register?ref={details.vendor_id}
                   </Typography>
                 </Box>
@@ -195,7 +205,7 @@ export default function AdminVerificationReview() {
                     navigator.clipboard.writeText(`https://onlok.net/register?ref=${details.vendor_id}`);
                     toast.success('Referral link copied');
                   }}
-                  sx={{ textTransform: 'none', borderRadius: 2 }}
+                  sx={{ textTransform: 'none', borderRadius: '8px', color: '#5B5FEC', borderColor: '#D1D5DB' }}
                 >
                   Copy
                 </Button>
@@ -208,17 +218,17 @@ export default function AdminVerificationReview() {
         {/* Right Column - Sidebar */}
         <Grid item xs={12} md={4}>
           
-          <Box sx={{ bgcolor: '#EFF6FF', p: 2.5, borderRadius: 2, border: '1px solid #BFDBFE', mb: 4 }}>
-            <Typography variant="body2" fontWeight={800} color="#1E3A8A" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-              <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#1D4ED8' }} />
+          <Box sx={{ bgcolor: '#DBEAFE', p: 2.5, borderRadius: '8px', mb: 3 }}>
+            <Typography variant="body2" fontWeight={700} color="#1E40AF" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5, fontSize: '0.88rem' }}>
+              <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#2563EB' }} />
               Review Guidelines
             </Typography>
-            <Typography variant="caption" color="#1E40AF" display="block">
+            <Typography variant="caption" color="#1E3A8A" display="block" sx={{ fontSize: '0.78rem' }}>
               Verify all documents match the user's identity. Business details must be accurate and clearly visible in the video.
             </Typography>
           </Box>
 
-          <Typography variant="caption" fontWeight={700} color="#475569" display="block" mb={1}>
+          <Typography variant="caption" fontWeight={600} color="#6B7280" display="block" mb={1} sx={{ fontSize: '0.78rem' }}>
             Admin Notes
           </Typography>
           <TextField
@@ -228,10 +238,18 @@ export default function AdminVerificationReview() {
             placeholder="Add notes about this verification..."
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            sx={{ mb: 4, '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+            sx={{ 
+              mb: 3, 
+              '& .MuiOutlinedInput-root': { 
+                borderRadius: '8px', 
+                bgcolor: '#F3F4F6', 
+                '& fieldset': { border: 'none' },
+                fontSize: '0.88rem'
+              } 
+            }}
           />
 
-          <Typography variant="subtitle1" fontWeight={800} mb={2}>Actions</Typography>
+          <Typography variant="subtitle1" fontWeight={600} color="#111827" mb={2} sx={{ fontSize: '1.05rem' }}>Actions</Typography>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
             <Button
               variant="contained"
@@ -239,7 +257,7 @@ export default function AdminVerificationReview() {
               startIcon={<CheckCircleOutlinedIcon />}
               onClick={() => handleAction('approved')}
               disabled={actionLoading || isApproved}
-              sx={{ bgcolor: '#16A34A', '&:hover': { bgcolor: '#15803D' }, py: 1.5, borderRadius: 2, textTransform: 'none', fontWeight: 600 }}
+              sx={{ bgcolor: '#16A34A', '&:hover': { bgcolor: '#15803D' }, py: 1.25, borderRadius: '8px', textTransform: 'none', fontWeight: 600, fontSize: '0.88rem' }}
             >
               Approve Verification
             </Button>
@@ -249,7 +267,7 @@ export default function AdminVerificationReview() {
               startIcon={<HighlightOffIcon />}
               onClick={() => handleAction('rejected')}
               disabled={actionLoading || isRejected}
-              sx={{ bgcolor: '#DC2626', '&:hover': { bgcolor: '#B91C1C' }, py: 1.5, borderRadius: 2, textTransform: 'none', fontWeight: 600 }}
+              sx={{ bgcolor: '#DC2626', '&:hover': { bgcolor: '#B91C1C' }, py: 1.25, borderRadius: '8px', textTransform: 'none', fontWeight: 600, fontSize: '0.88rem' }}
             >
               Reject Verification
             </Button>
@@ -259,7 +277,7 @@ export default function AdminVerificationReview() {
               startIcon={<InfoOutlinedIcon />}
               onClick={() => handleAction('pending')}
               disabled={actionLoading || isPending}
-              sx={{ bgcolor: '#EA580C', '&:hover': { bgcolor: '#C2410C' }, py: 1.5, borderRadius: 2, textTransform: 'none', fontWeight: 600 }}
+              sx={{ bgcolor: '#D97706', '&:hover': { bgcolor: '#B45309' }, py: 1.25, borderRadius: '8px', textTransform: 'none', fontWeight: 600, fontSize: '0.88rem' }}
             >
               Request More Info
             </Button>
@@ -269,7 +287,7 @@ export default function AdminVerificationReview() {
               startIcon={<FlagOutlinedIcon />}
               onClick={() => handleAction('flagged')}
               disabled={actionLoading || isFlagged}
-              sx={{ bgcolor: '#D97706', '&:hover': { bgcolor: '#B45309' }, py: 1.5, borderRadius: 2, textTransform: 'none', fontWeight: 600 }}
+              sx={{ bgcolor: '#4B5563', '&:hover': { bgcolor: '#374151' }, py: 1.25, borderRadius: '8px', textTransform: 'none', fontWeight: 600, fontSize: '0.88rem' }}
             >
               Flag as Suspicious
             </Button>

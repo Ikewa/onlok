@@ -244,7 +244,8 @@ const COLUMN_MIGRATIONS = [
     { table: 'reports', column: 'is_whatsapp', definition: 'BOOLEAN DEFAULT FALSE AFTER phone_number' },
     // Profile picture
     { table: 'users', column: 'profile_picture_url', definition: 'VARCHAR(500) NULL AFTER tiktok_handle' },
-    // Complaint case management
+    // Withdrawals enhancements
+    { table: 'withdrawals', column: 'account_details', definition: 'VARCHAR(255) NULL AFTER payment_method' },
     { table: 'reports', column: 'assigned_to', definition: 'VARCHAR(255) NULL AFTER priority' },
 ];
 
@@ -313,6 +314,92 @@ async function seedTestUser() {
     }
 }
 // ─────────────────────────────────────────────────────────────────
+// 3.6 SEED DEMO VENDORS, REFERRALS & WITHDRAWALS FOR TESTING
+// ─────────────────────────────────────────────────────────────────
+async function seedReferralsAndWithdrawals() {
+    try {
+        const hash = await bcrypt.hash('password123', 10);
+        
+        // Seed demo vendor accounts if not present
+        const demoVendors = [
+            { vendor_id: 'ONL-VD-01', first_name: 'Muhammad Munir', last_name: 'Musa', business_name: 'Amgautos&Sons', email: 'muhammad@amgautos.com' },
+            { vendor_id: 'ONL-VD-02', first_name: 'Ahmed', last_name: 'Ibrahim', business_name: 'TechHub Solutions', email: 'ahmed@techhub.com' },
+            { vendor_id: 'ONL-VD-03', first_name: 'Grace', last_name: 'Okafor', business_name: 'Graceful Designs', email: 'grace@designs.com' },
+            { vendor_id: 'ONL-VD-04', first_name: 'Chidi', last_name: 'Okeke', business_name: 'Okeke Enterprises', email: 'chidi@okeke.com' },
+            { vendor_id: 'ONL-VD-05', first_name: 'Bisi', last_name: 'Akande', business_name: 'Akande Logistics', email: 'bisi@akande.com' }
+        ];
+
+        const userIds = {};
+
+        for (const v of demoVendors) {
+            const [rows] = await pool.query('SELECT id FROM users WHERE email = ?', [v.email]);
+            if (rows.length === 0) {
+                const [result] = await pool.query(
+                    `INSERT INTO users (vendor_id, first_name, last_name, business_name, email, password_hash, phone_number, role, status)
+                     VALUES (?, ?, ?, ?, ?, ?, '08012345678', 'vendor', 'verified')`,
+                    [v.vendor_id, v.first_name, v.last_name, v.business_name, v.email, hash]
+                );
+                userIds[v.email] = result.insertId;
+            } else {
+                userIds[v.email] = rows[0].id;
+            }
+        }
+
+        // Seed Referrals if table is empty
+        const [refCount] = await pool.query('SELECT COUNT(*) as total FROM referrals');
+        if (refCount[0].total === 0) {
+            const m = userIds['muhammad@amgautos.com'];
+            const a = userIds['ahmed@techhub.com'];
+            const g = userIds['grace@designs.com'];
+            const c = userIds['chidi@okeke.com'];
+            const b = userIds['bisi@akande.com'];
+
+            const sampleReferrals = [
+                [m, a, 'Premium Plan', 25000.00, 3000.00, 'available'],
+                [m, g, 'Premium Plan', 25000.00, 3000.00, 'paid'],
+                [m, c, 'Premium Plan', 25000.00, 3000.00, 'pending'],
+                [m, b, 'Premium Plan', 25000.00, 3000.00, 'processing'],
+                [a, g, 'Premium Plan', 25000.00, 3000.00, 'cancelled']
+            ];
+
+            for (const ref of sampleReferrals) {
+                await pool.query(
+                    `INSERT INTO referrals (referrer_id, referred_user_id, subscription_plan, amount_paid, commission_earned, status)
+                     VALUES (?, ?, ?, ?, ?, ?)`,
+                    ref
+                );
+            }
+            console.log('✅ [AutoMigrate] Seeded referral database entries.');
+        }
+
+        // Seed Withdrawals if table is empty
+        const [withCount] = await pool.query('SELECT COUNT(*) as total FROM withdrawals');
+        if (withCount[0].total === 0) {
+            const m = userIds['muhammad@amgautos.com'];
+            const g = userIds['grace@designs.com'];
+            const c = userIds['chidi@okeke.com'];
+
+            const sampleWithdrawals = [
+                [m, 25000.00, 'paid', 'Bank Transfer', '01273638474\nAmazon Bank'],
+                [g, 25000.00, 'failed', 'Bank Transfer', '01273638474\nAmazon Bank'],
+                [c, 25000.00, 'processing', 'Bank Transfer', '01273638474\nAmazon Bank']
+            ];
+
+            for (const w of sampleWithdrawals) {
+                await pool.query(
+                    `INSERT INTO withdrawals (user_id, amount, status, payment_method, account_details)
+                     VALUES (?, ?, ?, ?, ?)`,
+                    w
+                );
+            }
+            console.log('✅ [AutoMigrate] Seeded withdrawal database entries.');
+        }
+    } catch (err) {
+        console.error('❌ [AutoMigrate] Referral/Withdrawal seed failed:', err.message);
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────
 // 4.  MAIN EXPORT — called once from server.js on startup
 // ─────────────────────────────────────────────────────────────────
 async function runMigrations() {
@@ -322,6 +409,7 @@ async function runMigrations() {
         await addMissingColumns();
         await seedAdmin();
         await seedTestUser();
+        await seedReferralsAndWithdrawals();
         console.log('🎉 [AutoMigrate] All migrations complete.');
     } catch (err) {
         console.error('❌ [AutoMigrate] Migration failed:', err.message);

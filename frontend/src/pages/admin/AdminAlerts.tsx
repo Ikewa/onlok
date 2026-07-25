@@ -27,7 +27,7 @@ export default function AdminAlerts() {
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', py: 10 }}>
-        <CircularProgress sx={{ color: '#1A1FE8' }} />
+        <CircularProgress sx={{ color: '#5B5FEC' }} />
       </Box>
     );
   }
@@ -49,57 +49,66 @@ export default function AdminAlerts() {
 
   const getSeverityStyles = (severity: string) => {
     switch (severity) {
-      case 'HIGH': return { bg: '#FEE2E2', color: '#B91C1C', icon: <ReportGmailerrorredIcon sx={{ color: '#DC2626', fontSize: 28 }} /> };
-      case 'MEDIUM': return { bg: '#FFEDD5', color: '#C2410C', icon: <ErrorOutlinedIcon sx={{ color: '#EA580C', fontSize: 28 }} /> };
-      case 'LOW': return { bg: '#FEF3C7', color: '#B45309', icon: <HighlightOffIcon sx={{ color: '#D97706', fontSize: 28 }} /> };
-      default: return { bg: '#F1F5F9', color: '#475569', icon: <ErrorOutlinedIcon sx={{ color: '#64748B', fontSize: 28 }} /> };
+      case 'HIGH':
+      case 'CRITICAL':
+        return { bg: '#FEE2E2', color: '#DC2626', icon: <ReportGmailerrorredIcon sx={{ color: '#DC2626', fontSize: 24 }} /> };
+      case 'MEDIUM':
+        return { bg: '#FFEDD5', color: '#D97706', icon: <ErrorOutlinedIcon sx={{ color: '#D97706', fontSize: 24 }} /> };
+      case 'LOW':
+        return { bg: '#FEF3C7', color: '#B45309', icon: <HighlightOffIcon sx={{ color: '#D97706', fontSize: 24 }} /> };
+      default:
+        return { bg: '#F3F4F6', color: '#6B7280', icon: <ErrorOutlinedIcon sx={{ color: '#6B7280', fontSize: 24 }} /> };
     }
   };
 
   return (
-    <Box sx={{ maxWidth: 1000 }}>
-      <Typography variant="h4" fontWeight={800} color="#0F172A" mb={0.5}>
-        Alerts & Risk Monitoring
-      </Typography>
-      <Typography variant="body1" color="#64748B" mb={4}>
-        Monitor suspicious activity and failed verifications
-      </Typography>
+    <Box sx={{ maxWidth: 1000, fontFamily: 'Inter, sans-serif' }}>
+      <Box sx={{ mb: 3 }}>
+        <Typography variant="h4" fontWeight={700} color="#111827" mb={0.5} sx={{ fontSize: { xs: '1.5rem', md: '1.75rem' }, lineHeight: 1.2 }}>
+          Alerts & Risk Monitoring
+        </Typography>
+        <Typography variant="body1" color="#6B7280" sx={{ fontSize: '0.88rem' }}>
+          Monitor suspicious activity and failed verifications
+        </Typography>
+      </Box>
 
-      <Paper elevation={0} sx={{ borderRadius: 3, border: '1px solid #E2E8F0', bgcolor: '#fff', mb: 4 }}>
-        <Box sx={{ p: 3, borderBottom: '1px solid #F1F5F9' }}>
-          <Typography variant="h6" fontWeight={700} color="#0F172A">
+      <Paper elevation={0} sx={{ borderRadius: '12px', border: '1px solid #E5E7EB', bgcolor: '#FFFFFF', mb: 3 }}>
+        <Box sx={{ p: 2.5, borderBottom: '1px solid #F3F4F6' }}>
+          <Typography variant="h6" fontWeight={600} color="#111827" sx={{ fontSize: '1.05rem' }}>
             Active Alerts
           </Typography>
         </Box>
         
         <Box sx={{ display: 'flex', flexDirection: 'column' }}>
           {activeAlerts.length === 0 && (
-            <Typography variant="body2" color="#64748B" textAlign="center" py={4}>No active alerts</Typography>
+            <Typography variant="body2" color="#6B7280" textAlign="center" py={4} sx={{ fontSize: '0.88rem' }}>
+              No active alerts
+            </Typography>
           )}
           {activeAlerts.map((alert, idx) => {
             const styles = getSeverityStyles(alert.severity);
             return (
               <Box key={alert.id}>
-                <Box sx={{ display: 'flex', p: 3, alignItems: 'flex-start' }}>
+                <Box sx={{ display: 'flex', p: 2.5, alignItems: 'flex-start' }}>
                   <Box sx={{ mr: 2, mt: 0.5 }}>
                     {styles.icon}
                   </Box>
                   <Box sx={{ flex: 1 }}>
-                    <Typography variant="body1" color="#0F172A" fontWeight={700} mb={0.2}>
+                    <Typography variant="body1" color="#111827" fontWeight={600} mb={0.2} sx={{ fontSize: '0.9rem' }}>
                       {alert.name}
                     </Typography>
-                    <Typography variant="body2" color="#64748B" fontFamily="monospace" mb={1.5}>
+                    <Typography variant="body2" color="#6B7280" fontFamily="monospace" mb={1} sx={{ fontSize: '0.78rem' }}>
                       {alert.vendorId}
                     </Typography>
-                    <Typography variant="body2" color="#334155" mb={1.5}>
+                    <Typography variant="body2" color="#374151" mb={1} sx={{ fontSize: '0.85rem' }}>
                       {alert.description}
                     </Typography>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                      <Typography variant="caption" color="#64748B">
+                      <Typography variant="caption" color="#6B7280" sx={{ fontSize: '0.75rem' }}>
                         {alert.reason}
                       </Typography>
-                      <Box sx={{ width: 4, height: 4, borderRadius: '50%', bgcolor: '#CBD5E1' }} />
-                      <Typography variant="caption" color="#64748B">
+                      <Box sx={{ width: 4, height: 4, borderRadius: '50%', bgcolor: '#9CA3AF' }} />
+                      <Typography variant="caption" color="#6B7280" sx={{ fontSize: '0.75rem' }}>
                         {alert.date}
                       </Typography>
                     </Box>
@@ -111,15 +120,16 @@ export default function AdminAlerts() {
                       sx={{ 
                         bgcolor: styles.bg, 
                         color: styles.color, 
-                        fontWeight: 700,
+                        fontWeight: 600,
                         fontSize: '0.75rem',
-                        borderRadius: 1
+                        borderRadius: '9999px',
+                        px: 1,
                       }} 
                     />
                   </Box>
                 </Box>
                 {idx < activeAlerts.length - 1 && (
-                  <Divider sx={{ borderColor: '#F1F5F9' }} />
+                  <Divider sx={{ borderColor: '#F3F4F6' }} />
                 )}
               </Box>
             );
@@ -128,65 +138,64 @@ export default function AdminAlerts() {
       </Paper>
 
       {/* Summary Cards */}
-      <Grid container spacing={3}>
+      <Grid container spacing={2.5}>
         <Grid item xs={12} md={4}>
-          <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: '1px solid #E2E8F0', bgcolor: '#fff', height: '100%' }}>
+          <Paper elevation={0} sx={{ p: 2.5, borderRadius: '12px', border: '1px solid #E5E7EB', bgcolor: '#FFFFFF', height: '100%' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
-              <Box sx={{ width: 40, height: 40, borderRadius: 2, bgcolor: '#FEE2E2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <ReportGmailerrorredIcon sx={{ color: '#DC2626' }} />
+              <Box sx={{ width: 36, height: 36, borderRadius: '8px', bgcolor: '#FEE2E2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <ReportGmailerrorredIcon sx={{ color: '#DC2626', fontSize: 20 }} />
               </Box>
-              <Typography variant="body1" fontWeight={700} color="#0F172A">
+              <Typography variant="body1" fontWeight={600} color="#111827" sx={{ fontSize: '0.9rem' }}>
                 High Priority
               </Typography>
             </Box>
-            <Typography variant="h3" fontWeight={800} color="#0F172A" mb={1}>
+            <Typography variant="h3" fontWeight={700} color="#111827" mb={0.5} sx={{ fontSize: '1.75rem' }}>
               {highCount}
             </Typography>
-            <Typography variant="body2" color="#64748B">
+            <Typography variant="body2" color="#6B7280" sx={{ fontSize: '0.78rem' }}>
               Requires immediate attention
             </Typography>
           </Paper>
         </Grid>
 
         <Grid item xs={12} md={4}>
-          <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: '1px solid #E2E8F0', bgcolor: '#fff', height: '100%' }}>
+          <Paper elevation={0} sx={{ p: 2.5, borderRadius: '12px', border: '1px solid #E5E7EB', bgcolor: '#FFFFFF', height: '100%' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
-              <Box sx={{ width: 40, height: 40, borderRadius: 2, bgcolor: '#FFEDD5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <ErrorOutlinedIcon sx={{ color: '#EA580C' }} />
+              <Box sx={{ width: 36, height: 36, borderRadius: '8px', bgcolor: '#FFEDD5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <ErrorOutlinedIcon sx={{ color: '#D97706', fontSize: 20 }} />
               </Box>
-              <Typography variant="body1" fontWeight={700} color="#0F172A">
+              <Typography variant="body1" fontWeight={600} color="#111827" sx={{ fontSize: '0.9rem' }}>
                 Medium Priority
               </Typography>
             </Box>
-            <Typography variant="h3" fontWeight={800} color="#0F172A" mb={1}>
+            <Typography variant="h3" fontWeight={700} color="#111827" mb={0.5} sx={{ fontSize: '1.75rem' }}>
               {mediumCount}
             </Typography>
-            <Typography variant="body2" color="#64748B">
+            <Typography variant="body2" color="#6B7280" sx={{ fontSize: '0.78rem' }}>
               Review within 24 hours
             </Typography>
           </Paper>
         </Grid>
 
         <Grid item xs={12} md={4}>
-          <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: '1px solid #E2E8F0', bgcolor: '#fff', height: '100%' }}>
+          <Paper elevation={0} sx={{ p: 2.5, borderRadius: '12px', border: '1px solid #E5E7EB', bgcolor: '#FFFFFF', height: '100%' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
-              <Box sx={{ width: 40, height: 40, borderRadius: 2, bgcolor: '#FEF3C7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <HighlightOffIcon sx={{ color: '#D97706' }} />
+              <Box sx={{ width: 36, height: 36, borderRadius: '8px', bgcolor: '#FEF3C7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <HighlightOffIcon sx={{ color: '#B45309', fontSize: 20 }} />
               </Box>
-              <Typography variant="body1" fontWeight={700} color="#0F172A">
+              <Typography variant="body1" fontWeight={600} color="#111827" sx={{ fontSize: '0.9rem' }}>
                 Low Priority
               </Typography>
             </Box>
-            <Typography variant="h3" fontWeight={800} color="#0F172A" mb={1}>
+            <Typography variant="h3" fontWeight={700} color="#111827" mb={0.5} sx={{ fontSize: '1.75rem' }}>
               {lowCount}
             </Typography>
-            <Typography variant="body2" color="#64748B">
+            <Typography variant="body2" color="#6B7280" sx={{ fontSize: '0.78rem' }}>
               Monitor and review
             </Typography>
           </Paper>
         </Grid>
       </Grid>
-
     </Box>
   );
 }
