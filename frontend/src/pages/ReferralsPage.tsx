@@ -1,7 +1,7 @@
 import { Box, Typography, Button, Paper, Divider, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip, Modal, TextField, CircularProgress } from '@mui/material';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import WhatsAppIcon from '@mui/icons-material/WhatsApp';
 import GroupOutlinedIcon from '@mui/icons-material/GroupOutlined';
+import ShareIcon from '@mui/icons-material/Share';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutlined';
 import AccountBalanceWalletOutlinedIcon from '@mui/icons-material/AccountBalanceWalletOutlined';
 import SavingsOutlinedIcon from '@mui/icons-material/SavingsOutlined';
@@ -42,6 +42,22 @@ export default function ReferralsPage() {
   const copyToClipboard = () => {
     navigator.clipboard.writeText(referralLink);
     toast.success('Referral link copied!');
+  };
+
+  const handleShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Join Onlok',
+          text: 'Use my referral link to sign up for Onlok!',
+          url: referralLink,
+        });
+      } catch (error) {
+        console.error('Error sharing', error);
+      }
+    } else {
+      copyToClipboard();
+    }
   };
 
   const handleWithdrawSubmit = async (e: React.FormEvent) => {
@@ -112,10 +128,11 @@ export default function ReferralsPage() {
             </Button>
             <Button 
               variant="contained" 
-              startIcon={<WhatsAppIcon />} 
-              sx={{ bgcolor: '#84CC16', color: '#fff', borderRadius: 2, textTransform: 'none', fontWeight: 600, px: 3, py: 1, boxShadow: 'none', '&:hover': { bgcolor: '#65A30D' } }}
+              onClick={handleShare}
+              startIcon={<ShareIcon />} 
+              sx={{ bgcolor: '#1A1FE8', color: '#fff', borderRadius: 2, textTransform: 'none', fontWeight: 600, px: 3, py: 1, boxShadow: 'none', '&:hover': { bgcolor: '#0F14B0' } }}
             >
-              Share On Whatsapp
+              Share Referral Link
             </Button>
           </Box>
         </Box>

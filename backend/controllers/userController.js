@@ -7,6 +7,8 @@ const sharp = require('sharp');
 const { AVATAR_DIR } = require('../middlewares/uploadMiddleware');
 const { generateVendorId } = require('../utils/generateId');
 const { generateQRCode } = require('../utils/qrCodeGenerator');
+const crypto = require('crypto');
+const { sendEmail } = require('../utils/emailService');
 
 // Generate JWT
 const generateToken = (id, role, vendor_id) => {
@@ -24,6 +26,11 @@ const registerUser = async (req, res) => {
 
         if (!first_name || !last_name || !business_name || !email || !password || !phone_number) {
             return res.status(400).json({ message: 'Please add all fields' });
+        }
+
+        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
+        if (!passwordRegex.test(password)) {
+            return res.status(400).json({ message: 'Password must be at least 8 characters long and include an uppercase letter, lowercase letter, number, and symbol.' });
         }
 
         // Check if user exists
@@ -61,6 +68,18 @@ const registerUser = async (req, res) => {
                 VALUES (?, ?, 'Signup', 0.00, 5000.00, 'pending')
             `, [referrerId, newUserId]);
         }
+
+        // Send Welcome/Application Received Email
+        const welcomeHtml = `
+            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+                <h2 style="color: #0F172A;">Welcome to Onlok, ${first_name}!</h2>
+                <p>Your vendor application has been received successfully.</p>
+                <p>Our administrative team will review your application and get back to you shortly.</p>
+                <br/>
+                <p>Best regards,<br/><strong>The Onlok Team</strong></p>
+            </div>
+        `;
+        await sendEmail(email, 'Application Received - Onlok', welcomeHtml);
 
         res.status(201).json({
             id: newUserId,
@@ -416,6 +435,96 @@ const uploadProfilePicture = async (req, res) => {
     }
 };
 
+// @desc    Forgot Password
+// @route   POST /api/users/forgot-password
+// @access  Public
+const forgotPassword = async (req, res) => {
+    try {
+        const { email } = req.body;
+        if (!email) return res.status(400).json({ message: 'Please provide an email' });
+
+        const [users] = await pool.query('SELECT * FROM users WHERE email = ?', [email]);
+        if (users.length === 0) {
+            // Return 200 to prevent email enumeration
+            return res.status(200).json({ message: 'If that email is in our system, a reset link has been sent.' });
+        }
+
+        const user = users[0];
+        
+        // Generate reset token (random hex string)
+        const resetToken = crypto.randomBytes(32).toString('hex');
+        const resetTokenExpires = Date.now() + 3600000; // 1 hour from now
+
+        await pool.execute(
+            'UPDATE users SET reset_password_token = ?, reset_password_expires = ? WHERE id = ?',
+            [resetToken, resetTokenExpires, user.id]
+        );
+
+        // Create reset URL (assuming frontend runs on same domain or env var)
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+        const resetUrl = `${frontendUrl}/reset-password/${resetToken}`;
+
+        const emailHtml = `
+            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+                <h2 style="color: #0F172A;">Password Reset Request</h2>
+                <p>Hi ${user.first_name},</p>
+                <p>You requested a password reset. Click the button below to set a new password:</p>
+                <a href="${resetUrl}" style="padding: 10px 15px; background: #0F172A; color: #fff; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 0;">Reset Password</a>
+                <p>If you didn't request this, please ignore this email.</p>
+                <p style="font-size: 0.8rem; color: #666;">This link is valid for 1 hour.</p>
+            </div>
+        `;
+
+        await sendEmail(user.email, 'Password Reset - Onlok', emailHtml);
+
+        res.status(200).json({ message: 'If that email is in our system, a reset link has been sent.' });
+    } catch (error) {
+        console.error('Forgot Password Error:', error);
+        res.status(500).json({ message: 'Server error handling forgot password.' });
+    }
+};
+
+// @desc    Reset Password
+// @route   PUT /api/users/reset-password/:token
+// @access  Public
+const resetPassword = async (req, res) => {
+    try {
+        const { token } = req.params;
+        const { password } = req.body;
+
+        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
+        if (!password || !passwordRegex.test(password)) {
+            return res.status(400).json({ message: 'Password must be at least 8 characters long and include an uppercase letter, lowercase letter, number, and symbol.' });
+        }
+
+        const [users] = await pool.query(
+            'SELECT * FROM users WHERE reset_password_token = ? AND reset_password_expires > ?',
+            [token, Date.now()]
+        );
+
+        if (users.length === 0) {
+            return res.status(400).json({ message: 'Invalid or expired password reset token.' });
+        }
+
+        const user = users[0];
+
+        // Hash new password
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+
+        // Update user
+        await pool.execute(
+            'UPDATE users SET password_hash = ?, reset_password_token = NULL, reset_password_expires = NULL WHERE id = ?',
+            [hashedPassword, user.id]
+        );
+
+        res.status(200).json({ message: 'Password has been successfully reset. You can now log in.' });
+    } catch (error) {
+        console.error('Reset Password Error:', error);
+        res.status(500).json({ message: 'Server error resetting password.' });
+    }
+};
+
 module.exports = {
     registerUser,
     loginUser,
@@ -425,4 +534,6 @@ module.exports = {
     deleteUser,
     getReferrals,
     uploadProfilePicture,
+    forgotPassword,
+    resetPassword,
 };

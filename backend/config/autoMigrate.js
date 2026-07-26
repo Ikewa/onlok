@@ -247,6 +247,9 @@ const COLUMN_MIGRATIONS = [
     // Withdrawals enhancements
     { table: 'withdrawals', column: 'account_details', definition: 'VARCHAR(255) NULL AFTER payment_method' },
     { table: 'reports', column: 'assigned_to', definition: 'VARCHAR(255) NULL AFTER priority' },
+    // Password reset fields
+    { table: 'users', column: 'reset_password_token', definition: 'VARCHAR(255) NULL AFTER updated_at' },
+    { table: 'users', column: 'reset_password_expires', definition: 'BIGINT NULL AFTER reset_password_token' },
 ];
 
 async function addMissingColumns() {

@@ -3,6 +3,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { generateVendorId } = require('../utils/generateId');
 const { generateQRCode } = require('../utils/qrCodeGenerator');
+const { sendEmail } = require('../utils/emailService');
 
 // @desc    Auth admin & get token
 // @route   POST /api/admin/login
@@ -168,7 +169,12 @@ const updateVerificationStatus = async (req, res) => {
         }
 
         // Check if verification exists
-        const [verifications] = await pool.query('SELECT user_id, status FROM verifications WHERE id = ?', [id]);
+        const [verifications] = await pool.query(`
+            SELECT v.user_id, v.status, u.email, u.first_name 
+            FROM verifications v 
+            JOIN users u ON v.user_id = u.id 
+            WHERE v.id = ?
+        `, [id]);
         if (verifications.length === 0) {
             return res.status(404).json({ message: 'Verification not found' });
         }
@@ -226,6 +232,34 @@ const updateVerificationStatus = async (req, res) => {
             'INSERT INTO audit_logs (user_id, action, severity, details) VALUES (?, ?, ?, ?)',
             [verification.user_id, actionText, severity, notes || `Admin manually ${status} user`]
         );
+
+        // Send email notifications
+        if (status === 'approved') {
+            const html = `
+                <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+                    <h2 style="color: #10B981;">Account Approved!</h2>
+                    <p>Hi ${verification.first_name},</p>
+                    <p>Great news! Your account verification has been approved.</p>
+                    <p>You can now log in and access all the features of your vendor portal.</p>
+                    <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/login" style="padding: 10px 15px; background: #0F172A; color: #fff; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 0;">Log In to Onlok</a>
+                    <br/><br/>
+                    <p>Best regards,<br/><strong>The Onlok Team</strong></p>
+                </div>
+            `;
+            await sendEmail(verification.email, 'Your Onlok Account has been Approved', html);
+        } else if (status === 'rejected' || status === 'flagged') {
+            const html = `
+                <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+                    <h2 style="color: #EF4444;">Account Update</h2>
+                    <p>Hi ${verification.first_name},</p>
+                    <p>Your account verification has been ${status}.</p>
+                    <p>Admin Notes: ${notes || 'Please contact support for more details.'}</p>
+                    <br/><br/>
+                    <p>Best regards,<br/><strong>The Onlok Team</strong></p>
+                </div>
+            `;
+            await sendEmail(verification.email, `Account Verification ${status.charAt(0).toUpperCase() + status.slice(1)} - Onlok`, html);
+        }
 
         res.status(200).json({ message: `Verification ${status} successfully` });
     } catch (error) {

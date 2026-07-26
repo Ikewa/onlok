@@ -20,7 +20,8 @@ export const getMyVerification = async (): Promise<VerificationRecord> => {
 export const submitVerification = async (
   govIdFile: File,
   cacFile: File,
-  businessVideoFile: File
+  businessVideoFile: File,
+  onProgress?: (progress: number) => void
 ): Promise<VerificationResponse> => {
   const formData = new FormData();
   formData.append('gov_id', govIdFile);
@@ -31,6 +32,12 @@ export const submitVerification = async (
     headers: {
       'Content-Type': 'multipart/form-data',
     },
+    onUploadProgress: (progressEvent) => {
+      if (progressEvent.total && onProgress) {
+        const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+        onProgress(percentCompleted);
+      }
+    }
   });
   return data;
 };

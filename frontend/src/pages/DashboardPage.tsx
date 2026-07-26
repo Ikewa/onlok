@@ -61,7 +61,23 @@ export default function DashboardPage() {
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    toast.success('Copied to clipboard!');
+    toast.success('Link copied to clipboard!');
+  };
+
+  const handleShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'My Onlok Profile',
+          text: 'Check out my Onlok vendor profile!',
+          url: profileLink,
+        });
+      } catch (error) {
+        console.error('Error sharing', error);
+      }
+    } else {
+      copyToClipboard(profileLink);
+    }
   };
 
   const dashUser = data?.user ?? user;
@@ -110,8 +126,8 @@ export default function DashboardPage() {
                 <Button variant="outlined" fullWidth startIcon={<ContentCopyIcon sx={{ fontSize: 18 }} />} onClick={() => copyToClipboard(profileLink)} sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600, color: '#1A1FE8', borderColor: '#1A1FE8', py: 1 }}>
                   Copy Link
                 </Button>
-                <Button variant="contained" fullWidth startIcon={<ShareIcon sx={{ fontSize: 18 }} />} sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600, bgcolor: '#84CC16', color: '#fff', py: 1, boxShadow: 'none', '&:hover': { bgcolor: '#65A30D' } }}>
-                  Share On Whatsapp
+                <Button variant="contained" fullWidth startIcon={<ShareIcon sx={{ fontSize: 18 }} />} onClick={handleShare} sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600, bgcolor: '#1A1FE8', color: '#fff', py: 1, boxShadow: 'none', '&:hover': { bgcolor: '#0F14B0' } }}>
+                  Share Profile
                 </Button>
               </Box>
             </Paper>

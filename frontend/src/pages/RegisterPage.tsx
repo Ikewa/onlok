@@ -91,8 +91,9 @@ export default function RegisterPage() {
       if (!form.first_name || !form.last_name || !form.email || !form.phone_number) {
         toast.error('Please enter your full First and Last name, email, and phone number.'); return false;
       }
-      if (!form.password || form.password.length < 6) { 
-        toast.error('Password must be at least 6 characters.'); return false; 
+      const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
+      if (!form.password || !passwordRegex.test(form.password)) {
+        toast.error('Password must be at least 8 characters and include an uppercase letter, lowercase letter, number, and symbol.'); return false; 
       }
       if (form.password !== form.confirm_password) { 
         toast.error('Passwords do not match.'); return false; 

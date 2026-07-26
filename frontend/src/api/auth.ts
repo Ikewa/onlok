@@ -24,3 +24,12 @@ export const uploadProfilePicture = async (file: File): Promise<{ profile_pictur
   });
   return data;
 };
+export const forgotPassword = async (email: string): Promise<{ message: string }> => {
+  const { data } = await api.post<{ message: string }>('/users/forgot-password', { email });
+  return data;
+};
+
+export const resetPassword = async (token: string, password: string): Promise<{ message: string }> => {
+  const { data } = await api.put<{ message: string }>(`/users/reset-password/${token}`, { password });
+  return data;
+};

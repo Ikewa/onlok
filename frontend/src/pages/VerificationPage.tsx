@@ -11,7 +11,7 @@ import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import { useAuth } from '../context/AuthContext';
 import { getMyVerification } from '../api/verifications';
 import type { VerificationRecord } from '../api/verifications';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 const fmt = (dateStr: string | null | undefined) => {
   if (!dateStr) return '—';
@@ -72,6 +72,7 @@ function buildDocuments(record: VerificationRecord) {
 export default function VerificationPage() {
   const { user, login } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const searchParams = new URLSearchParams(location.search);
   const mockStatus = searchParams.get('mock');
 
@@ -166,7 +167,7 @@ export default function VerificationPage() {
           <Typography sx={{ color: '#64748B', fontSize: '0.9rem', maxWidth: 500, mb: 2 }}>
             You haven't submitted your verification documents. Complete the "Get Verified" flow to start the process.
           </Typography>
-          <Button variant="contained" onClick={() => window.location.href = '/dashboard/update/docs'} sx={{ bgcolor: '#1A1FE8', textTransform: 'none', borderRadius: 2 }}>
+          <Button variant="contained" onClick={() => navigate('/dashboard/update/docs')} sx={{ bgcolor: '#1A1FE8', textTransform: 'none', borderRadius: 2 }}>
             Submit Verification
           </Button>
         </Box>
@@ -280,7 +281,7 @@ export default function VerificationPage() {
                       <Typography sx={{ color: '#B91C1C', fontSize: '0.9rem' }}>{record.admin_notes}</Typography>
                     </Box>
                   )}
-                  <Button variant="contained" onClick={() => window.location.href = '/dashboard/update/docs'} sx={{ bgcolor: '#DC2626', '&:hover': { bgcolor: '#991B1B' }, textTransform: 'none', borderRadius: 2 }}>
+                  <Button variant="contained" onClick={() => navigate('/dashboard/update/docs')} sx={{ bgcolor: '#DC2626', '&:hover': { bgcolor: '#991B1B' }, textTransform: 'none', borderRadius: 2 }}>
                     Resubmit Documents
                   </Button>
                 </Box>

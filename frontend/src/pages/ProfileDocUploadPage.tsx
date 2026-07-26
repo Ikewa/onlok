@@ -10,6 +10,7 @@ import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { submitVerification } from '../api/verifications';
+import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 
 
@@ -99,6 +100,7 @@ export default function ProfileDocUploadPage() {
   const [cacDoc, setCacDoc] = useState<File | null>(null);
   const [video, setVideo] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
 
   const handleSubmit = async () => {
     if (!govId || !cacDoc || !video) {
@@ -106,8 +108,11 @@ export default function ProfileDocUploadPage() {
       return;
     }
     setLoading(true);
+    setUploadProgress(0);
     try {
-      await submitVerification(govId, cacDoc, video);
+      await submitVerification(govId, cacDoc, video, (progress) => {
+        setUploadProgress(progress);
+      });
       toast.success('Documents submitted for review!');
       navigate('/dashboard/verification');
     } catch (err: any) {
@@ -269,7 +274,7 @@ export default function ProfileDocUploadPage() {
             onClick={handleSubmit}
             sx={{ bgcolor: '#1A1FE8', color: '#fff', borderRadius: 2.5, py: 1.6, fontWeight: 700, fontSize: '1rem', textTransform: 'none', '&:hover': { bgcolor: '#1318C0' } }}
           >
-            {loading ? 'Submitting...' : 'Submit For Review'}
+            {loading ? (uploadProgress > 0 && uploadProgress < 100 ? `Uploading Video... ${uploadProgress}%` : (uploadProgress === 100 ? 'Processing...' : 'Starting Upload...')) : 'Submit For Review'}
           </Button>
         </Paper>
       </Box>
