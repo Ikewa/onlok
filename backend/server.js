@@ -56,6 +56,8 @@ const dashboardRoutes = require('./routes/dashboardRoute');
 const reportRoutes = require('./routes/reportRoute');
 const adminRoutes = require('./routes/adminRoute');
 const withdrawalRoutes = require('./routes/withdrawalRoute');
+const paymentRoutes = require('./routes/paymentRoute');
+const identityRoutes = require('./routes/identityRoute');
 
 app.use('/api/users', userRoutes);
 app.use('/api/verifications', verificationRoutes);
@@ -63,6 +65,8 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/withdrawals', withdrawalRoutes);
+app.use('/api/payments', paymentRoutes);
+app.use('/api/identities', identityRoutes);
 
 // Test Route
 app.get('/api/health', (req, res) => {

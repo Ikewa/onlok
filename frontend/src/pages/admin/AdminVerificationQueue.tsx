@@ -9,14 +9,16 @@ import { useNavigate } from 'react-router-dom';
 import { getVerificationQueue, type AdminVerification } from '../../api/admin';
 import toast from 'react-hot-toast';
 
-const STATUS_FILTERS = ['All', 'Pending', 'Approved', 'Rejected', 'Flagged'];
+const STATUS_FILTERS = ['All', 'Pending', 'Tier_Assigned', 'Payment_Received', 'Approved', 'Rejected', 'Flagged'];
 
 const STATUS_STYLES: Record<string, { bg: string; color: string }> = {
-  pending:  { bg: '#FEF3C7', color: '#D97706' },
-  approved: { bg: '#DCFCE7', color: '#16A34A' },
-  rejected: { bg: '#FEE2E2', color: '#DC2626' },
-  flagged:  { bg: '#FFEDD5', color: '#D97706' },
-  suspended:{ bg: '#FFEDD5', color: '#D97706' },
+  pending:          { bg: '#FEF3C7', color: '#D97706' },
+  tier_assigned:    { bg: '#E0F2FE', color: '#0369A1' },
+  payment_received: { bg: '#DCFCE7', color: '#166534' },
+  approved:         { bg: '#DCFCE7', color: '#16A34A' },
+  rejected:         { bg: '#FEE2E2', color: '#DC2626' },
+  flagged:          { bg: '#FFEDD5', color: '#D97706' },
+  suspended:        { bg: '#FFEDD5', color: '#D97706' },
 };
 
 const DEFAULT_STATUS_STYLE = { bg: '#F3F4F6', color: '#6B7280' };

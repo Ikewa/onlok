@@ -100,6 +100,27 @@ export default function DashboardPage() {
           <Typography sx={{ fontWeight: 800, fontSize: '0.9rem', color: '#0F172A' }}>Back To Search</Typography>
         </Box>
 
+        {/* Tier Assignment Notification */}
+        {data?.verification?.status === 'tier_assigned' && (
+          <Alert 
+            severity="info" 
+            sx={{ mb: 4, borderRadius: 2, alignItems: 'center' }}
+            action={
+              <Button color="inherit" size="small" variant="outlined" onClick={() => navigate('/pricing')}>
+                Pay Now
+              </Button>
+            }
+          >
+            <strong>Action Required:</strong> You have been approved for the <strong>{data.verification.assigned_tier}</strong> tier! 
+            Please subscribe to activate your profile.
+          </Alert>
+        )}
+        {data?.verification?.status === 'payment_received' && (
+          <Alert severity="success" sx={{ mb: 4, borderRadius: 2 }}>
+            Payment received! We are doing a final review and will fully activate your profile shortly.
+          </Alert>
+        )}
+
         {/* Welcome Text */}
         <Typography sx={{ fontWeight: 900, fontSize: '1.5rem', color: '#0F172A', mb: 0.5 }}>
           Welcome Back {firstName}

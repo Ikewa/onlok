@@ -7,6 +7,7 @@ import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import FlagOutlinedIcon from '@mui/icons-material/FlagOutlined';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getVerificationDetails, updateVerificationStatus, type AdminVerification } from '../../api/admin';
+import { MenuItem, Select } from '@mui/material';
 import toast from 'react-hot-toast';
 
 export default function AdminVerificationReview() {
@@ -15,6 +16,7 @@ export default function AdminVerificationReview() {
   const [details, setDetails] = useState<AdminVerification | null>(null);
   const [loading, setLoading] = useState(true);
   const [notes, setNotes] = useState('');
+  const [selectedTier, setSelectedTier] = useState('Silver');
   const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => {
@@ -36,7 +38,7 @@ export default function AdminVerificationReview() {
   const handleAction = async (status: string) => {
     setActionLoading(true);
     try {
-      await updateVerificationStatus(Number(id), status, notes);
+      await updateVerificationStatus(Number(id), status, notes, status === 'tier_assigned' ? selectedTier : undefined);
       toast.success(`Verification ${status} successfully`);
       navigate('/admin/verifications');
     } catch (err) {
@@ -62,6 +64,8 @@ export default function AdminVerificationReview() {
   const isRejected = details.status === 'rejected';
   const isFlagged = details.status === 'flagged';
   const isPending = details.status === 'pending';
+  const isPaymentReceived = details.status === 'payment_received';
+  const isTierAssigned = details.status === 'tier_assigned';
 
   return (
     <Box sx={{ maxWidth: 1100, pb: 10, fontFamily: 'Inter, sans-serif' }}>
@@ -251,16 +255,74 @@ export default function AdminVerificationReview() {
 
           <Typography variant="subtitle1" fontWeight={600} color="#111827" mb={2} sx={{ fontSize: '1.05rem' }}>Actions</Typography>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-            <Button
-              variant="contained"
-              fullWidth
-              startIcon={<CheckCircleOutlinedIcon />}
-              onClick={() => handleAction('approved')}
-              disabled={actionLoading || isApproved}
-              sx={{ bgcolor: '#16A34A', '&:hover': { bgcolor: '#15803D' }, py: 1.25, borderRadius: '8px', textTransform: 'none', fontWeight: 600, fontSize: '0.88rem' }}
-            >
-              Approve Verification
-            </Button>
+            
+            {/* First Approval Stage */}
+            {isPending && (
+              <Box sx={{ bgcolor: '#F3F4F6', p: 2, borderRadius: 2, border: '1px solid #E5E7EB', mb: 1 }}>
+                <Typography variant="caption" fontWeight={600} color="#374151" display="block" mb={1}>
+                  Assign Subscription Tier (First Approval)
+                </Typography>
+                <Select
+                  fullWidth
+                  size="small"
+                  value={selectedTier}
+                  onChange={(e) => setSelectedTier(e.target.value)}
+                  sx={{ mb: 2, bgcolor: '#FFFFFF' }}
+                >
+                  <MenuItem value="Bronze">Bronze</MenuItem>
+                  <MenuItem value="Silver">Silver</MenuItem>
+                  <MenuItem value="Gold">Gold</MenuItem>
+                </Select>
+                <Button
+                  variant="contained"
+                  fullWidth
+                  startIcon={<CheckCircleOutlinedIcon />}
+                  onClick={() => handleAction('tier_assigned')}
+                  disabled={actionLoading}
+                  sx={{ bgcolor: '#0029FF', '&:hover': { bgcolor: '#0022D1' }, py: 1.25, borderRadius: '8px', textTransform: 'none', fontWeight: 600, fontSize: '0.88rem' }}
+                >
+                  Assign Tier & Approve
+                </Button>
+              </Box>
+            )}
+
+            {/* Awaiting Payment Stage */}
+            {isTierAssigned && (
+              <Box sx={{ bgcolor: '#FFFBEB', p: 2, borderRadius: 2, border: '1px solid #FEF3C7', mb: 1 }}>
+                <Typography variant="body2" color="#B45309" fontWeight={600} mb={1}>Awaiting Payment</Typography>
+                <Typography variant="caption" color="#92400E">User was assigned {details.assigned_tier} tier. Waiting for them to complete payment.</Typography>
+              </Box>
+            )}
+
+            {/* Second Approval Stage (Final Approval) */}
+            {isPaymentReceived && (
+              <Box sx={{ bgcolor: '#F0FDF4', p: 2, borderRadius: 2, border: '1px solid #DCFCE7', mb: 1 }}>
+                <Typography variant="body2" color="#166534" fontWeight={600} mb={1}>Payment Received</Typography>
+                <Button
+                  variant="contained"
+                  fullWidth
+                  startIcon={<CheckCircleOutlinedIcon />}
+                  onClick={() => handleAction('approved')}
+                  disabled={actionLoading}
+                  sx={{ bgcolor: '#16A34A', '&:hover': { bgcolor: '#15803D' }, py: 1.25, borderRadius: '8px', textTransform: 'none', fontWeight: 600, fontSize: '0.88rem' }}
+                >
+                  Finalize Verification
+                </Button>
+              </Box>
+            )}
+
+            {!isPending && !isTierAssigned && !isPaymentReceived && (
+              <Button
+                variant="contained"
+                fullWidth
+                startIcon={<CheckCircleOutlinedIcon />}
+                onClick={() => handleAction('approved')}
+                disabled={actionLoading || isApproved}
+                sx={{ bgcolor: '#16A34A', '&:hover': { bgcolor: '#15803D' }, py: 1.25, borderRadius: '8px', textTransform: 'none', fontWeight: 600, fontSize: '0.88rem' }}
+              >
+                Approve Verification
+              </Button>
+            )}
             <Button
               variant="contained"
               fullWidth

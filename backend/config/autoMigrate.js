@@ -58,7 +58,9 @@ async function createTables() {
             gov_id_url    VARCHAR(255) NOT NULL,
             cac_url       VARCHAR(255) NULL,
             video_url     VARCHAR(255) NOT NULL,
-            status        ENUM('pending','approved','rejected','flagged') DEFAULT 'pending',
+            status        ENUM('pending','tier_assigned','payment_received','approved','rejected','flagged') DEFAULT 'pending',
+            assigned_tier VARCHAR(50) NULL,
+            payment_status ENUM('unpaid','paid') DEFAULT 'unpaid',
             admin_notes   TEXT NULL,
             submitted_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             reviewed_at   TIMESTAMP NULL,
@@ -125,6 +127,7 @@ async function createTables() {
         "ALTER TABLE reports ADD COLUMN priority ENUM('low','medium','high') DEFAULT 'medium' AFTER status",
         "ALTER TABLE reports MODIFY COLUMN reported_vendor_id VARCHAR(50) NOT NULL",
         "ALTER TABLE reports MODIFY COLUMN category ENUM('fraud','impersonation','harassment','inaccurate_information', 'others') NOT NULL",
+        "ALTER TABLE verifications MODIFY COLUMN status ENUM('pending','tier_assigned','payment_received','approved','rejected','flagged') DEFAULT 'pending'",
     ];
     for (const sql of alterQueries) {
         try {
@@ -233,7 +236,9 @@ const COLUMN_MIGRATIONS = [
 
     // Verifications enhancements
     { table: 'verifications', column: 'admin_notes', definition: 'TEXT NULL AFTER status' },
-    { table: 'verifications', column: 'flagged',     definition: "ENUM('pending','approved','rejected','flagged') NULL AFTER admin_notes" },
+    { table: 'verifications', column: 'assigned_tier', definition: 'VARCHAR(50) NULL AFTER status' },
+    { table: 'verifications', column: 'payment_status', definition: "ENUM('unpaid','paid') DEFAULT 'unpaid' AFTER assigned_tier" },
+    { table: 'verifications', column: 'flagged',     definition: "ENUM('pending','tier_assigned','payment_received','approved','rejected','flagged') NULL AFTER admin_notes" },
 
     // ── ADD NEW COLUMNS BELOW THIS LINE ──────────────────────────
     // Example:

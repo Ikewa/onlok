@@ -20,8 +20,8 @@ const getVendorDashboard = async (req, res) => {
         }
         const user = users[0];
 
-        // Fetch Verification Status (Added admin_notes here!)
-        const [verifications] = await pool.query('SELECT id, status, admin_notes, submitted_at, reviewed_at FROM verifications WHERE user_id = ? ORDER BY submitted_at DESC LIMIT 1', [userId]);
+        // Fetch Verification Status (Added admin_notes, assigned_tier, payment_status here!)
+        const [verifications] = await pool.query('SELECT id, status, admin_notes, assigned_tier, payment_status, submitted_at, reviewed_at FROM verifications WHERE user_id = ? ORDER BY submitted_at DESC LIMIT 1', [userId]);
         const verification = verifications.length > 0 ? verifications[0] : null;
 
         // Fetch Badges

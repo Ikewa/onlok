@@ -136,6 +136,7 @@ const getVerificationDetails = async (req, res) => {
                      WHEN v.status = 'flagged' OR u.status = 'suspended' THEN 'flagged'
                      ELSE v.status 
                    END as status,
+                   v.assigned_tier, v.payment_status,
                    v.admin_notes, v.submitted_at, v.reviewed_at,
                    u.id as user_id, u.first_name, u.last_name, u.email, u.vendor_id, u.business_name,
                    (CASE WHEN u.business_name IS NOT NULL AND u.business_name != '' THEN 'Business' ELSE 'Individual' END) as type
@@ -162,9 +163,9 @@ const getVerificationDetails = async (req, res) => {
 const updateVerificationStatus = async (req, res) => {
     try {
         const { id } = req.params;
-        const { status, notes } = req.body; // 'approved', 'rejected', 'flagged', 'pending'
+        const { status, notes, assigned_tier } = req.body; 
 
-        if (!['approved', 'rejected', 'flagged', 'pending'].includes(status)) {
+        if (!['approved', 'rejected', 'flagged', 'pending', 'tier_assigned', 'payment_received'].includes(status)) {
             return res.status(400).json({ message: 'Invalid status' });
         }
 
@@ -184,10 +185,10 @@ const updateVerificationStatus = async (req, res) => {
         // Update verifications table (Now includes admin_notes!)
         const updateQuery = `
             UPDATE verifications 
-            SET status = ?, admin_notes = ?, reviewed_at = CURRENT_TIMESTAMP, reviewed_by = ? 
+            SET status = ?, admin_notes = ?, assigned_tier = IFNULL(?, assigned_tier), reviewed_at = CURRENT_TIMESTAMP, reviewed_by = ? 
             WHERE id = ?
         `;
-        await pool.query(updateQuery, [status, notes || null, req.user.id, id]);
+        await pool.query(updateQuery, [status, notes || null, assigned_tier || null, req.user.id, id]);
 
         // Update Users Table based on action
         if (status === 'approved') {
@@ -221,13 +222,18 @@ const updateVerificationStatus = async (req, res) => {
             await pool.query(`DELETE FROM badges WHERE user_id = ? AND badge_type = "verified_vendor"`, [verification.user_id]);
         } else if (status === 'flagged') {
             await pool.query(`UPDATE users SET status = 'suspended' WHERE id = ?`, [verification.user_id]);
-        } else if (status === 'pending') {
+        } else if (status === 'pending' || status === 'tier_assigned' || status === 'payment_received') {
             await pool.query(`UPDATE users SET status = 'pending' WHERE id = ?`, [verification.user_id]);
         }
 
         // Insert audit log
         const severity = status === 'flagged' ? 'HIGH' : status === 'rejected' ? 'MEDIUM' : 'LOW';
-        const actionText = status === 'flagged' ? 'Flagged account' : status === 'rejected' ? 'Rejected verification' : 'Approved verification';
+        let actionText = 'Updated verification';
+        if (status === 'flagged') actionText = 'Flagged account';
+        if (status === 'rejected') actionText = 'Rejected verification';
+        if (status === 'approved') actionText = 'Approved verification (Final)';
+        if (status === 'tier_assigned') actionText = `Assigned tier: ${assigned_tier}`;
+
         await pool.query(
             'INSERT INTO audit_logs (user_id, action, severity, details) VALUES (?, ?, ?, ?)',
             [verification.user_id, actionText, severity, notes || `Admin manually ${status} user`]
@@ -247,6 +253,19 @@ const updateVerificationStatus = async (req, res) => {
                 </div>
             `;
             await sendEmail(verification.email, 'Your Onlok Account has been Approved', html);
+        } else if (status === 'tier_assigned') {
+            const html = `
+                <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+                    <h2 style="color: #0029FF;">Verification Pre-Approved!</h2>
+                    <p>Hi ${verification.first_name},</p>
+                    <p>Your documents have been reviewed and you have been approved for the <strong>${assigned_tier}</strong> tier.</p>
+                    <p>Please log in to your dashboard to complete your subscription payment and finalize your verification.</p>
+                    <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/dashboard" style="padding: 10px 15px; background: #0029FF; color: #fff; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 0;">Go to Dashboard</a>
+                    <br/><br/>
+                    <p>Best regards,<br/><strong>The Onlok Team</strong></p>
+                </div>
+            `;
+            await sendEmail(verification.email, 'Action Required: Complete Your Verification - Onlok', html);
         } else if (status === 'rejected' || status === 'flagged') {
             const html = `
                 <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333;">

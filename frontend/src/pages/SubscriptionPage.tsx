@@ -2,6 +2,10 @@ import { Box, Typography, Button, Container } from '@mui/material';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { OnlokBadge } from '../components/OnlokBadge';
+import { useAuth } from '../context/AuthContext';
+import { initializePayment } from '../api/payment';
+import toast from 'react-hot-toast';
+import { CircularProgress } from '@mui/material';
 
 function OnlokLogo() {
   return (
@@ -18,7 +22,9 @@ function OnlokLogo() {
 
 export default function SubscriptionPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [billingCycle, setBillingCycle] = useState<'annual' | 'monthly'>('annual');
+  const [loadingTier, setLoadingTier] = useState<string | null>(null);
 
   const getPrice = (annualPrice: number) => {
     if (billingCycle === 'annual') return `₦${annualPrice.toLocaleString()}`;
@@ -28,6 +34,34 @@ export default function SubscriptionPage() {
   };
 
   const cycleLabel = billingCycle === 'annual' ? '/yr' : '/mo';
+
+  const handleSubscribe = async (tier: string, annualPrice: number) => {
+    if (!user) {
+      navigate('/register');
+      return;
+    }
+    
+    setLoadingTier(tier);
+    try {
+      const amount = billingCycle === 'annual' ? annualPrice : (Math.ceil((annualPrice / 12) / 50) * 50);
+      const res = await initializePayment({
+        email: user.email,
+        amount: amount,
+        plan: tier,
+      });
+      
+      if (res && res.data && res.data.authorization_url) {
+        window.location.href = res.data.authorization_url;
+      } else {
+        toast.error('Could not initialize payment. Please try again.');
+      }
+    } catch (error: any) {
+      console.error(error);
+      toast.error('Failed to initialize payment.');
+    } finally {
+      setLoadingTier(null);
+    }
+  };
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: '#F8FAFC', fontFamily: 'Inter, sans-serif' }}>
@@ -157,14 +191,15 @@ export default function SubscriptionPage() {
             </Box>
             <Button 
               variant="outlined" 
-              onClick={() => navigate('/register')}
+              onClick={() => handleSubscribe('Verified Vendor', 10000)}
+              disabled={loadingTier === 'Verified Vendor'}
               sx={{ 
                 borderRadius: 1.5, py: 1.2, fontWeight: 700, textTransform: 'none', 
                 borderColor: '#0029FF', color: '#0029FF', 
                 '&:hover': { bgcolor: '#F0F4FF', borderColor: '#0029FF' } 
               }}
             >
-              Get Verified
+              {loadingTier === 'Verified Vendor' ? <CircularProgress size={24} /> : (user ? 'Subscribe Now' : 'Get Verified')}
             </Button>
           </Box>
 
@@ -213,14 +248,15 @@ export default function SubscriptionPage() {
             </Box>
             <Button 
               variant="contained" 
-              onClick={() => navigate('/register')}
+              onClick={() => handleSubscribe('Verified Professional', 15000)}
+              disabled={loadingTier === 'Verified Professional'}
               sx={{ 
                 borderRadius: 1.5, py: 1.2, fontWeight: 700, textTransform: 'none', 
                 bgcolor: '#0029FF', color: '#fff', boxShadow: 'none',
                 '&:hover': { bgcolor: '#001ECC' } 
               }}
             >
-              Get Verified
+              {loadingTier === 'Verified Professional' ? <CircularProgress size={24} color="inherit" /> : (user ? 'Subscribe Now' : 'Get Verified')}
             </Button>
           </Box>
 

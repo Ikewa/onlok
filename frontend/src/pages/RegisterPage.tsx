@@ -15,6 +15,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { registerUser } from '../api/auth';
 import { submitVerification } from '../api/verifications';
+import { verifyNIN, verifyCAC } from '../api/identity';
 import Navbar from '../components/Navbar';
 import toast from 'react-hot-toast';
 
@@ -37,6 +38,8 @@ interface FormData {
   business_video_file: File | null;
   cac_file: File | null;
   category: string;
+  nin: string;
+  rc_number: string;
 }
 
 const initialData: FormData = {
@@ -45,7 +48,7 @@ const initialData: FormData = {
   twitter_handle: '', instagram_handle: '', facebook_handle: '', tiktok_handle: '',
   password: '', confirm_password: '',
   gov_id_file: null, business_video_file: null, cac_file: null,
-  category: 'Consumer',
+  category: 'Consumer', nin: '', rc_number: ''
 };
 
 const countryCodes = [
@@ -102,9 +105,10 @@ export default function RegisterPage() {
     if (activeStep === 1 && !form.business_name) {
       toast.error('Business name or professional role is required.'); return false;
     }
-    if (activeStep === 2) {
       if (!form.gov_id_file) { toast.error('Please upload your Government ID.'); return false; }
+      if (!form.nin) { toast.error('Please enter your NIN.'); return false; }
       if (!form.cac_file) { toast.error('Please upload your CAC certificate.'); return false; }
+      if (!form.rc_number) { toast.error('Please enter your CAC RC Number.'); return false; }
       if (!form.business_video_file) { toast.error('Please upload your business video.'); return false; }
     }
     return true;
@@ -134,7 +138,15 @@ export default function RegisterPage() {
           login(user);
         }
 
-        // 2. Now attempt to upload the files
+        // 2. Perform Identity Verification via Prembly
+        try {
+          await verifyNIN(form.nin);
+          await verifyCAC(form.rc_number, form.business_name);
+        } catch (idErr: any) {
+          throw new Error(idErr?.response?.data?.message || idErr?.response?.data?.error || 'Identity Verification failed. Please check your NIN/RC number.');
+        }
+
+        // 3. Now attempt to upload the files
         await submitVerification(form.gov_id_file!, form.cac_file!, form.business_video_file!);
         
         toast.success('Verification submitted!');
@@ -144,7 +156,9 @@ export default function RegisterPage() {
         let msg = err?.response?.data?.message;
         
         // Handle NGINX / server limits (e.g. 413 Payload Too Large)
-        if (err?.response?.status === 413) {
+        if (err?.message) {
+          msg = err.message;
+        } else if (err?.response?.status === 413) {
           msg = 'Your video file is too large. Please upload a smaller video (max 100MB).';
         } else if (!msg) {
           msg = 'Registration failed or file is too large. Please check your connection and try again.';
@@ -322,7 +336,10 @@ export default function RegisterPage() {
         icon={<InsertDriveFileOutlinedIcon />}
       />
 
-      <Typography variant="h6" fontWeight={800} color="#0F172A" mb={0.5} mt={4}>Business Registration</Typography>
+      <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} mt={2} display="block">National Identity Number (NIN)</Typography>
+      <TextField fullWidth value={form.nin} onChange={(e) => set('nin', e.target.value)} placeholder="12345678901" sx={{ mb: 4 }} InputProps={{ sx: { borderRadius: 2 } }} />
+
+      <Typography variant="h6" fontWeight={800} color="#0F172A" mb={0.5} mt={2}>Business Registration</Typography>
       <Typography variant="body2" color="#64748B" mb={3}>Upload a valid, unexpired government-issued ID.</Typography>
       
       <FileUploadDropzone 
@@ -336,7 +353,10 @@ export default function RegisterPage() {
         icon={<InsertDriveFileOutlinedIcon />}
       />
 
-      <Typography variant="h6" fontWeight={800} color="#0F172A" mb={0.5} mt={4}>video upload</Typography>
+      <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} mt={2} display="block">CAC RC Number</Typography>
+      <TextField fullWidth value={form.rc_number} onChange={(e) => set('rc_number', e.target.value)} placeholder="RC123456" sx={{ mb: 4 }} InputProps={{ sx: { borderRadius: 2 } }} />
+
+      <Typography variant="h6" fontWeight={800} color="#0F172A" mb={0.5} mt={2}>video upload</Typography>
       <Typography variant="body2" color="#64748B" mb={3}>Upload two minute of you and your business environment</Typography>
       
       <FileUploadDropzone 
