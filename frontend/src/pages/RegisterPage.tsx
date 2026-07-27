@@ -105,10 +105,9 @@ export default function RegisterPage() {
     if (activeStep === 1 && !form.business_name) {
       toast.error('Business name or professional role is required.'); return false;
     }
+    if (activeStep === 2) {
       if (!form.gov_id_file) { toast.error('Please upload your Government ID.'); return false; }
-      if (!form.nin) { toast.error('Please enter your NIN.'); return false; }
       if (!form.cac_file) { toast.error('Please upload your CAC certificate.'); return false; }
-      if (!form.rc_number) { toast.error('Please enter your CAC RC Number.'); return false; }
       if (!form.business_video_file) { toast.error('Please upload your business video.'); return false; }
     }
     return true;
@@ -138,15 +137,9 @@ export default function RegisterPage() {
           login(user);
         }
 
-        // 2. Perform Identity Verification via Prembly
-        try {
-          await verifyNIN(form.nin);
-          await verifyCAC(form.rc_number, form.business_name);
-        } catch (idErr: any) {
-          throw new Error(idErr?.response?.data?.message || idErr?.response?.data?.error || 'Identity Verification failed. Please check your NIN/RC number.');
-        }
-
-        // 3. Now attempt to upload the files
+        // Identity Verification via backend/prembly removed for manual admin review
+        
+        // 2. Now attempt to upload the files
         await submitVerification(form.gov_id_file!, form.cac_file!, form.business_video_file!);
         
         toast.success('Verification submitted!');
@@ -336,8 +329,7 @@ export default function RegisterPage() {
         icon={<InsertDriveFileOutlinedIcon />}
       />
 
-      <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} mt={2} display="block">National Identity Number (NIN)</Typography>
-      <TextField fullWidth value={form.nin} onChange={(e) => set('nin', e.target.value)} placeholder="12345678901" sx={{ mb: 4 }} InputProps={{ sx: { borderRadius: 2 } }} />
+
 
       <Typography variant="h6" fontWeight={800} color="#0F172A" mb={0.5} mt={2}>Business Registration</Typography>
       <Typography variant="body2" color="#64748B" mb={3}>Upload a valid, unexpired government-issued ID.</Typography>
@@ -353,8 +345,7 @@ export default function RegisterPage() {
         icon={<InsertDriveFileOutlinedIcon />}
       />
 
-      <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} mt={2} display="block">CAC RC Number</Typography>
-      <TextField fullWidth value={form.rc_number} onChange={(e) => set('rc_number', e.target.value)} placeholder="RC123456" sx={{ mb: 4 }} InputProps={{ sx: { borderRadius: 2 } }} />
+
 
       <Typography variant="h6" fontWeight={800} color="#0F172A" mb={0.5} mt={2}>video upload</Typography>
       <Typography variant="body2" color="#64748B" mb={3}>Upload two minute of you and your business environment</Typography>
@@ -407,9 +398,9 @@ export default function RegisterPage() {
           <Typography variant="subtitle2" fontWeight={800} color="#0F172A">Documents</Typography>
           <Typography variant="caption" fontWeight={700} color="#1A1FE8" sx={{ cursor: 'pointer' }} onClick={() => setActiveStep(2)}>Edit</Typography>
         </Box>
-        <GridRow label="ID Document" value={form.gov_id_file ? form.gov_id_file.name : 'Missing'} />
-        <GridRow label="CAC Certificate" value={form.cac_file ? form.cac_file.name : 'Missing'} />
-        <GridRow label="Business Video" value={form.business_video_file ? form.business_video_file.name : 'Missing'} />
+        <FileReviewRow label="ID Document" file={form.gov_id_file} />
+        <FileReviewRow label="CAC Certificate" file={form.cac_file} />
+        <FileReviewRow label="Business Video" file={form.business_video_file} />
       </Paper>
 
       <Paper elevation={0} sx={{ p: 3, borderRadius: 3, bgcolor: '#F8FAFC', mb: 4 }}>
@@ -418,20 +409,6 @@ export default function RegisterPage() {
           <Typography variant="caption" fontWeight={700} color="#1A1FE8" sx={{ cursor: 'pointer' }} onClick={() => setActiveStep(1)}>Edit</Typography>
         </Box>
         <GridRow label="Name/Role" value={form.business_name || '-'} />
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
-          <Typography variant="body2" color="#64748B" sx={{ width: 150 }}>Category</Typography>
-          <FormControl size="small" variant="standard" sx={{ minWidth: 100 }}>
-            <Select
-              value={form.category}
-              onChange={(e) => set('category', e.target.value)}
-              disableUnderline
-              sx={{ color: '#0F172A', fontWeight: 700, fontSize: '0.875rem', '& .MuiSelect-select': { py: 0 } }}
-            >
-              <MenuItem value="Consumer">Consumer</MenuItem>
-              <MenuItem value="Vendor">Vendor</MenuItem>
-            </Select>
-          </FormControl>
-        </Box>
       </Paper>
 
       <Box sx={{ p: 2.5, borderRadius: 3, bgcolor: '#E0F2FE', mb: 4, display: 'flex', alignItems: 'flex-start', gap: 2 }}>
@@ -557,6 +534,28 @@ const GridRow = ({ label, value }: { label: string; value: string }) => (
   </Box>
 );
 
+const FileReviewRow = ({ label, file }: { label: string; file: File | null }) => {
+  if (!file) {
+    return <GridRow label={label} value="Missing" />;
+  }
+  const isImage = file.type.startsWith('image/');
+  const previewUrl = isImage ? URL.createObjectURL(file) : null;
+
+  return (
+    <Box sx={{ display: 'flex', mb: 2, alignItems: 'center' }}>
+      <Typography variant="body2" color="#64748B" sx={{ width: 150 }}>{label}</Typography>
+      {isImage && previewUrl ? (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Box component="img" src={previewUrl} sx={{ width: 60, height: 40, objectFit: 'cover', borderRadius: 1, border: '1px solid #E2E8F0' }} />
+          <Typography variant="subtitle2" sx={{ color: '#0F172A', fontWeight: 700 }}>{file.name}</Typography>
+        </Box>
+      ) : (
+        <Typography variant="subtitle2" sx={{ color: '#0F172A', fontWeight: 700 }}>{file.name}</Typography>
+      )}
+    </Box>
+  );
+};
+
 const FileUploadDropzone = ({ file, onChange, onRemove, title, labels, accept, maxSize, icon }: any) => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -579,11 +578,18 @@ const FileUploadDropzone = ({ file, onChange, onRemove, title, labels, accept, m
   };
 
   if (file) {
+    const isImage = file.type.startsWith('image/');
+    const previewUrl = isImage ? URL.createObjectURL(file) : null;
+
     return (
       <Box sx={{ p: 2, borderRadius: 2, border: '1px solid #00BCD4', bgcolor: '#E0F7FA', display: 'flex', alignItems: 'center', mb: 3 }}>
-        <Box sx={{ width: 40, height: 40, borderRadius: 2, bgcolor: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#00BCD4', mr: 2 }}>
-          {icon}
-        </Box>
+        {isImage && previewUrl ? (
+          <Box component="img" src={previewUrl} alt="preview" sx={{ width: 48, height: 48, borderRadius: 1, objectFit: 'cover', mr: 2 }} />
+        ) : (
+          <Box sx={{ width: 40, height: 40, borderRadius: 2, bgcolor: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#00BCD4', mr: 2 }}>
+            {icon}
+          </Box>
+        )}
         <Box sx={{ flexGrow: 1 }}>
           <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#0F172A' }}>{title || file.name}</Typography>
