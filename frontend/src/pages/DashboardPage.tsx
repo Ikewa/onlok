@@ -17,6 +17,7 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { useNavigate, Navigate, Link as RouterLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getDashboard } from '../api/dashboard';
+import { initializePayment } from '../api/payment';
 import type { DashboardData } from '../types';
 import toast from 'react-hot-toast';
 import { OnlokBadge } from '../components/OnlokBadge';
@@ -28,7 +29,34 @@ export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [isPaying, setIsPaying] = useState(false);
   const [locationStr, setLocationStr] = useState('Fetching location...');
+
+  const handlePay = async () => {
+    if (!data?.verification || !user) return;
+    setIsPaying(true);
+    try {
+      let amount = 10000;
+      if (data.verification.assigned_tier === 'Silver') amount = 15000;
+      if (data.verification.assigned_tier === 'Gold') amount = 25000;
+      
+      const res = await initializePayment({
+        email: user.email,
+        amount: amount,
+        plan: data.verification.assigned_tier || 'Bronze',
+      });
+      
+      if (res?.data?.authorization_url) {
+        window.location.href = res.data.authorization_url;
+      } else {
+        toast.error('Could not initialize payment.');
+      }
+    } catch (err) {
+      toast.error('Failed to initialize payment.');
+    } finally {
+      setIsPaying(false);
+    }
+  };
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -106,8 +134,8 @@ export default function DashboardPage() {
             severity="info" 
             sx={{ mb: 4, borderRadius: 2, alignItems: 'center' }}
             action={
-              <Button color="inherit" size="small" variant="outlined" onClick={() => navigate('/pricing')}>
-                Pay Now
+              <Button color="inherit" size="small" variant="outlined" disabled={isPaying} onClick={handlePay}>
+                {isPaying ? <CircularProgress size={16} color="inherit" /> : 'Pay Now'}
               </Button>
             }
           >

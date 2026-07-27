@@ -12,6 +12,8 @@ import { useAuth } from '../context/AuthContext';
 import { getMyVerification } from '../api/verifications';
 import type { VerificationRecord } from '../api/verifications';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { initializePayment } from '../api/payment';
+import toast from 'react-hot-toast';
 
 const fmt = (dateStr: string | null | undefined) => {
   if (!dateStr) return '—';
@@ -80,6 +82,33 @@ export default function VerificationPage() {
   const [record, setRecord] = useState<VerificationRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isPaying, setIsPaying] = useState(false);
+
+  const handlePay = async () => {
+    if (!record || !user) return;
+    setIsPaying(true);
+    try {
+      let amount = 10000;
+      if (record.assigned_tier === 'Silver') amount = 15000;
+      if (record.assigned_tier === 'Gold') amount = 25000;
+      
+      const res = await initializePayment({
+        email: user.email,
+        amount: amount,
+        plan: record.assigned_tier || 'Bronze',
+      });
+      
+      if (res?.data?.authorization_url) {
+        window.location.href = res.data.authorization_url;
+      } else {
+        toast.error('Could not initialize payment.');
+      }
+    } catch (err) {
+      toast.error('Failed to initialize payment.');
+    } finally {
+      setIsPaying(false);
+    }
+  };
 
   useEffect(() => {
     if (mockStatus) {
@@ -275,8 +304,8 @@ export default function VerificationPage() {
                   <Typography sx={{ color: '#1E40AF', fontSize: '0.9rem', maxWidth: 600, mb: 2 }}>
                     Your documents have been reviewed and you have been approved for a tier. Please complete your subscription payment to finalize the verification process.
                   </Typography>
-                  <Button variant="contained" onClick={() => navigate('/dashboard/pricing')} sx={{ bgcolor: '#2563EB', '&:hover': { bgcolor: '#1D4ED8' }, textTransform: 'none', borderRadius: 2 }}>
-                    Proceed to Payment
+                  <Button variant="contained" disabled={isPaying} onClick={handlePay} sx={{ bgcolor: '#2563EB', '&:hover': { bgcolor: '#1D4ED8' }, textTransform: 'none', borderRadius: 2 }}>
+                    {isPaying ? <CircularProgress size={24} color="inherit" /> : 'Proceed to Payment'}
                   </Button>
                 </Box>
               </Box>

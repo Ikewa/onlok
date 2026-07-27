@@ -67,10 +67,9 @@ export default function CheckoutPage() {
       <Box sx={{ bgcolor: '#fff', px: { xs: 2.5, md: 6 }, py: 1.8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #F1F5F9' }}>
         <OnlokLogo />
         <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', gap: 4 }}>
-          {['Home', 'Security', 'Pricing', 'About'].map((link) => (
-            <Typography key={link} component={RouterLink} to="#" sx={{ fontWeight: link === 'Pricing' ? 700 : 500, fontSize: '0.9rem', color: link === 'Pricing' ? '#1A1FE8' : '#64748B', textDecoration: 'none', position: 'relative', '&:hover': { color: '#0F172A' } }}>
+          {['Home', 'Security', 'About'].map((link) => (
+            <Typography key={link} component={RouterLink} to="#" sx={{ fontWeight: 500, fontSize: '0.9rem', color: '#64748B', textDecoration: 'none', '&:hover': { color: '#0F172A' } }}>
               {link}
-              {link === 'Pricing' && <Box sx={{ position: 'absolute', bottom: -6, left: 0, right: 0, height: 2, bgcolor: '#1A1FE8', borderRadius: 1 }} />}
             </Typography>
           ))}
         </Box>
