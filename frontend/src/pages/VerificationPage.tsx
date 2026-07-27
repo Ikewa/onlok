@@ -31,6 +31,7 @@ function buildTimeline(record: VerificationRecord) {
   const rawSteps = [
     { title: 'Identity Submitted',   date: fmt(submittedAt),                                        done: true },
     { title: 'Document Review',      date: reviewedAt ? fmt(reviewedAt) : 'In progress…',            done: !!reviewedAt },
+    { title: 'Subscription Payment', date: ['payment_received', 'approved'].includes(status) ? fmt(reviewedAt) : 'Awaiting', done: ['payment_received', 'approved'].includes(status) },
     { title: 'Final Approval',       date: status === 'approved' ? fmt(reviewedAt) : 'Awaiting',    done: status === 'approved' },
   ];
 
@@ -251,6 +252,55 @@ export default function VerificationPage() {
                       <Typography sx={{ color: '#A16207', fontSize: '0.9rem' }}>{record.admin_notes}</Typography>
                     </Box>
                   )}
+                </Box>
+              </Box>
+            )}
+
+            {/* Status Banner – Tier Assigned (Awaiting Payment) */}
+            {record.status === 'tier_assigned' && (
+              <Box sx={{
+                border: '1px solid #93C5FD', bgcolor: '#EFF6FF', borderRadius: 3, p: 3,
+                display: 'flex', alignItems: 'flex-start', mb: 4, gap: 2,
+              }}>
+                <Box sx={{
+                  width: 48, height: 48, borderRadius: '50%', bgcolor: '#DBEAFE',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                }}>
+                  <InfoOutlinedIcon sx={{ color: '#2563EB' }} />
+                </Box>
+                <Box sx={{ flexGrow: 1 }}>
+                  <Typography sx={{ fontWeight: 700, fontSize: '1.1rem', color: '#1E3A8A', mb: 0.5 }}>
+                    Subscription Payment Required
+                  </Typography>
+                  <Typography sx={{ color: '#1E40AF', fontSize: '0.9rem', maxWidth: 600, mb: 2 }}>
+                    Your documents have been reviewed and you have been approved for a tier. Please complete your subscription payment to finalize the verification process.
+                  </Typography>
+                  <Button variant="contained" onClick={() => navigate('/dashboard/pricing')} sx={{ bgcolor: '#2563EB', '&:hover': { bgcolor: '#1D4ED8' }, textTransform: 'none', borderRadius: 2 }}>
+                    Proceed to Payment
+                  </Button>
+                </Box>
+              </Box>
+            )}
+
+            {/* Status Banner – Payment Received */}
+            {record.status === 'payment_received' && (
+              <Box sx={{
+                border: '1px solid #86EFAC', bgcolor: '#F0FDF4', borderRadius: 3, p: 3,
+                display: 'flex', alignItems: 'flex-start', mb: 4, gap: 2,
+              }}>
+                <Box sx={{
+                  width: 48, height: 48, borderRadius: '50%', bgcolor: '#DCFCE7',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                }}>
+                  <CheckCircleIcon sx={{ color: '#16A34A' }} />
+                </Box>
+                <Box sx={{ flexGrow: 1 }}>
+                  <Typography sx={{ fontWeight: 700, fontSize: '1.1rem', color: '#14532D', mb: 0.5 }}>
+                    Payment Received
+                  </Typography>
+                  <Typography sx={{ color: '#166534', fontSize: '0.9rem', maxWidth: 600 }}>
+                    We have received your payment. An admin will finalize your verification shortly.
+                  </Typography>
                 </Box>
               </Box>
             )}
