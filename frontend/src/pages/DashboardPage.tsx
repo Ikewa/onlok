@@ -49,10 +49,11 @@ export default function DashboardPage() {
       if (res?.data?.authorization_url) {
         window.location.href = res.data.authorization_url;
       } else {
-        toast.error('Could not initialize payment.');
+        toast.error(res?.error || 'Could not initialize payment.');
       }
-    } catch (err) {
-      toast.error('Failed to initialize payment.');
+    } catch (err: any) {
+      const errorMsg = err.response?.data?.error || 'Failed to initialize payment.';
+      toast.error(errorMsg);
     } finally {
       setIsPaying(false);
     }

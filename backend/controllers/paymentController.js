@@ -40,7 +40,8 @@ const initializePayment = async (req, res) => {
         });
     } catch (error) {
         console.error('Initialize Payment Error:', error.response?.data || error.message);
-        res.status(500).json({ message: 'Failed to initialize payment' });
+        const errorMsg = error.response?.data?.message || error.message || 'Failed to initialize payment';
+        res.status(500).json({ message: 'Failed to initialize payment', error: errorMsg, details: error.response?.data });
     }
 };
 
