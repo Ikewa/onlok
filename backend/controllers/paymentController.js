@@ -2,13 +2,13 @@ const axios = require('axios');
 const crypto = require('crypto');
 const pool = require('../config/db');
 
-const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
 
 // Initialize a payment session
 const initializePayment = async (req, res) => {
     try {
         const { email, amount, plan, referrerId } = req.body; 
         const userId = req.user.id;
+        const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
 
         // amount in kobo
         const amountInKobo = amount * 100;
@@ -23,7 +23,7 @@ const initializePayment = async (req, res) => {
                     plan: plan || 'Premium',
                     referrer_id: referrerId
                 },
-                callback_url: `${process.env.CORS_ORIGIN}/payment-success` 
+                callback_url: `${process.env.CORS_ORIGIN || 'https://onlok.net'}/payment-success` 
             },
             {
                 headers: {
@@ -48,6 +48,7 @@ const initializePayment = async (req, res) => {
 const verifyPayment = async (req, res) => {
     try {
         const { reference } = req.params;
+        const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
 
         const response = await axios.get(
             `https://api.paystack.co/transaction/verify/${reference}`,
@@ -73,6 +74,7 @@ const verifyPayment = async (req, res) => {
 // Webhook handler
 const paystackWebhook = async (req, res) => {
     try {
+        const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
         const hash = crypto.createHmac('sha512', PAYSTACK_SECRET).update(JSON.stringify(req.body)).digest('hex');
         if (hash === req.headers['x-paystack-signature']) {
             const event = req.body;
