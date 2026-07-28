@@ -56,6 +56,7 @@ const dashboardRoutes = require('./routes/dashboardRoute');
 const reportRoutes = require('./routes/reportRoute');
 const adminRoutes = require('./routes/adminRoute');
 const withdrawalRoutes = require('./routes/withdrawalRoute');
+const premblyRoutes = require('./routes/premblyRoute');
 const paymentRoutes = require('./routes/paymentRoute');
 const identityRoutes = require('./routes/identityRoute');
 
@@ -65,6 +66,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/withdrawals', withdrawalRoutes);
+app.use('/api/admin/prembly', premblyRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/identities', identityRoutes);
 

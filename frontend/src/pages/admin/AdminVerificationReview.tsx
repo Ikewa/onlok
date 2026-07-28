@@ -9,6 +9,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { getVerificationDetails, updateVerificationStatus, type AdminVerification } from '../../api/admin';
 import { MenuItem, Select } from '@mui/material';
 import toast from 'react-hot-toast';
+import axios from 'axios';
 
 export default function AdminVerificationReview() {
   const navigate = useNavigate();
@@ -18,6 +19,12 @@ export default function AdminVerificationReview() {
   const [notes, setNotes] = useState('');
   const [selectedTier, setSelectedTier] = useState('Silver');
   const [actionLoading, setActionLoading] = useState(false);
+
+  // Prembly Search State
+  const [searchType, setSearchType] = useState('nin');
+  const [searchValue, setSearchValue] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchResult, setSearchResult] = useState<any>(null);
 
   useEffect(() => {
     const fetchDetails = async () => {
@@ -45,6 +52,28 @@ export default function AdminVerificationReview() {
       toast.error('Failed to update status');
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  const handlePremblySearch = async () => {
+    if (!searchValue.trim()) return toast.error('Please enter a value to search');
+    
+    setIsSearching(true);
+    setSearchResult(null);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.post(
+        `/api/admin/prembly/${searchType}`,
+        { [searchType]: searchValue },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setSearchResult(res.data);
+      toast.success('Search successful');
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Search failed');
+      setSearchResult({ error: error.response?.data || error.message });
+    } finally {
+      setIsSearching(false);
     }
   };
 
@@ -215,6 +244,52 @@ export default function AdminVerificationReview() {
                 </Button>
               </Box>
             </Box>
+          </Paper>
+
+          {/* Prembly Search Section */}
+          <Paper elevation={0} sx={{ p: 3, borderRadius: '12px', border: '1px solid #E5E7EB', bgcolor: '#FFFFFF', mt: 3 }}>
+            <Typography variant="subtitle1" fontWeight={600} color="#111827" mb={2.5} sx={{ fontSize: '1.05rem' }}>
+              Identity Search (Prembly)
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
+              <TextField
+                select
+                size="small"
+                value={searchType}
+                onChange={(e) => setSearchType(e.target.value)}
+                sx={{ width: 120 }}
+              >
+                <MenuItem value="nin">NIN</MenuItem>
+                <MenuItem value="vnin">VNIN</MenuItem>
+                <MenuItem value="cac">CAC</MenuItem>
+              </TextField>
+              <TextField
+                size="small"
+                fullWidth
+                placeholder={`Enter ${searchType.toUpperCase()}`}
+                value={searchValue}
+                onChange={(e) => setSearchValue(e.target.value)}
+              />
+              <Button 
+                variant="contained" 
+                onClick={handlePremblySearch}
+                disabled={isSearching}
+                sx={{ bgcolor: '#111827', color: '#fff', '&:hover': { bgcolor: '#1f2937' }, textTransform: 'none' }}
+              >
+                {isSearching ? <CircularProgress size={20} color="inherit" /> : 'Search'}
+              </Button>
+            </Box>
+
+            {searchResult && (
+              <Box sx={{ p: 2, bgcolor: '#F9FAFB', borderRadius: '8px', border: '1px solid #E5E7EB', overflowX: 'auto' }}>
+                <Typography variant="caption" fontWeight={600} color="#6B7280" display="block" mb={1}>
+                  Search Results
+                </Typography>
+                <pre style={{ fontSize: '0.8rem', color: '#374151', margin: 0 }}>
+                  {JSON.stringify(searchResult, null, 2)}
+                </pre>
+              </Box>
+            )}
           </Paper>
 
         </Grid>
