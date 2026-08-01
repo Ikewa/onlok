@@ -314,10 +314,12 @@ export default function AdminVerificationReview() {
                     </Box>
                     
                     {/* Body */}
-                    {searchResult.data && (
+                    {searchResult.data && (() => {
+                      const displayData = Array.isArray(searchResult.data) ? searchResult.data[0] : searchResult.data;
+                      return (
                       <Box sx={{ p: 3 }}>
                         <Grid container spacing={4}>
-                          {searchResult.data.photo && (
+                          {displayData.photo && (
                             <Grid item xs={12} sm={4} md={3} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                               <Box sx={{ 
                                 width: 140, height: 140, borderRadius: '50%', overflow: 'hidden', 
@@ -325,7 +327,7 @@ export default function AdminVerificationReview() {
                               }}>
                                 <Box 
                                   component="img" 
-                                  src={searchResult.data.photo.startsWith('data:') ? searchResult.data.photo : `data:image/jpeg;base64,${searchResult.data.photo}`}
+                                  src={displayData.photo.startsWith('data:') ? displayData.photo : `data:image/jpeg;base64,${displayData.photo}`}
                                   sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
                                 />
                               </Box>
@@ -334,24 +336,24 @@ export default function AdminVerificationReview() {
                               </Typography>
                             </Grid>
                           )}
-                          <Grid item xs={12} sm={searchResult.data.photo ? 8 : 12} md={searchResult.data.photo ? 9 : 12}>
+                          <Grid item xs={12} sm={displayData.photo ? 8 : 12} md={displayData.photo ? 9 : 12}>
                             
                             {/* Primary Info Highlights */}
                             <Box sx={{ mb: 4 }}>
                               <Typography variant="h4" fontWeight={800} color="#0F172A" sx={{ mb: 0.5, textTransform: 'uppercase', letterSpacing: '-0.5px' }}>
-                                {searchResult.data.firstname} {searchResult.data.middlename} {searchResult.data.surname}
-                                {!searchResult.data.firstname && searchResult.data.company_name}
+                                {displayData.firstname} {displayData.middlename} {displayData.surname}
+                                {!displayData.firstname && displayData.company_name}
                               </Typography>
                               <Typography variant="subtitle1" color="#64748B" fontWeight={500} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                {searchResult.data.nin && `NIN: ${searchResult.data.nin}`}
-                                {searchResult.data.vnin && `VNIN: ${searchResult.data.vnin}`}
-                                {searchResult.data.rc_number && `RC Number: ${searchResult.data.rc_number}`}
+                                {displayData.nin && `NIN: ${displayData.nin}`}
+                                {displayData.vnin && `VNIN: ${displayData.vnin}`}
+                                {displayData.rc_number && `RC Number: ${displayData.rc_number}`}
                               </Typography>
                             </Box>
 
                             {/* Detailed Grid */}
                             <Grid container spacing={3}>
-                              {Object.entries(searchResult.data).map(([key, value]) => {
+                              {Object.entries(displayData).map(([key, value]) => {
                                 if (key === 'photo' || !value || ['firstname', 'surname', 'middlename', 'nin', 'vnin', 'company_name', 'rc_number'].includes(key)) return null;
                                 return (
                                   <Grid item xs={6} sm={4} key={key}>
@@ -360,7 +362,7 @@ export default function AdminVerificationReview() {
                                         {key.replace(/_/g, ' ')}
                                       </Typography>
                                       <Typography variant="body2" fontWeight={700} color="#1E293B" sx={{ wordBreak: 'break-word', fontSize: '0.9rem' }}>
-                                        {String(value)}
+                                        {typeof value === 'object' ? JSON.stringify(value) : String(value)}
                                       </Typography>
                                     </Box>
                                   </Grid>
@@ -371,7 +373,8 @@ export default function AdminVerificationReview() {
                           </Grid>
                         </Grid>
                       </Box>
-                    )}
+                      );
+                    })()}
                   </Box>
                 )}
               </Box>
