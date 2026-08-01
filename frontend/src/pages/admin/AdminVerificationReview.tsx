@@ -23,6 +23,11 @@ export default function AdminVerificationReview() {
   // Prembly Search State
   const [searchType, setSearchType] = useState('nin');
   const [searchValue, setSearchValue] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [dob, setDob] = useState('');
+  const [passportNin, setPassportNin] = useState('');
+  
   const [isSearching, setIsSearching] = useState(false);
   const [searchResult, setSearchResult] = useState<any>(null);
 
@@ -56,12 +61,23 @@ export default function AdminVerificationReview() {
   };
 
   const handlePremblySearch = async () => {
-    if (!searchValue.trim()) return toast.error('Please enter a value to search');
-    
+    if (!searchValue.trim()) return;
+
+    let payload: any = {};
+    payload[searchType] = searchValue;
+
+    if (searchType === 'drivers_license') {
+      payload.first_name = firstName;
+      payload.last_name = lastName;
+    } else if (searchType === 'passport') {
+      payload.dob = dob;
+      payload.nin = passportNin;
+    }
+
     setIsSearching(true);
     setSearchResult(null);
     try {
-      const { data } = await api.post(`/admin/prembly/${searchType}`, { [searchType]: searchValue });
+      const { data } = await api.post(`/admin/prembly/${searchType}`, payload);
       setSearchResult(data);
       toast.success('Search successful');
     } catch (error: any) {
@@ -260,13 +276,69 @@ export default function AdminVerificationReview() {
                 <MenuItem value="drivers_license">Driver's License</MenuItem>
                 <MenuItem value="passport">Passport</MenuItem>
               </TextField>
-              <TextField
-                size="small"
-                fullWidth
-                placeholder={`Enter ${searchType.toUpperCase()}`}
-                value={searchValue}
-                onChange={(e) => setSearchValue(e.target.value)}
-              />
+              <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <TextField
+                  size="small"
+                  fullWidth
+                  placeholder={
+                    searchType === 'nin' ? "Enter NIN (e.g. 12345678901)" :
+                    searchType === 'vnin' ? "Enter VNIN" : 
+                    searchType === 'cac' ? "Enter RC Number (e.g. 123456)" :
+                    searchType === 'drivers_license' ? "Enter License Number" :
+                    "Enter Passport Number"
+                  }
+                  value={searchValue}
+                  onChange={(e) => setSearchValue(e.target.value)}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 6,
+                      backgroundColor: '#FFFFFF',
+                    }
+                  }}
+                />
+                
+                {searchType === 'drivers_license' && (
+                  <Box sx={{ display: 'flex', gap: 2 }}>
+                    <TextField
+                      size="small"
+                      fullWidth
+                      placeholder="First Name"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 6, backgroundColor: '#FFFFFF' } }}
+                    />
+                    <TextField
+                      size="small"
+                      fullWidth
+                      placeholder="Last Name"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 6, backgroundColor: '#FFFFFF' } }}
+                    />
+                  </Box>
+                )}
+
+                {searchType === 'passport' && (
+                  <Box sx={{ display: 'flex', gap: 2 }}>
+                    <TextField
+                      size="small"
+                      fullWidth
+                      placeholder="NIN (11 digits)"
+                      value={passportNin}
+                      onChange={(e) => setPassportNin(e.target.value)}
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 6, backgroundColor: '#FFFFFF' } }}
+                    />
+                    <TextField
+                      size="small"
+                      fullWidth
+                      type="date"
+                      value={dob}
+                      onChange={(e) => setDob(e.target.value)}
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 6, backgroundColor: '#FFFFFF' } }}
+                    />
+                  </Box>
+                )}
+              </Box>
               <Button 
                 variant="contained" 
                 onClick={handlePremblySearch}
