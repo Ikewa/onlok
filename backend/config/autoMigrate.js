@@ -228,6 +228,28 @@ async function createTables() {
         )
     `);
 
+    // Subscriptions
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS subscriptions (
+            id                          INT AUTO_INCREMENT PRIMARY KEY,
+            user_id                     INT NOT NULL,
+            tier                        VARCHAR(50) NOT NULL DEFAULT 'bronze',
+            plan_name                   VARCHAR(100) NOT NULL,
+            billing_cycle               ENUM('monthly','annually') NOT NULL DEFAULT 'annually',
+            amount                      DECIMAL(10,2) NOT NULL,
+            status                      ENUM('active','non-renewing','attention','completed','cancelled') DEFAULT 'active',
+            paystack_subscription_code VARCHAR(100) NULL,
+            paystack_plan_code         VARCHAR(100) NULL,
+            paystack_email_token        VARCHAR(100) NULL,
+            paystack_customer_code     VARCHAR(100) NULL,
+            paystack_authorization_code VARCHAR(100) NULL,
+            next_payment_date           DATETIME NULL,
+            created_at                  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at                  TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+    `);
+
     console.log('✅ [AutoMigrate] All tables verified / created.');
 }
 
@@ -272,6 +294,9 @@ const COLUMN_MIGRATIONS = [
     { table: 'users', column: 'account_number',          definition: 'VARCHAR(50) NULL' },
     { table: 'users', column: 'account_name',            definition: 'VARCHAR(255) NULL' },
     { table: 'users', column: 'paystack_recipient_code', definition: 'VARCHAR(100) NULL' },
+    { table: 'users', column: 'badge_type',              definition: 'VARCHAR(50) NULL AFTER status' },
+    { table: 'users', column: 'active_subscription_id',  definition: 'INT NULL' },
+    { table: 'users', column: 'subscription_expires_at', definition: 'DATETIME NULL' },
     { table: 'reports', column: 'assigned_to', definition: 'VARCHAR(255) NULL AFTER priority' },
     // Password reset fields
     { table: 'users', column: 'reset_password_token', definition: 'VARCHAR(255) NULL AFTER updated_at' },
@@ -292,6 +317,11 @@ async function addMissingColumns() {
     }
     try {
         await pool.query(`ALTER TABLE withdrawals MODIFY COLUMN status ENUM('pending','processing','paid','failed','rejected','reversed') DEFAULT 'pending'`);
+    } catch (err) {
+        // ignore if not needed
+    }
+    try {
+        await pool.query(`ALTER TABLE badges MODIFY COLUMN badge_type VARCHAR(50) NOT NULL DEFAULT 'bronze'`);
     } catch (err) {
         // ignore if not needed
     }

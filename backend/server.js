@@ -59,6 +59,7 @@ const withdrawalRoutes = require('./routes/withdrawalRoute');
 const premblyRoutes = require('./routes/premblyRoute');
 const paymentRoutes = require('./routes/paymentRoute');
 const identityRoutes = require('./routes/identityRoute');
+const subscriptionRoutes = require('./routes/subscriptionRoute');
 
 app.use('/api/users', userRoutes);
 app.use('/api/verifications', verificationRoutes);
@@ -69,6 +70,7 @@ app.use('/api/withdrawals', withdrawalRoutes);
 app.use('/api/admin/prembly', premblyRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/identities', identityRoutes);
+app.use('/api/subscriptions', subscriptionRoutes);
 
 // Test Route
 app.get('/api/health', (req, res) => {
