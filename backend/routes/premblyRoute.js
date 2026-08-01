@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const axios = require('axios');
-const { protect, admin } = require('../middlewares/authMiddleware');
+const { protect, adminOnly } = require('../middlewares/authMiddleware');
 
 const PREMBLY_BASE_URL = 'https://api.prembly.com';
 
@@ -29,7 +29,7 @@ const premblyRequest = async (endpoint, data) => {
 // @desc    Verify NIN
 // @route   POST /api/admin/prembly/nin
 // @access  Private/Admin
-router.post('/nin', protect, admin, async (req, res) => {
+router.post('/nin', protect, adminOnly, async (req, res) => {
     try {
         const { nin } = req.body;
         if (!nin) return res.status(400).json({ message: 'NIN is required' });
@@ -45,7 +45,7 @@ router.post('/nin', protect, admin, async (req, res) => {
 // @desc    Verify CAC
 // @route   POST /api/admin/prembly/cac
 // @access  Private/Admin
-router.post('/cac', protect, admin, async (req, res) => {
+router.post('/cac', protect, adminOnly, async (req, res) => {
     try {
         const { cac } = req.body;
         if (!cac) return res.status(400).json({ message: 'CAC (RC Number) is required' });
@@ -61,7 +61,7 @@ router.post('/cac', protect, admin, async (req, res) => {
 // @desc    Verify VNIN
 // @route   POST /api/admin/prembly/vnin
 // @access  Private/Admin
-router.post('/vnin', protect, admin, async (req, res) => {
+router.post('/vnin', protect, adminOnly, async (req, res) => {
     try {
         const { vnin } = req.body;
         if (!vnin) return res.status(400).json({ message: 'VNIN is required' });
