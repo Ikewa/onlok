@@ -62,6 +62,31 @@ const verifyPayment = async (req, res) => {
 
         const data = response.data.data;
         if (data.status === 'success') {
+            const userId = data.metadata?.user_id;
+            const plan = data.metadata?.plan;
+            const referrerId = data.metadata?.referrer_id;
+            const amount = data.amount;
+            
+            if (userId) {
+                // Check if already paid to prevent duplicate commission
+                const [rows] = await pool.query(`SELECT payment_status FROM verifications WHERE user_id = ?`, [userId]);
+                if (rows.length > 0 && rows[0].payment_status !== 'paid') {
+                    await pool.query(
+                        `UPDATE verifications SET payment_status = 'paid', status = 'payment_received' WHERE user_id = ? AND status = 'tier_assigned'`,
+                        [userId]
+                    );
+
+                    if (referrerId) {
+                        const commission = (amount / 100) * 0.10; // 10% commission for referrals
+                        await pool.query(
+                            `INSERT INTO referrals (referrer_id, referred_user_id, subscription_plan, amount_paid, commission_earned, status)
+                             VALUES (?, ?, ?, ?, ?, 'available')`,
+                            [referrerId, userId, plan, amount / 100, commission]
+                        );
+                    }
+                }
+            }
+
             res.status(200).json({ status: true, message: 'Payment successful', data });
         } else {
             res.status(400).json({ status: false, message: 'Payment not successful', data });

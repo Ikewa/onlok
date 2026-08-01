@@ -131,7 +131,7 @@ const getVerificationDetails = async (req, res) => {
     try {
         const { id } = req.params;
         const query = `
-            SELECT v.id as verification_id, v.gov_id_url, v.cac_document_url as cac_url, v.video_url,
+            SELECT v.id as verification_id, v.gov_id_url, v.cac_url, v.video_url,
                    CASE 
                      WHEN v.status = 'flagged' OR u.status = 'suspended' THEN 'flagged'
                      ELSE v.status 

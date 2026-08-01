@@ -1,15 +1,46 @@
 import { Box, Typography, Button, Container, Paper } from '@mui/material';
 import VerifiedIcon from '@mui/icons-material/Verified';
 import DownloadIcon from '@mui/icons-material/Download';
-import { useNavigate, Link as RouterLink } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import { jsPDF } from 'jspdf';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
+import { useEffect, useState } from 'react';
+import axios from 'axios';
 
 export default function PaymentSuccessPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
+  const [verifying, setVerifying] = useState(true);
+  const [verified, setVerified] = useState(false);
+
+  useEffect(() => {
+    const reference = searchParams.get('reference');
+    if (!reference) {
+      setVerifying(false);
+      return;
+    }
+
+    const verifyPayment = async () => {
+      try {
+        await axios.get(`/api/payment/verify/${reference}`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('onlok_token')}`
+          }
+        });
+        setVerified(true);
+      } catch (error) {
+        console.error('Error verifying payment:', error);
+        toast.error('Could not verify payment automatically. Please contact support.');
+      } finally {
+        setVerifying(false);
+      }
+    };
+
+    verifyPayment();
+  }, [searchParams]);
 
   const handleDownloadReceipt = () => {
     try {
@@ -90,11 +121,13 @@ export default function PaymentSuccessPage() {
           </Box>
           
           <Typography sx={{ fontWeight: 900, fontSize: { xs: '1.8rem', md: '2.2rem' }, color: '#000', mb: 1.5 }}>
-            Payment Successful
+            {verifying ? 'Verifying Payment...' : 'Payment Successful'}
           </Typography>
           
           <Typography sx={{ color: '#475569', fontSize: '0.95rem', fontWeight: 500, lineHeight: 1.6, mb: 5, maxWidth: 400, mx: 'auto' }}>
-            Your Transaction Was Completed Successfully, Thank You For Your Purchase.
+            {verifying 
+              ? 'Please wait while we confirm your transaction...' 
+              : 'Your Transaction Was Completed Successfully. Thank You For Your Purchase.'}
           </Typography>
 
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
