@@ -1,6 +1,8 @@
 const pool = require('../config/db');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
+const paystackService = require('../utils/paystackService');
 const { generateVendorId } = require('../utils/generateId');
 const { generateQRCode } = require('../utils/qrCodeGenerator');
 const { sendEmail } = require('../utils/emailService');
@@ -711,7 +713,298 @@ const getWithdrawalsAdmin = async (req, res) => {
     }
 };
 
-// @desc    Update withdrawal status
+// Helper to ensure a withdrawal record has a Paystack recipient_code
+async function ensureRecipientCode(withdrawal) {
+    if (withdrawal.recipient_code) {
+        return withdrawal.recipient_code;
+    }
+    if (withdrawal.account_number && withdrawal.bank_code) {
+        const name = withdrawal.account_name || `${withdrawal.first_name || ''} ${withdrawal.last_name || ''}`.trim() || 'Vendor User';
+        const recipientRes = await paystackService.createTransferRecipient({
+            name,
+            account_number: withdrawal.account_number,
+            bank_code: withdrawal.bank_code,
+            currency: 'NGN'
+        });
+        const recipientCode = recipientRes.data.recipient_code;
+        await pool.query('UPDATE withdrawals SET recipient_code = ? WHERE id = ?', [recipientCode, withdrawal.id]);
+        return recipientCode;
+    }
+    throw new Error(`Withdrawal #${withdrawal.id} does not have valid bank details (account_number or bank_code)`);
+}
+
+// @desc    Approve single withdrawal and trigger Paystack transfer
+// @route   PUT /api/admin/withdrawals/:id/approve
+// @access  Private/Admin
+const approveWithdrawalAdmin = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const [rows] = await pool.query(
+            `SELECT w.*, u.first_name, u.last_name, u.business_name, u.email 
+             FROM withdrawals w 
+             JOIN users u ON w.user_id = u.id 
+             WHERE w.id = ?`,
+            [id]
+        );
+
+        if (rows.length === 0) {
+            return res.status(404).json({ message: 'Withdrawal request not found' });
+        }
+
+        const w = rows[0];
+        if (['paid', 'processing'].includes(w.status?.toLowerCase())) {
+            return res.status(400).json({ message: `Withdrawal #${id} is already in '${w.status}' status.` });
+        }
+
+        let recipientCode;
+        try {
+            recipientCode = await ensureRecipientCode(w);
+        } catch (recErr) {
+            await pool.query('UPDATE withdrawals SET failure_reason = ? WHERE id = ?', [recErr.message, id]);
+            return res.status(400).json({ message: recErr.message });
+        }
+
+        const transferReference = w.transfer_reference || `wd_ref_${w.id}_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
+        if (!w.transfer_reference) {
+            await pool.query('UPDATE withdrawals SET transfer_reference = ? WHERE id = ?', [transferReference, id]);
+        }
+
+        // Call Paystack Transfer API
+        try {
+            const paystackRes = await paystackService.initiateSingleTransfer({
+                amount: parseFloat(w.amount),
+                recipient: recipientCode,
+                reference: transferReference,
+                reason: `Referral Payout #${w.id} - Onlok`
+            });
+
+            const transferCode = paystackRes.data?.transfer_code || null;
+            const paystackStatus = paystackRes.data?.status || 'processing';
+
+            await pool.query(
+                `UPDATE withdrawals 
+                 SET status = 'processing', transfer_code = ?, failure_reason = NULL 
+                 WHERE id = ?`,
+                [transferCode, id]
+            );
+
+            await pool.query(
+                'INSERT INTO audit_logs (user_id, action, severity, details) VALUES (NULL, ?, ?, ?)',
+                ['Approve Withdrawal', 'MEDIUM', `Admin approved withdrawal #${id} (₦${w.amount}) via Paystack. Ref: ${transferReference}`]
+            );
+
+            return res.status(200).json({
+                message: `Withdrawal request approved and Paystack transfer initiated (Status: ${paystackStatus})`,
+                data: paystackRes.data
+            });
+        } catch (paystackErr) {
+            console.error(`Paystack Transfer Error for withdrawal #${id}:`, paystackErr.response?.data || paystackErr.message);
+            const errorMsg = paystackErr.response?.data?.message || paystackErr.message || 'Paystack Transfer API failed';
+            
+            await pool.query(
+                `UPDATE withdrawals SET failure_reason = ? WHERE id = ?`,
+                [errorMsg, id]
+            );
+
+            return res.status(500).json({
+                message: `Failed to initiate Paystack transfer: ${errorMsg}`,
+                details: paystackErr.response?.data
+            });
+        }
+    } catch (error) {
+        console.error('Approve Withdrawal Admin Error:', error);
+        res.status(500).json({ message: 'Server error approving withdrawal request' });
+    }
+};
+
+// @desc    Approve bulk withdrawals and trigger Paystack bulk transfer
+// @route   POST /api/admin/withdrawals/approve-bulk
+// @access  Private/Admin
+const approveBulkWithdrawalsAdmin = async (req, res) => {
+    try {
+        const { ids } = req.body;
+        if (!Array.isArray(ids) || ids.length === 0) {
+            return res.status(400).json({ message: 'No withdrawal IDs provided for bulk approval' });
+        }
+
+        const placeholders = ids.map(() => '?').join(',');
+        const [rows] = await pool.query(
+            `SELECT w.*, u.first_name, u.last_name, u.business_name, u.email 
+             FROM withdrawals w 
+             JOIN users u ON w.user_id = u.id 
+             WHERE w.id IN (${placeholders})`,
+            ids
+        );
+
+        if (rows.length === 0) {
+            return res.status(404).json({ message: 'No matching withdrawal requests found' });
+        }
+
+        const validWithdrawals = [];
+        const errors = [];
+
+        for (const w of rows) {
+            if (['paid', 'processing'].includes(w.status?.toLowerCase())) {
+                errors.push({ id: w.id, message: `Withdrawal #${w.id} is already in '${w.status}' status.` });
+                continue;
+            }
+
+            try {
+                const recipientCode = await ensureRecipientCode(w);
+                const transferReference = w.transfer_reference || `wd_ref_${w.id}_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
+                if (!w.transfer_reference) {
+                    await pool.query('UPDATE withdrawals SET transfer_reference = ? WHERE id = ?', [transferReference, w.id]);
+                }
+                validWithdrawals.push({
+                    ...w,
+                    recipient_code: recipientCode,
+                    transfer_reference: transferReference
+                });
+            } catch (err) {
+                await pool.query('UPDATE withdrawals SET failure_reason = ? WHERE id = ?', [err.message, w.id]);
+                errors.push({ id: w.id, message: err.message });
+            }
+        }
+
+        if (validWithdrawals.length === 0) {
+            return res.status(400).json({
+                message: 'No valid withdrawals could be processed',
+                errors
+            });
+        }
+
+        // Paystack supports batch size <= 100
+        const BATCH_SIZE = 100;
+        let successfulCount = 0;
+        let failedCount = 0;
+
+        for (let i = 0; i < validWithdrawals.length; i += BATCH_SIZE) {
+            const chunk = validWithdrawals.slice(i, i + BATCH_SIZE);
+            const transfersPayload = chunk.map((w) => ({
+                amount: parseFloat(w.amount),
+                recipient: w.recipient_code,
+                reference: w.transfer_reference,
+                reason: `Referral Payout #${w.id} - Onlok`
+            }));
+
+            try {
+                const paystackBulkRes = await paystackService.initiateBulkTransfer(transfersPayload);
+                const results = paystackBulkRes.data || [];
+
+                for (const item of results) {
+                    const matchedWithdrawal = chunk.find((w) => w.transfer_reference === item.reference);
+                    if (matchedWithdrawal) {
+                        if (['pending', 'processing', 'success', 'otp', 'received'].includes(item.status?.toLowerCase())) {
+                            await pool.query(
+                                `UPDATE withdrawals 
+                                 SET status = 'processing', transfer_code = ?, failure_reason = NULL 
+                                 WHERE id = ?`,
+                                [item.transfer_code || null, matchedWithdrawal.id]
+                            );
+                            successfulCount++;
+                        } else {
+                            await pool.query(
+                                `UPDATE withdrawals SET status = 'failed', failure_reason = ? WHERE id = ?`,
+                                [item.message || 'Paystack bulk transfer item failed', matchedWithdrawal.id]
+                            );
+                            failedCount++;
+                            errors.push({ id: matchedWithdrawal.id, message: item.message || 'Bulk transfer item failed' });
+                        }
+                    }
+                }
+            } catch (bulkErr) {
+                console.error('Paystack Bulk Transfer Error:', bulkErr.response?.data || bulkErr.message);
+                const errorMsg = bulkErr.response?.data?.message || bulkErr.message || 'Paystack Bulk Transfer API call failed';
+                for (const item of chunk) {
+                    await pool.query('UPDATE withdrawals SET failure_reason = ? WHERE id = ?', [errorMsg, item.id]);
+                    failedCount++;
+                    errors.push({ id: item.id, message: errorMsg });
+                }
+            }
+
+            // Wait 5 seconds between batches if more remain to comply with Paystack rate limits
+            if (i + BATCH_SIZE < validWithdrawals.length) {
+                await new Promise((res) => setTimeout(res, 5000));
+            }
+        }
+
+        await pool.query(
+            'INSERT INTO audit_logs (user_id, action, severity, details) VALUES (NULL, ?, ?, ?)',
+            ['Bulk Approve Withdrawals', 'HIGH', `Admin bulk approved ${successfulCount} withdrawals via Paystack.`]
+        );
+
+        res.status(200).json({
+            message: `Bulk processing completed: ${successfulCount} initiated, ${failedCount} failed`,
+            successfulCount,
+            failedCount,
+            errors
+        });
+
+    } catch (error) {
+        console.error('Bulk Approve Withdrawals Error:', error);
+        res.status(500).json({ message: 'Server error bulk approving withdrawals' });
+    }
+};
+
+// @desc    Reject single withdrawal
+// @route   PUT /api/admin/withdrawals/:id/reject
+// @access  Private/Admin
+const rejectWithdrawalAdmin = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { reason } = req.body;
+
+        const [rows] = await pool.query('SELECT * FROM withdrawals WHERE id = ?', [id]);
+        if (rows.length === 0) {
+            return res.status(404).json({ message: 'Withdrawal request not found' });
+        }
+
+        await pool.query(
+            'UPDATE withdrawals SET status = "rejected", failure_reason = ? WHERE id = ?',
+            [reason || 'Rejected by admin', id]
+        );
+
+        await pool.query(
+            'INSERT INTO audit_logs (user_id, action, severity, details) VALUES (NULL, ?, ?, ?)',
+            ['Reject Withdrawal', 'MEDIUM', `Admin rejected withdrawal #${id}. Reason: ${reason || 'N/A'}`]
+        );
+
+        res.status(200).json({ message: 'Withdrawal request rejected' });
+    } catch (error) {
+        console.error('Reject Withdrawal Error:', error);
+        res.status(500).json({ message: 'Server error rejecting withdrawal request' });
+    }
+};
+
+// @desc    Reject bulk withdrawals
+// @route   POST /api/admin/withdrawals/reject-bulk
+// @access  Private/Admin
+const rejectBulkWithdrawalsAdmin = async (req, res) => {
+    try {
+        const { ids, reason } = req.body;
+        if (!Array.isArray(ids) || ids.length === 0) {
+            return res.status(400).json({ message: 'No withdrawal IDs provided for bulk rejection' });
+        }
+
+        const placeholders = ids.map(() => '?').join(',');
+        await pool.query(
+            `UPDATE withdrawals SET status = "rejected", failure_reason = ? WHERE id IN (${placeholders})`,
+            [reason || 'Bulk rejected by admin', ...ids]
+        );
+
+        await pool.query(
+            'INSERT INTO audit_logs (user_id, action, severity, details) VALUES (NULL, ?, ?, ?)',
+            ['Bulk Reject Withdrawals', 'MEDIUM', `Admin bulk rejected ${ids.length} withdrawals.`]
+        );
+
+        res.status(200).json({ message: `${ids.length} withdrawal requests rejected` });
+    } catch (error) {
+        console.error('Bulk Reject Withdrawals Error:', error);
+        res.status(500).json({ message: 'Server error bulk rejecting withdrawals' });
+    }
+};
+
+// @desc    Update withdrawal status (legacy / manual override)
 // @route   PUT /api/admin/withdrawals/:id/status
 // @access  Private/Admin
 const updateWithdrawalStatus = async (req, res) => {
@@ -719,16 +1012,15 @@ const updateWithdrawalStatus = async (req, res) => {
         const { id } = req.params;
         const { status } = req.body;
 
-        if (!['processing', 'paid', 'failed'].includes(status)) {
+        if (!['pending', 'processing', 'paid', 'failed', 'rejected', 'reversed'].includes(status)) {
             return res.status(400).json({ message: 'Invalid status' });
         }
 
         await pool.query('UPDATE withdrawals SET status = ? WHERE id = ?', [status, id]);
 
-        // Insert audit log
         await pool.query(
             'INSERT INTO audit_logs (user_id, action, severity, details) VALUES (NULL, ?, ?, ?)',
-            ['Update withdrawal status', 'LOW', `Admin updated withdrawal ${id} to ${status}`]
+            ['Update withdrawal status', 'LOW', `Admin manually updated withdrawal ${id} to ${status}`]
         );
 
         res.status(200).json({ message: 'Withdrawal status updated successfully' });
@@ -781,5 +1073,9 @@ module.exports = {
     getReferralsAdmin,
     getWithdrawalsAdmin,
     updateWithdrawalStatus,
+    approveWithdrawalAdmin,
+    approveBulkWithdrawalsAdmin,
+    rejectWithdrawalAdmin,
+    rejectBulkWithdrawalsAdmin,
     getWebsiteHits
 };

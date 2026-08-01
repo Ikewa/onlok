@@ -82,9 +82,9 @@ const paystackWebhook = async (req, res) => {
 
             if (event.event === 'charge.success') {
                 const { reference, metadata, amount } = event.data;
-                const userId = metadata.user_id;
-                const plan = metadata.plan;
-                const referrerId = metadata.referrer_id;
+                const userId = metadata?.user_id;
+                const plan = metadata?.plan;
+                const referrerId = metadata?.referrer_id;
                 
                 // Process the successful payment
                 // Update verification payment status
@@ -101,8 +101,53 @@ const paystackWebhook = async (req, res) => {
                         [referrerId, userId, plan, amount / 100, commission]
                     );
                 }
+            } else if (event.event === 'transfer.success') {
+                const { reference, transfer_code } = event.data;
+                console.log(`[Paystack Webhook] Transfer successful: Ref: ${reference}, Code: ${transfer_code}`);
+                
+                await pool.query(
+                    `UPDATE withdrawals 
+                     SET status = 'paid', transfer_code = ?, failure_reason = NULL 
+                     WHERE (transfer_reference = ? OR transfer_code = ?) AND status != 'paid'`,
+                    [transfer_code, reference, transfer_code]
+                );
 
-                // We no longer grant the badge automatically here. The admin will do it in final approval.
+                await pool.query(
+                    'INSERT INTO audit_logs (user_id, action, severity, details) VALUES (NULL, ?, ?, ?)',
+                    ['Transfer Success Webhook', 'LOW', `Paystack transfer succeeded. Ref: ${reference}, Code: ${transfer_code}`]
+                );
+            } else if (event.event === 'transfer.failed') {
+                const { reference, transfer_code, reason, gateway_response } = event.data;
+                const failureMsg = reason || gateway_response || 'Paystack transfer failed';
+                console.log(`[Paystack Webhook] Transfer failed: Ref: ${reference}, Reason: ${failureMsg}`);
+
+                await pool.query(
+                    `UPDATE withdrawals 
+                     SET status = 'failed', failure_reason = ? 
+                     WHERE (transfer_reference = ? OR transfer_code = ?) AND status != 'paid'`,
+                    [failureMsg, reference, transfer_code]
+                );
+
+                await pool.query(
+                    'INSERT INTO audit_logs (user_id, action, severity, details) VALUES (NULL, ?, ?, ?)',
+                    ['Transfer Failed Webhook', 'MEDIUM', `Paystack transfer failed. Ref: ${reference}. Reason: ${failureMsg}`]
+                );
+            } else if (event.event === 'transfer.reversed') {
+                const { reference, transfer_code, reason } = event.data;
+                const reversalMsg = reason || 'Paystack transfer reversed';
+                console.log(`[Paystack Webhook] Transfer reversed: Ref: ${reference}`);
+
+                await pool.query(
+                    `UPDATE withdrawals 
+                     SET status = 'reversed', failure_reason = ? 
+                     WHERE (transfer_reference = ? OR transfer_code = ?)`,
+                    [reversalMsg, reference, transfer_code]
+                );
+
+                await pool.query(
+                    'INSERT INTO audit_logs (user_id, action, severity, details) VALUES (NULL, ?, ?, ?)',
+                    ['Transfer Reversed Webhook', 'HIGH', `Paystack transfer reversed. Ref: ${reference}. Reason: ${reversalMsg}`]
+                );
             }
         }
         res.sendStatus(200);

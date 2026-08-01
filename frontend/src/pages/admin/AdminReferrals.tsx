@@ -21,6 +21,7 @@ export default function AdminReferrals() {
 
   const [tabIndex, setTabIndex] = useState<number>(getInitialTab);
   const [loading, setLoading] = useState<boolean>(true);
+  const [actionLoading, setActionLoading] = useState<boolean>(false);
 
   // Overview & Referral Records Data
   const [overviewData, setOverviewData] = useState<any>(null);
@@ -33,10 +34,11 @@ export default function AdminReferrals() {
     totalPages: 1,
   });
 
-  // Withdrawals Data
+  // Withdrawals Data & Selection State
   const [withdrawals, setWithdrawals] = useState<any[]>([]);
   const [withdrawalsSearch, setWithdrawalsSearch] = useState<string>('');
   const [withdrawalsStatusFilter, setWithdrawalsStatusFilter] = useState<string>('all');
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [withdrawalsPagination, setWithdrawalsPagination] = useState({
     page: 1,
     limit: 10,
@@ -117,12 +119,107 @@ export default function AdminReferrals() {
     }
   }, [tabIndex, fetchReferrals, fetchWithdrawals]);
 
+  // Selection handlers
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      const selectable = withdrawals
+        .filter((r) => !['paid', 'processing'].includes(r.status?.toLowerCase()))
+        .map((r) => r.id);
+      setSelectedIds(selectable);
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  const handleSelectOne = (id: number, checked: boolean) => {
+    if (checked) {
+      setSelectedIds((prev) => [...prev, id]);
+    } else {
+      setSelectedIds((prev) => prev.filter((item) => item !== id));
+    }
+  };
+
+  // Single approval / rejection
+  const handleSingleApprove = async (id: number) => {
+    setActionLoading(true);
+    const toastId = toast.loading('Initiating Paystack transfer...');
+    try {
+      const res = await axiosInstance.put(`/admin/withdrawals/${id}/approve`);
+      toast.success(res.data?.message || 'Transfer initiated successfully', { id: toastId });
+      setSelectedIds((prev) => prev.filter((item) => item !== id));
+      fetchWithdrawals();
+      fetchReferrals();
+    } catch (error: any) {
+      console.error(error);
+      const msg = error.response?.data?.message || 'Failed to approve withdrawal';
+      toast.error(msg, { id: toastId });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleSingleReject = async (id: number) => {
+    setActionLoading(true);
+    try {
+      await axiosInstance.put(`/admin/withdrawals/${id}/reject`, { reason: 'Rejected by admin' });
+      toast.success('Withdrawal request rejected');
+      setSelectedIds((prev) => prev.filter((item) => item !== id));
+      fetchWithdrawals();
+      fetchReferrals();
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.response?.data?.message || 'Failed to reject withdrawal');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Bulk approval / rejection
+  const handleBulkApprove = async () => {
+    if (selectedIds.length === 0) return;
+    setActionLoading(true);
+    const toastId = toast.loading(`Initiating Paystack bulk transfer for ${selectedIds.length} items...`);
+    try {
+      const res = await axiosInstance.post('/admin/withdrawals/approve-bulk', { ids: selectedIds });
+      toast.success(res.data?.message || 'Bulk transfers processed', { id: toastId });
+      setSelectedIds([]);
+      fetchWithdrawals();
+      fetchReferrals();
+    } catch (error: any) {
+      console.error(error);
+      const msg = error.response?.data?.message || 'Bulk approval failed';
+      toast.error(msg, { id: toastId });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleBulkReject = async () => {
+    if (selectedIds.length === 0) return;
+    setActionLoading(true);
+    try {
+      const res = await axiosInstance.post('/admin/withdrawals/reject-bulk', {
+        ids: selectedIds,
+        reason: 'Bulk rejected by admin',
+      });
+      toast.success(res.data?.message || 'Bulk rejection completed');
+      setSelectedIds([]);
+      fetchWithdrawals();
+      fetchReferrals();
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.response?.data?.message || 'Bulk rejection failed');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleUpdateWithdrawalStatus = async (id: number, status: string) => {
     try {
       await axiosInstance.put(`/admin/withdrawals/${id}/status`, { status });
       toast.success(`Withdrawal request marked as ${status}`);
       fetchWithdrawals();
-      fetchReferrals(); // Refresh stats
+      fetchReferrals();
     } catch (error) {
       console.error(error);
       toast.error('Failed to update withdrawal status');
@@ -177,6 +274,7 @@ export default function AdminReferrals() {
       {tabIndex === 2 && (
         <WithdrawalsTable
           loading={loading}
+          actionLoading={actionLoading}
           withdrawals={withdrawals}
           search={withdrawalsSearch}
           onSearchChange={(val) => {
@@ -190,6 +288,13 @@ export default function AdminReferrals() {
           }}
           pagination={withdrawalsPagination}
           onPageChange={(newPage) => setWithdrawalsPagination((p) => ({ ...p, page: newPage }))}
+          selectedIds={selectedIds}
+          onSelectAll={handleSelectAll}
+          onSelectOne={handleSelectOne}
+          onBulkApprove={handleBulkApprove}
+          onBulkReject={handleBulkReject}
+          onSingleApprove={handleSingleApprove}
+          onSingleReject={handleSingleReject}
           onUpdateStatus={handleUpdateWithdrawalStatus}
           formatCurrency={formatCurrency}
         />

@@ -13,6 +13,10 @@ const {
     getReferralsAdmin,
     getWithdrawalsAdmin,
     updateWithdrawalStatus,
+    approveWithdrawalAdmin,
+    approveBulkWithdrawalsAdmin,
+    rejectWithdrawalAdmin,
+    rejectBulkWithdrawalsAdmin,
     getWebsiteHits
 } = require('../controllers/adminController');
 const { protect, adminOnly } = require('../middlewares/authMiddleware');
@@ -44,6 +48,10 @@ router.put('/settings', updateSettings);
 // Referrals & Withdrawals
 router.get('/referrals', getReferralsAdmin);
 router.get('/withdrawals', getWithdrawalsAdmin);
+router.post('/withdrawals/approve-bulk', approveBulkWithdrawalsAdmin);
+router.post('/withdrawals/reject-bulk', rejectBulkWithdrawalsAdmin);
+router.put('/withdrawals/:id/approve', approveWithdrawalAdmin);
+router.put('/withdrawals/:id/reject', rejectWithdrawalAdmin);
 router.put('/withdrawals/:id/status', updateWithdrawalStatus);
 
 module.exports = router;

@@ -183,13 +183,22 @@ async function createTables() {
     // Withdrawals
     await pool.query(`
         CREATE TABLE IF NOT EXISTS withdrawals (
-            id              INT AUTO_INCREMENT PRIMARY KEY,
-            user_id         INT NOT NULL,
-            amount          DECIMAL(10,2) NOT NULL,
-            status          ENUM('processing','paid','failed') DEFAULT 'processing',
-            payment_method  VARCHAR(255) NULL,
-            created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            id                  INT AUTO_INCREMENT PRIMARY KEY,
+            user_id             INT NOT NULL,
+            amount              DECIMAL(10,2) NOT NULL,
+            status              ENUM('pending','processing','paid','failed','rejected','reversed') DEFAULT 'pending',
+            payment_method      VARCHAR(255) NULL,
+            account_details     VARCHAR(255) NULL,
+            bank_code           VARCHAR(50) NULL,
+            bank_name           VARCHAR(255) NULL,
+            account_number      VARCHAR(50) NULL,
+            account_name        VARCHAR(255) NULL,
+            recipient_code      VARCHAR(100) NULL,
+            transfer_code       VARCHAR(100) NULL,
+            transfer_reference  VARCHAR(100) UNIQUE NULL,
+            failure_reason      TEXT NULL,
+            created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         )
     `);
@@ -241,8 +250,6 @@ const COLUMN_MIGRATIONS = [
     { table: 'verifications', column: 'flagged',     definition: "ENUM('pending','tier_assigned','payment_received','approved','rejected','flagged') NULL AFTER admin_notes" },
 
     // ── ADD NEW COLUMNS BELOW THIS LINE ──────────────────────────
-    // Example:
-    // { table: 'users', column: 'bio', definition: 'TEXT NULL AFTER tiktok_handle' },
     { table: 'users', column: 'referred_by', definition: 'INT NULL AFTER vendor_id' },
     // Update referrals status enum
     { table: 'referrals', column: 'status', definition: "ENUM('pending','available','processing','paid','withdrawn','cancelled','reversed') DEFAULT 'pending' AFTER commission_earned" },
@@ -251,6 +258,20 @@ const COLUMN_MIGRATIONS = [
     { table: 'users', column: 'profile_picture_url', definition: 'VARCHAR(500) NULL AFTER tiktok_handle' },
     // Withdrawals enhancements
     { table: 'withdrawals', column: 'account_details', definition: 'VARCHAR(255) NULL AFTER payment_method' },
+    { table: 'withdrawals', column: 'bank_code',          definition: 'VARCHAR(50) NULL AFTER payment_method' },
+    { table: 'withdrawals', column: 'bank_name',          definition: 'VARCHAR(255) NULL AFTER bank_code' },
+    { table: 'withdrawals', column: 'account_number',     definition: 'VARCHAR(50) NULL AFTER bank_name' },
+    { table: 'withdrawals', column: 'account_name',       definition: 'VARCHAR(255) NULL AFTER account_number' },
+    { table: 'withdrawals', column: 'recipient_code',     definition: 'VARCHAR(100) NULL AFTER account_name' },
+    { table: 'withdrawals', column: 'transfer_code',      definition: 'VARCHAR(100) NULL AFTER recipient_code' },
+    { table: 'withdrawals', column: 'transfer_reference', definition: 'VARCHAR(100) NULL AFTER transfer_code' },
+    { table: 'withdrawals', column: 'failure_reason',     definition: 'TEXT NULL AFTER transfer_reference' },
+    // Saved bank details for users
+    { table: 'users', column: 'bank_code',               definition: 'VARCHAR(50) NULL' },
+    { table: 'users', column: 'bank_name',               definition: 'VARCHAR(255) NULL' },
+    { table: 'users', column: 'account_number',          definition: 'VARCHAR(50) NULL' },
+    { table: 'users', column: 'account_name',            definition: 'VARCHAR(255) NULL' },
+    { table: 'users', column: 'paystack_recipient_code', definition: 'VARCHAR(100) NULL' },
     { table: 'reports', column: 'assigned_to', definition: 'VARCHAR(255) NULL AFTER priority' },
     // Password reset fields
     { table: 'users', column: 'reset_password_token', definition: 'VARCHAR(255) NULL AFTER updated_at' },
@@ -268,6 +289,11 @@ async function addMissingColumns() {
                 console.warn(`⚠️  [AutoMigrate] ${table}.${column}: ${err.message}`);
             }
         }
+    }
+    try {
+        await pool.query(`ALTER TABLE withdrawals MODIFY COLUMN status ENUM('pending','processing','paid','failed','rejected','reversed') DEFAULT 'pending'`);
+    } catch (err) {
+        // ignore if not needed
     }
 }
 
