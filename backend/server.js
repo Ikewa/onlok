@@ -83,7 +83,12 @@ app.use(express.static(frontendDistPath));
 // THE FIX: Using native RegExp /.*/ instead of '*' string
 // ==========================================
 app.get(/.*/, (req, res) => {
-    res.sendFile(path.join(frontendDistPath, 'index.html'));
+    res.sendFile('index.html', { root: frontendDistPath }, (err) => {
+        if (err) {
+            console.error('Error sending index.html:', err);
+            res.status(500).send('Frontend not found on server.');
+        }
+    });
 });
 
 // Auto-migrate: create tables, add missing columns, seed admin
