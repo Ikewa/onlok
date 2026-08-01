@@ -82,10 +82,14 @@ router.post('/vnin', protect, adminOnly, async (req, res) => {
 // @access  Private/Admin
 router.post('/drivers_license', protect, adminOnly, async (req, res) => {
     try {
-        const { drivers_license } = req.body;
+        const { drivers_license, first_name, last_name } = req.body;
         if (!drivers_license) return res.status(400).json({ message: "Driver's License is required" });
 
-        const data = await premblyRequest('/identitypass/verification/drivers_license', { number: drivers_license });
+        const payload = { number: drivers_license };
+        if (first_name) payload.first_name = first_name;
+        if (last_name) payload.last_name = last_name;
+
+        const data = await premblyRequest('/identitypass/verification/drivers_license', payload);
         res.json(data);
     } catch (error) {
         console.error('Prembly DL Error:', error.response?.data || error.message);
@@ -98,12 +102,11 @@ router.post('/drivers_license', protect, adminOnly, async (req, res) => {
 // @access  Private/Admin
 router.post('/passport', protect, adminOnly, async (req, res) => {
     try {
-        const { passport, last_name, first_name, dob } = req.body;
+        const { passport, nin, dob } = req.body;
         if (!passport) return res.status(400).json({ message: 'Passport number is required' });
 
         const payload = { number: passport };
-        if (last_name) payload.last_name = last_name;
-        if (first_name) payload.first_name = first_name;
+        if (nin) payload.nin = nin;
         if (dob) payload.dob = dob;
 
         const data = await premblyRequest('/identitypass/verification/passport', payload);
