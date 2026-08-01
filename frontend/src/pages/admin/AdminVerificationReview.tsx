@@ -257,6 +257,8 @@ export default function AdminVerificationReview() {
                 <MenuItem value="nin">NIN</MenuItem>
                 <MenuItem value="vnin">VNIN</MenuItem>
                 <MenuItem value="cac">CAC</MenuItem>
+                <MenuItem value="drivers_license">Driver's License</MenuItem>
+                <MenuItem value="passport">Passport</MenuItem>
               </TextField>
               <TextField
                 size="small"
