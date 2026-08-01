@@ -354,9 +354,19 @@ export default function AdminVerificationReview() {
                   startIcon={<CheckCircleOutlinedIcon />}
                   onClick={() => handleAction('tier_assigned')}
                   disabled={actionLoading}
-                  sx={{ bgcolor: '#0029FF', '&:hover': { bgcolor: '#0022D1' }, py: 1.25, borderRadius: '8px', textTransform: 'none', fontWeight: 600, fontSize: '0.88rem' }}
+                  sx={{ bgcolor: '#0029FF', '&:hover': { bgcolor: '#0022D1' }, py: 1.25, borderRadius: '8px', textTransform: 'none', fontWeight: 600, fontSize: '0.88rem', mb: 1 }}
                 >
-                  Assign Tier & Approve
+                  Assign Tier & Request Payment
+                </Button>
+                <Button
+                  variant="outlined"
+                  fullWidth
+                  startIcon={<CheckCircleOutlinedIcon />}
+                  onClick={() => handleAction('approved')}
+                  disabled={actionLoading}
+                  sx={{ borderColor: '#16A34A', color: '#16A34A', '&:hover': { bgcolor: '#F0FDF4' }, py: 1.25, borderRadius: '8px', textTransform: 'none', fontWeight: 600, fontSize: '0.88rem' }}
+                >
+                  Promo: Assign Tier & Skip Payment (Approve)
                 </Button>
               </Box>
             )}
