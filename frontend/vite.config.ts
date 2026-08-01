@@ -7,5 +7,9 @@ export default defineConfig({
   server: {
     port: 5173,
     strictPort: true,
+  },
+  build: {
+    outDir: '../backend/public',
+    emptyOutDir: true
   }
 })
