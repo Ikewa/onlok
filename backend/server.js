@@ -76,7 +76,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // Serve Frontend in Production (Express Wrapper Strategy)
-const frontendDistPath = path.join(__dirname, 'public');
+const frontendDistPath = path.join(__dirname, 'client-dist');
 app.use(express.static(frontendDistPath));
 
 // ==========================================

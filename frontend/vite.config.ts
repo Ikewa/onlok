@@ -9,7 +9,7 @@ export default defineConfig({
     strictPort: true,
   },
   build: {
-    outDir: '../backend/public',
+    outDir: '../backend/client-dist',
     emptyOutDir: true
   }
 })
