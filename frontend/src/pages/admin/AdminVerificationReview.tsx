@@ -276,63 +276,101 @@ export default function AdminVerificationReview() {
             </Box>
 
             {searchResult && (
-              <Box sx={{ mt: 2, p: 2, bgcolor: '#F9FAFB', borderRadius: '8px', border: '1px solid #E5E7EB' }}>
+              <Box sx={{ mt: 3 }}>
                 {searchResult.error || searchResult.status === false ? (
-                  <Box>
-                    <Typography variant="body2" color="#DC2626" fontWeight={600} mb={1}>
-                      Search Failed
-                    </Typography>
-                    <Typography variant="caption" color="#DC2626" display="block">
-                      {searchResult.error?.message || searchResult.message || 'Unknown error occurred'}
-                    </Typography>
-                    {searchResult.errors && (
-                      <pre style={{ fontSize: '0.75rem', color: '#B91C1C', margin: '8px 0 0 0', whiteSpace: 'pre-wrap' }}>
-                        {JSON.stringify(searchResult.errors, null, 2)}
-                      </pre>
-                    )}
+                  <Box sx={{ p: 3, bgcolor: '#FEF2F2', borderRadius: '12px', border: '1px solid #FEE2E2', display: 'flex', alignItems: 'flex-start', gap: 2 }}>
+                    <HighlightOffIcon sx={{ color: '#DC2626', mt: 0.5 }} />
+                    <Box>
+                      <Typography variant="subtitle2" color="#B91C1C" fontWeight={700} mb={0.5}>
+                        Verification Failed
+                      </Typography>
+                      <Typography variant="body2" color="#991B1B">
+                        {searchResult.error?.message || searchResult.message || 'Unknown error occurred'}
+                      </Typography>
+                      {searchResult.errors && (
+                        <Box sx={{ mt: 2, p: 1.5, bgcolor: '#FFFFFF', borderRadius: '8px', border: '1px solid #FECACA' }}>
+                          <pre style={{ fontSize: '0.75rem', color: '#7F1D1D', margin: 0, whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}>
+                            {JSON.stringify(searchResult.errors, null, 2)}
+                          </pre>
+                        </Box>
+                      )}
+                    </Box>
                   </Box>
                 ) : (
-                  <Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                      <Typography variant="subtitle2" fontWeight={600} color="#111827">
-                        Verification Successful
-                      </Typography>
-                      {searchResult.message?.includes('sandbox') && (
-                        <Typography variant="caption" sx={{ bgcolor: '#FEF3C7', color: '#92400E', px: 1, py: 0.5, borderRadius: 1, fontWeight: 600 }}>
-                          Sandbox Mode
+                  <Box sx={{ bgcolor: '#FFFFFF', borderRadius: '16px', border: '1px solid #E5E7EB', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
+                    {/* Header */}
+                    <Box sx={{ p: 2.5, bgcolor: '#F8FAFC', borderBottom: '1px solid #E5E7EB', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <CheckCircleOutlinedIcon sx={{ color: '#16A34A', fontSize: 28 }} />
+                        <Typography variant="h6" fontWeight={700} color="#0F172A">
+                          Identity Verified
                         </Typography>
+                      </Box>
+                      {searchResult.message?.includes('sandbox') && (
+                        <Box sx={{ bgcolor: '#FEF3C7', color: '#B45309', px: 1.5, py: 0.5, borderRadius: 'full', fontSize: '0.75rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          <InfoOutlinedIcon sx={{ fontSize: 14 }} /> SANDBOX MODE
+                        </Box>
                       )}
                     </Box>
                     
+                    {/* Body */}
                     {searchResult.data && (
-                      <Grid container spacing={2}>
-                        {searchResult.data.photo && (
-                          <Grid item xs={12} sm={4} md={3}>
-                            <Box 
-                              component="img" 
-                              src={searchResult.data.photo.startsWith('data:') ? searchResult.data.photo : `data:image/jpeg;base64,${searchResult.data.photo}`}
-                              sx={{ width: '100%', height: 'auto', borderRadius: '8px', border: '1px solid #E5E7EB' }}
-                            />
-                          </Grid>
-                        )}
-                        <Grid item xs={12} sm={searchResult.data.photo ? 8 : 12} md={searchResult.data.photo ? 9 : 12}>
-                          <Grid container spacing={2}>
-                            {Object.entries(searchResult.data).map(([key, value]) => {
-                              if (key === 'photo' || !value) return null;
-                              return (
-                                <Grid item xs={6} sm={4} key={key}>
-                                  <Typography variant="caption" color="#6B7280" display="block" sx={{ textTransform: 'capitalize' }}>
-                                    {key.replace(/_/g, ' ')}
-                                  </Typography>
-                                  <Typography variant="body2" fontWeight={600} color="#111827" sx={{ wordBreak: 'break-word' }}>
-                                    {String(value)}
-                                  </Typography>
-                                </Grid>
-                              );
-                            })}
+                      <Box sx={{ p: 3 }}>
+                        <Grid container spacing={4}>
+                          {searchResult.data.photo && (
+                            <Grid item xs={12} sm={4} md={3} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                              <Box sx={{ 
+                                width: 140, height: 140, borderRadius: '50%', overflow: 'hidden', 
+                                border: '4px solid #FFFFFF', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)', mb: 2
+                              }}>
+                                <Box 
+                                  component="img" 
+                                  src={searchResult.data.photo.startsWith('data:') ? searchResult.data.photo : `data:image/jpeg;base64,${searchResult.data.photo}`}
+                                  sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                />
+                              </Box>
+                              <Typography variant="caption" color="#94A3B8" fontWeight={600} sx={{ letterSpacing: 1 }}>
+                                FACIAL MATCH
+                              </Typography>
+                            </Grid>
+                          )}
+                          <Grid item xs={12} sm={searchResult.data.photo ? 8 : 12} md={searchResult.data.photo ? 9 : 12}>
+                            
+                            {/* Primary Info Highlights */}
+                            <Box sx={{ mb: 4 }}>
+                              <Typography variant="h4" fontWeight={800} color="#0F172A" sx={{ mb: 0.5, textTransform: 'uppercase', letterSpacing: '-0.5px' }}>
+                                {searchResult.data.firstname} {searchResult.data.middlename} {searchResult.data.surname}
+                                {!searchResult.data.firstname && searchResult.data.company_name}
+                              </Typography>
+                              <Typography variant="subtitle1" color="#64748B" fontWeight={500} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                {searchResult.data.nin && `NIN: ${searchResult.data.nin}`}
+                                {searchResult.data.vnin && `VNIN: ${searchResult.data.vnin}`}
+                                {searchResult.data.rc_number && `RC Number: ${searchResult.data.rc_number}`}
+                              </Typography>
+                            </Box>
+
+                            {/* Detailed Grid */}
+                            <Grid container spacing={3}>
+                              {Object.entries(searchResult.data).map(([key, value]) => {
+                                if (key === 'photo' || !value || ['firstname', 'surname', 'middlename', 'nin', 'vnin', 'company_name', 'rc_number'].includes(key)) return null;
+                                return (
+                                  <Grid item xs={6} sm={4} key={key}>
+                                    <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                                      <Typography variant="caption" color="#64748B" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.5, mb: 0.5 }}>
+                                        {key.replace(/_/g, ' ')}
+                                      </Typography>
+                                      <Typography variant="body2" fontWeight={700} color="#1E293B" sx={{ wordBreak: 'break-word', fontSize: '0.9rem' }}>
+                                        {String(value)}
+                                      </Typography>
+                                    </Box>
+                                  </Grid>
+                                );
+                              })}
+                            </Grid>
+                            
                           </Grid>
                         </Grid>
-                      </Grid>
+                      </Box>
                     )}
                   </Box>
                 )}
