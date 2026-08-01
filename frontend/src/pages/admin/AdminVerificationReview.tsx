@@ -276,13 +276,66 @@ export default function AdminVerificationReview() {
             </Box>
 
             {searchResult && (
-              <Box sx={{ p: 2, bgcolor: '#F9FAFB', borderRadius: '8px', border: '1px solid #E5E7EB', overflowX: 'auto' }}>
-                <Typography variant="caption" fontWeight={600} color="#6B7280" display="block" mb={1}>
-                  Search Results
-                </Typography>
-                <pre style={{ fontSize: '0.8rem', color: '#374151', margin: 0 }}>
-                  {JSON.stringify(searchResult, null, 2)}
-                </pre>
+              <Box sx={{ mt: 2, p: 2, bgcolor: '#F9FAFB', borderRadius: '8px', border: '1px solid #E5E7EB' }}>
+                {searchResult.error || searchResult.status === false ? (
+                  <Box>
+                    <Typography variant="body2" color="#DC2626" fontWeight={600} mb={1}>
+                      Search Failed
+                    </Typography>
+                    <Typography variant="caption" color="#DC2626" display="block">
+                      {searchResult.error?.message || searchResult.message || 'Unknown error occurred'}
+                    </Typography>
+                    {searchResult.errors && (
+                      <pre style={{ fontSize: '0.75rem', color: '#B91C1C', margin: '8px 0 0 0', whiteSpace: 'pre-wrap' }}>
+                        {JSON.stringify(searchResult.errors, null, 2)}
+                      </pre>
+                    )}
+                  </Box>
+                ) : (
+                  <Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                      <Typography variant="subtitle2" fontWeight={600} color="#111827">
+                        Verification Successful
+                      </Typography>
+                      {searchResult.message?.includes('sandbox') && (
+                        <Typography variant="caption" sx={{ bgcolor: '#FEF3C7', color: '#92400E', px: 1, py: 0.5, borderRadius: 1, fontWeight: 600 }}>
+                          Sandbox Mode
+                        </Typography>
+                      )}
+                    </Box>
+                    
+                    {searchResult.data && (
+                      <Grid container spacing={2}>
+                        {searchResult.data.photo && (
+                          <Grid item xs={12} sm={4} md={3}>
+                            <Box 
+                              component="img" 
+                              src={searchResult.data.photo.startsWith('data:') ? searchResult.data.photo : `data:image/jpeg;base64,${searchResult.data.photo}`}
+                              sx={{ width: '100%', height: 'auto', borderRadius: '8px', border: '1px solid #E5E7EB' }}
+                            />
+                          </Grid>
+                        )}
+                        <Grid item xs={12} sm={searchResult.data.photo ? 8 : 12} md={searchResult.data.photo ? 9 : 12}>
+                          <Grid container spacing={2}>
+                            {Object.entries(searchResult.data).map(([key, value]) => {
+                              if (key === 'photo' || !value) return null;
+                              return (
+                                <Grid item xs={6} sm={4} key={key}>
+                                  <Typography variant="caption" color="#6B7280" display="block" sx={{ textTransform: 'capitalize' }}>
+                                    {key.replace(/_/g, ' ')}
+                                  </Typography>
+                                  <Typography variant="body2" fontWeight={600} color="#111827" sx={{ wordBreak: 'break-word' }}>
+                                    {String(value)}
+                                  </Typography>
+                                </Grid>
+                              );
+                            })}
+                          </Grid>
+                        </Grid>
+                      </Grid>
+                    )}
+                  </Box>
+                )}
               </Box>
             )}
           </Paper>
