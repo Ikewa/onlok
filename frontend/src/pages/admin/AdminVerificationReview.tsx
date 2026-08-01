@@ -9,7 +9,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { getVerificationDetails, updateVerificationStatus, type AdminVerification } from '../../api/admin';
 import { MenuItem, Select } from '@mui/material';
 import toast from 'react-hot-toast';
-import axios from 'axios';
+import api from '../../api/axiosInstance';
 
 export default function AdminVerificationReview() {
   const navigate = useNavigate();
@@ -61,13 +61,8 @@ export default function AdminVerificationReview() {
     setIsSearching(true);
     setSearchResult(null);
     try {
-      const token = localStorage.getItem('token');
-      const res = await axios.post(
-        `/api/admin/prembly/${searchType}`,
-        { [searchType]: searchValue },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      setSearchResult(res.data);
+      const { data } = await api.post(`/admin/prembly/${searchType}`, { [searchType]: searchValue });
+      setSearchResult(data);
       toast.success('Search successful');
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Search failed');
