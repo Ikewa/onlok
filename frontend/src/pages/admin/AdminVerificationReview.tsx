@@ -416,28 +416,60 @@ export default function AdminVerificationReview() {
                             <Box sx={{ mb: 4 }}>
                               <Typography variant="h4" fontWeight={800} color="#0F172A" sx={{ mb: 0.5, textTransform: 'uppercase', letterSpacing: '-0.5px' }}>
                                 {displayData.firstname} {displayData.middlename} {displayData.surname}
-                                {!displayData.firstname && displayData.company_name}
+                                {!displayData.firstname && (displayData.company_name || displayData.companyName)}
                               </Typography>
                               <Typography variant="subtitle1" color="#64748B" fontWeight={500} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                 {displayData.nin && `NIN: ${displayData.nin}`}
                                 {displayData.vnin && `VNIN: ${displayData.vnin}`}
-                                {displayData.rc_number && `RC Number: ${displayData.rc_number}`}
+                                {(displayData.rc_number || displayData.rcNumber) && `RC Number: ${displayData.rc_number || displayData.rcNumber}`}
                               </Typography>
                             </Box>
 
                             {/* Detailed Grid */}
                             <Grid container spacing={3}>
                               {Object.entries(displayData).map(([key, value]) => {
-                                if (key === 'photo' || !value || ['firstname', 'surname', 'middlename', 'nin', 'vnin', 'company_name', 'rc_number'].includes(key)) return null;
+                                if (key === 'photo' || value === null || value === undefined || value === '' || ['firstname', 'surname', 'middlename', 'nin', 'vnin', 'company_name', 'companyName', 'rc_number', 'rcNumber'].includes(key)) return null;
+                                
+                                const isObject = typeof value === 'object';
+                                const isArray = Array.isArray(value);
+
                                 return (
-                                  <Grid item xs={6} sm={4} key={key}>
+                                  <Grid item xs={12} sm={isObject ? 12 : 4} key={key}>
                                     <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                                      <Typography variant="caption" color="#64748B" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.5, mb: 0.5 }}>
+                                      <Typography variant="caption" color="#64748B" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.5, mb: 1 }}>
                                         {key.replace(/_/g, ' ')}
                                       </Typography>
-                                      <Typography variant="body2" fontWeight={700} color="#1E293B" sx={{ wordBreak: 'break-word', fontSize: '0.9rem' }}>
-                                        {typeof value === 'object' ? JSON.stringify(value) : String(value)}
-                                      </Typography>
+                                      
+                                      {isArray ? (
+                                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                                          {value.map((item: any, i: number) => (
+                                            <Box key={i} sx={{ p: 2, bgcolor: '#F8FAFC', borderRadius: 3, border: '1px solid #E2E8F0', display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+                                              {typeof item === 'object' && item !== null ? 
+                                                Object.entries(item).filter(([_, v]) => v !== null && v !== '').map(([k, v]) => (
+                                                  <Box key={k} sx={{ minWidth: 120 }}>
+                                                    <Typography variant="caption" color="#94A3B8" sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>{k.replace(/_/g, ' ')}</Typography>
+                                                    <Typography variant="body2" fontWeight={600} color="#334155">{String(v)}</Typography>
+                                                  </Box>
+                                                )) 
+                                                : <Typography variant="body2">{String(item)}</Typography>
+                                              }
+                                            </Box>
+                                          ))}
+                                        </Box>
+                                      ) : isObject ? (
+                                        <Box sx={{ p: 2, bgcolor: '#F8FAFC', borderRadius: 3, border: '1px solid #E2E8F0', display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+                                          {Object.entries(value).filter(([_, v]) => v !== null && v !== '').map(([k, v]) => (
+                                            <Box key={k} sx={{ minWidth: 120 }}>
+                                              <Typography variant="caption" color="#94A3B8" sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>{k.replace(/_/g, ' ')}</Typography>
+                                              <Typography variant="body2" fontWeight={600} color="#334155">{String(v)}</Typography>
+                                            </Box>
+                                          ))}
+                                        </Box>
+                                      ) : (
+                                        <Typography variant="body2" fontWeight={700} color="#1E293B" sx={{ wordBreak: 'break-word', fontSize: '0.9rem' }}>
+                                          {String(value)}
+                                        </Typography>
+                                      )}
                                     </Box>
                                   </Grid>
                                 );
