@@ -34,7 +34,7 @@ router.post('/nin', protect, adminOnly, async (req, res) => {
         const { nin } = req.body;
         if (!nin) return res.status(400).json({ message: 'NIN is required' });
 
-        const data = await premblyRequest('/identitypass/verification/nin', { number: nin });
+        const data = await premblyRequest('/identitypass/verification/nin', { number_nin: nin });
         res.json(data);
     } catch (error) {
         console.error('Prembly NIN Error:', error.response?.data || error.message);
