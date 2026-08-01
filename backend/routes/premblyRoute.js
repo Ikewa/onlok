@@ -50,7 +50,10 @@ router.post('/cac', protect, adminOnly, async (req, res) => {
         const { cac } = req.body;
         if (!cac) return res.status(400).json({ message: 'CAC (RC Number) is required' });
 
-        const data = await premblyRequest('/identitypass/verification/cac', { rc_number: cac, company_name: req.body.company_name || '' });
+        const payload = { rc_number: cac, company_type: 'RC' };
+        if (req.body.company_name) payload.company_name = req.body.company_name;
+
+        const data = await premblyRequest('/identitypass/verification/cac/advance', payload);
         res.json(data);
     } catch (error) {
         console.error('Prembly CAC Error:', error.response?.data || error.message);
