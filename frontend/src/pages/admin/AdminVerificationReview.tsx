@@ -365,7 +365,17 @@ export default function AdminVerificationReview() {
             {isTierAssigned && (
               <Box sx={{ bgcolor: '#FFFBEB', p: 2, borderRadius: 2, border: '1px solid #FEF3C7', mb: 1 }}>
                 <Typography variant="body2" color="#B45309" fontWeight={600} mb={1}>Awaiting Payment</Typography>
-                <Typography variant="caption" color="#92400E">User was assigned {details.assigned_tier} tier. Waiting for them to complete payment.</Typography>
+                <Typography variant="caption" color="#92400E" display="block" mb={1.5}>User was assigned {details.assigned_tier} tier. Waiting for them to complete payment.</Typography>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  fullWidth
+                  onClick={() => handleAction('approved')}
+                  disabled={actionLoading}
+                  sx={{ borderColor: '#B45309', color: '#B45309', textTransform: 'none', fontWeight: 600, '&:hover': { bgcolor: '#FEF3C7' } }}
+                >
+                  Override: Mark as Paid & Approve
+                </Button>
               </Box>
             )}
 
