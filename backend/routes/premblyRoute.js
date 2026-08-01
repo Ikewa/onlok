@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const axios = require('axios');
-const { protect, admin } = require('../middleware/authMiddleware');
+const { protect, admin } = require('../middlewares/authMiddleware');
 
 const PREMBLY_BASE_URL = 'https://api.prembly.com';
 
