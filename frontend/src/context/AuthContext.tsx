@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
 import type { User } from '../types';
+import { getMe } from '../api/auth';
 
 interface AuthContextValue {
   user: User | null;
@@ -8,6 +9,7 @@ interface AuthContextValue {
   login: (userData: User) => void;
   logout: () => void;
   updateUser: (partial: Partial<User>) => void;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -49,6 +51,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  // Re-fetch the user profile from the server and merge into state
+  const refreshUser = useCallback(async () => {
+    try {
+      const fresh = await getMe();
+      setUser(prev => {
+        if (!prev) return prev;
+        const updated = { ...prev, ...fresh };
+        localStorage.setItem(USER_KEY, JSON.stringify(updated));
+        return updated;
+      });
+    } catch {
+      // silently ignore — user remains logged in with stale data
+    }
+  }, []);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
@@ -57,8 +74,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       login,
       logout,
       updateUser,
+      refreshUser,
     }),
-    [user, login, logout, updateUser]
+    [user, login, logout, updateUser, refreshUser]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
