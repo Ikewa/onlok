@@ -13,6 +13,12 @@
   <meta name="theme-color" content="#000968">
   <link rel="canonical" href="https://onlok.net/">
 
+  <!-- Favicon and Touch Icons -->
+  <!-- <link rel="icon" type="image/x-icon" href="/src/assets/favicon.ico"> -->
+  <link rel="icon" type="image/png" sizes="32x32" href="/src/assets/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/src/assets/favicon-16x16.png">
+  <link rel="apple-touch-icon" href="/src/assets/favicon.png">
+
   <!-- Open Graph / Facebook -->
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://onlok.net/">
@@ -89,10 +95,7 @@
       
       <!-- Brand Logo -->
       <a href="#" class="flex items-center gap-2 group focus:outline-none">
-        <div class="w-9 h-9 bg-[#0030FF] rounded-full flex items-center justify-center relative shadow-lg shadow-blue-600/30 group-hover:scale-105 transition-transform">
-          <div class="w-4 h-4 bg-white rounded-full absolute top-1 right-1"></div>
-        </div>
-        <span class="text-2xl font-black text-white tracking-tight">onlok</span>
+        <img src="/src/assets/logo.png" alt="ONLOK Logo" class="h-9 w-auto object-contain group-hover:scale-105 transition-transform">
       </a>
 
       <!-- Desktop Nav Links -->
@@ -106,10 +109,13 @@
 
       <!-- Action Buttons -->
       <div class="hidden sm:flex items-center gap-4">
-        <a href="https://onlok.net/login" class="text-sm font-semibold text-slate-200 hover:text-white px-4 py-2 rounded-lg transition-colors">
-          Sign In
+        <a href="https://onlok.net/search" class="bg-white text-[#000968] hover:bg-slate-100 font-bold text-base px-5 py-2.5 rounded-xl transition-all shadow-md inline-flex items-center gap-2">
+          Verify Someone
+          <svg class="w-5 h-5 text-[#000968]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+          </svg>
         </a>
-        <a href="https://onlok.net/register" class="bg-[#0030FF] hover:bg-[#0025D4] text-white text-sm font-bold px-5 py-2.5 rounded-full transition-all shadow-md shadow-blue-600/30 hover:shadow-blue-600/50 hover:scale-[1.02]">
+        <a href="https://onlok.net/register" class="bg-[#0030FF] hover:bg-[#0025D4] text-white text-sm font-bold px-5 py-2.5 rounded-xl transition-all shadow-md shadow-blue-600/30 hover:shadow-blue-600/50 hover:scale-[1.02]">
           Get Verified
         </a>
       </div>
@@ -125,12 +131,9 @@
     <!-- Mobile Drawer Menu -->
     <div id="mobile-menu-drawer" class="hidden fixed inset-0 z-50 bg-[#000968] p-6 flex flex-col justify-between">
       <div class="flex items-center justify-between pb-6 border-b border-white/10">
-        <div class="flex items-center gap-2">
-          <div class="w-8 h-8 bg-[#0030FF] rounded-full relative">
-            <div class="w-3.5 h-3.5 bg-white rounded-full absolute top-1 right-1"></div>
-          </div>
-          <span class="text-2xl font-black text-white">onlok</span>
-        </div>
+        <a href="#" class="flex items-center gap-2">
+          <img src="/src/assets/logo.png" alt="ONLOK Logo" class="h-8 w-auto object-contain">
+        </a>
         <button id="mobile-menu-close" aria-label="Close Menu" class="text-slate-300 hover:text-white p-2">
           <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
@@ -165,124 +168,64 @@
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
         
         <!-- Left Content Column -->
-        <div class="lg:col-span-7 flex flex-col items-start text-left">
+        <div class="lg:col-span-6 flex flex-col items-start text-left">
           
-          <!-- Eyebrow Pill -->
-          <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#DDEDFF] text-[#000968] text-xs font-bold tracking-wider uppercase mb-6 shadow-sm">
+          <!-- Eyebrow Pill Box -->
+          <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white text-[#000968] text-xs font-mono font-bold tracking-wider mb-6 shadow-md">
             <svg class="w-4 h-4 text-[#0030FF]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
             </svg>
-            The Digital trust layer
+            The digital trust layer
           </div>
 
           <!-- Headline -->
           <h1 class="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.1] mb-6 text-white">
-            Trust Starts with <span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-sky-300 to-white">Verification.</span>
+            Trust Starts with <span class="text-[#0030FF]">Verification.</span>
           </h1>
 
           <!-- Supporting Text -->
-          <p class="text-lg sm:text-xl text-slate-300 font-normal leading-relaxed mb-8 max-w-2xl">
-            Verify identities, businesses, and professionals with confidence. Build trust through a secure digital verification system that helps people know exactly who they're dealing with 
+          <p class="text-slate-300 text-base sm:text-lg font-normal leading-relaxed mb-8 max-w-xl">
+            Verify identities, businesses, and professionals with confidence. Build trust through a secure digital verification system that helps people know exactly who they're dealing with.
           </p>
 
           <!-- Action Buttons -->
-          <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 w-full sm:w-auto mb-10">
-            <a href="https://onlok.net/register" class="inline-flex items-center justify-center gap-2 bg-[#0030FF] hover:bg-[#0025D4] text-white text-base font-bold px-8 py-4 rounded-full transition-all shadow-xl shadow-blue-600/30 hover:scale-105 text-center">
-              Get Verified Now
+          <div class="flex flex-wrap items-center gap-4 w-full sm:w-auto mb-12">
+            <a href="https://onlok.net/register" class="bg-[#0030FF] hover:bg-[#0025D4] text-white font-bold text-base px-6 py-3.5 rounded-xl transition-all shadow-lg shadow-blue-600/40 hover:scale-105 inline-flex items-center gap-2">
+              Get Verified
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
               </svg>
             </a>
-            <a href="https://onlok.net/search" class="bg-white text-[#000968] inline-flex items-center justify-center gap-2 border-2 border-white/30 hover:border-white hover:bg-white/10 text-base font-semibold px-7 py-3.5 rounded-full transition-all text-center">
+            <a href="https://onlok.net/search" class="bg-white text-[#000968] hover:bg-slate-100 font-bold text-base px-6 py-3.5 rounded-xl transition-all shadow-md inline-flex items-center gap-2">
               Verify Someone
+              <svg class="w-5 h-5 text-[#000968]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+              </svg>
             </a>
           </div>
 
-          <!-- Feature Highlights Bar -->
-          <div class="pt-6 border-t border-white/15 flex flex-wrap items-center gap-6 text-xs sm:text-sm text-slate-300 font-medium">
-            <div class="flex items-center gap-2">
-              <svg class="w-5 h-5 text-emerald-400" fill="currentColor" viewBox="0 0 20 20">
-                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-              </svg>
-              Instant Verified Badge
-            </div>
-            <div class="flex items-center gap-2">
-              <svg class="w-5 h-5 text-emerald-400" fill="currentColor" viewBox="0 0 20 20">
-                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-              </svg>
-              Government-Verified ID
-            </div>
-            <div class="flex items-center gap-2">
-              <svg class="w-5 h-5 text-emerald-400" fill="currentColor" viewBox="0 0 20 20">
-                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-              </svg>
-              24-Hour Review Turnaround
+          <!-- Bottom Verification Standards Pills -->
+          <div>
+            <p class="text-xs font-mono text-slate-400 mb-3 tracking-widest uppercase font-semibold">Verification standards</p>
+            <div class="flex flex-wrap items-center gap-2.5">
+              <div class="bg-white text-[#000968] text-xs font-bold px-4 py-2 rounded-full flex items-center gap-1.5 shadow-sm">
+                <span class="text-[#0030FF]">✓</span> Government ID
+              </div>
+              <div class="bg-white text-[#000968] text-xs font-bold px-4 py-2 rounded-full flex items-center gap-1.5 shadow-sm">
+                <span class="text-[#0030FF]">✓</span> Biometric Face Match
+              </div>
+              <div class="bg-white text-[#000968] text-xs font-bold px-4 py-2 rounded-full flex items-center gap-1.5 shadow-sm">
+                <span class="text-[#0030FF]">✓</span> Business Registry
+              </div>
             </div>
           </div>
 
         </div>
 
-        <!-- Right Visual Mockup Column -->
-        <div class="lg:col-span-5 relative flex justify-center">
-          <div class="relative w-full max-w-md bg-white rounded-3xl p-6 text-slate-900 shadow-2xl shadow-black/50 border border-slate-100 transform lg:rotate-1 hover:rotate-0 transition-transform duration-300">
-            
-            <!-- Mock Header Card -->
-            <div class="flex items-center justify-between pb-4 border-b border-slate-100">
-              <div class="flex items-center gap-3">
-                <div class="w-12 h-12 rounded-full bg-slate-900 text-white font-black flex items-center justify-center text-lg shadow-inner">
-                  AD
-                </div>
-                <div>
-                  <h3 class="font-extrabold text-slate-900 text-base leading-tight">Apex Digital Store</h3>
-                  <p class="text-xs text-slate-500 font-medium">Electronics & Gadgets Vendor</p>
-                </div>
-              </div>
-              <span class="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold px-2.5 py-1 rounded-full">
-                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Verified
-              </span>
-            </div>
-
-            <!-- Badge Display -->
-            <div class="my-6 p-4 rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 flex items-center gap-4">
-              <div class="w-14 h-14 rounded-full bg-gradient-to-tr from-amber-500 to-yellow-400 text-white flex items-center justify-center shadow-lg shadow-amber-500/30 flex-shrink-0">
-                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/>
-                </svg>
-              </div>
-              <div>
-                <p class="text-xs font-bold uppercase text-amber-700 tracking-wider">ONLOK Gold Badge</p>
-                <h4 class="font-extrabold text-slate-900 text-sm">Identity & CAC Verified</h4>
-                <p class="text-[11px] text-slate-600 mt-0.5">ID: ONLOK-NG-88392</p>
-              </div>
-            </div>
-
-            <!-- Stats Mini Row -->
-            <div class="grid grid-cols-3 gap-2 text-center pt-2 border-t border-slate-100">
-              <div class="bg-slate-50 p-2.5 rounded-xl">
-                <p class="text-xs text-slate-500 font-medium">Deals</p>
-                <p class="font-bold text-slate-900 text-sm">142+</p>
-              </div>
-              <div class="bg-slate-50 p-2.5 rounded-xl">
-                <p class="text-xs text-slate-500 font-medium">Trust Score</p>
-                <p class="font-bold text-emerald-600 text-sm">99.8%</p>
-              </div>
-              <div class="bg-slate-50 p-2.5 rounded-xl">
-                <p class="text-xs text-slate-500 font-medium">Status</p>
-                <p class="font-bold text-blue-600 text-sm">Active</p>
-              </div>
-            </div>
-
-            <!-- Floating Shield Chip -->
-            <div class="absolute -bottom-5 -right-5 bg-[#000968] text-white p-3 rounded-2xl shadow-xl flex items-center gap-3 border border-white/20">
-              <div class="w-8 h-8 rounded-full bg-[#0030FF] flex items-center justify-center text-white font-bold text-sm">
-                ✓
-              </div>
-              <div class="pr-2">
-                <p class="text-[10px] uppercase font-bold text-blue-200">100% Authentic</p>
-                <p class="text-xs font-extrabold">Public Trust Link</p>
-              </div>
-            </div>
-
+        <!-- Right Column (Framed Profile UI Screenshot) -->
+        <div class="lg:col-span-6 flex justify-center">
+          <div class="relative w-full border-2 border-blue-400/20 bg-[#00083D] p-3 rounded-3xl shadow-2xl shadow-blue-900/50">
+            <img src="/src/assets/profile-ui.png" alt="ONLOK Public Verification Profile Preview" class="w-full h-auto rounded-2xl shadow-lg border border-white/10">
           </div>
         </div>
 
@@ -294,41 +237,63 @@
   <!-- ========================================== -->
   <!-- 4.3 LOGO / TRUST STRIP (WHITE)             -->
   <!-- ========================================== -->
-  <section class="bg-white py-12 border-b border-slate-200">
+  <section class="bg-white py-14 border-b border-slate-200">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       
-      <!-- 4 Stat Blocks Row -->
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-8 text-center mb-10">
-        <div>
-          <p class="text-3xl sm:text-4xl font-black text-[#000968] tracking-tight">10,000+</p>
-          <p class="text-xs sm:text-sm font-semibold text-slate-500 mt-1">Verified Vendors</p>
+      <!-- 4 Stat Metric Columns Row -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-8 mb-10">
+        
+        <!-- Metric 1: Verified Users -->
+        <div class="flex flex-col items-start text-left md:border-r md:border-slate-100 md:pr-6">
+          <div class="w-10 h-10 rounded-xl bg-blue-50 text-[#0030FF] flex items-center justify-center mb-3">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+            </svg>
+          </div>
+          <p class="text-3xl sm:text-4xl font-black text-[#0F172A] tracking-tight mb-1">10,000+</p>
+          <p class="text-xs sm:text-sm font-semibold text-[#64748B]">Verified Users</p>
         </div>
-        <div>
-          <p class="text-3xl sm:text-4xl font-black text-[#0030FF] tracking-tight">₦500M+</p>
-          <p class="text-xs sm:text-sm font-semibold text-slate-500 mt-1">Transactions Secured</p>
+
+        <!-- Metric 2: Verified Businesses -->
+        <div class="flex flex-col items-start text-left md:border-r md:border-slate-100 md:pr-6">
+          <div class="w-10 h-10 rounded-xl bg-blue-50 text-[#0030FF] flex items-center justify-center mb-3">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5m3 0h1m-4-8a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1h-2a1 1 0 01-1-1v-4z"/>
+            </svg>
+          </div>
+          <p class="text-3xl sm:text-4xl font-black text-[#0F172A] tracking-tight mb-1">4,500+</p>
+          <p class="text-xs sm:text-sm font-semibold text-[#64748B]">Verified Businesses</p>
         </div>
-        <div>
-          <p class="text-3xl sm:text-4xl font-black text-[#000968] tracking-tight">99.9%</p>
-          <p class="text-xs sm:text-sm font-semibold text-slate-500 mt-1">Identity Accuracy</p>
+
+        <!-- Metric 3: Verification Accuracy -->
+        <div class="flex flex-col items-start text-left md:border-r md:border-slate-100 md:pr-6">
+          <div class="w-10 h-10 rounded-xl bg-blue-50 text-[#0030FF] flex items-center justify-center mb-3">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+            </svg>
+          </div>
+          <p class="text-3xl sm:text-4xl font-black text-[#0F172A] tracking-tight mb-1">99.9%</p>
+          <p class="text-xs sm:text-sm font-semibold text-[#64748B]">Verification Accuracy</p>
         </div>
-        <div>
-          <p class="text-3xl sm:text-4xl font-black text-[#0030FF] tracking-tight">24/7</p>
-          <p class="text-xs sm:text-sm font-semibold text-slate-500 mt-1">Active Monitoring</p>
+
+        <!-- Metric 4: Industries Covered -->
+        <div class="flex flex-col items-start text-left">
+          <div class="w-10 h-10 rounded-xl bg-blue-50 text-[#0030FF] flex items-center justify-center mb-3">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+            </svg>
+          </div>
+          <p class="text-3xl sm:text-4xl font-black text-[#0F172A] tracking-tight mb-1">18</p>
+          <p class="text-xs sm:text-sm font-semibold text-[#64748B]">Industries Covered</p>
         </div>
+
       </div>
 
-      <!-- Partner Label -->
-      <p class="text-center text-xs font-bold uppercase tracking-wider text-slate-400 mb-6">
-        Trusted by leading businesses across Nigeria
-      </p>
-
-      <!-- Logos Grid -->
-      <div class="flex flex-wrap items-center justify-center gap-8 md:gap-16 opacity-60 grayscale hover:grayscale-0 transition-all">
-        <span class="font-extrabold text-slate-600 text-lg tracking-wider">PAYSTACK</span>
-        <span class="font-extrabold text-slate-600 text-lg tracking-wider">PREMBLY</span>
-        <span class="font-extrabold text-slate-600 text-lg tracking-wider">NIN VERIFIED</span>
-        <span class="font-extrabold text-slate-600 text-lg tracking-wider">CAC CHECKED</span>
-        <span class="font-extrabold text-slate-600 text-lg tracking-wider">ONLOK TRUST</span>
+      <!-- Monospace Sub-bar -->
+      <div class="pt-8 border-t border-slate-100 text-center">
+        <p class="text-xs font-mono text-slate-400 tracking-wider">
+          Trusted across logistics · retail · real estate · fintech · creative services · professional services
+        </p>
       </div>
 
     </div>
@@ -1278,11 +1243,17 @@
         Join thousands of verified vendors across Nigeria building trust, eliminating buyer skepticism, and closing transactions faster.
       </p>
       <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
-        <a href="https://onlok.net/register" class="w-full sm:w-auto bg-[#0030FF] hover:bg-[#0025D4] text-white font-bold text-lg px-9 py-4 rounded-full transition-all shadow-xl shadow-blue-600/40 hover:scale-105">
-          Get Verified Now
+         <a href="https://onlok.net/register" class="bg-[#0030FF] hover:bg-[#0025D4] text-white font-bold text-base px-6 py-3.5 rounded-xl transition-all shadow-lg shadow-blue-600/40 hover:scale-105 inline-flex items-center gap-2">
+          Get Verified
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+          </svg>
         </a>
-        <a href="https://onlok.net/login" class="w-full sm:w-auto border-2 border-white/30 hover:border-white text-white font-semibold text-lg px-8 py-3.5 rounded-full transition-all hover:bg-white/10">
-          Sign In to Account
+        <a href="https://onlok.net/search" class="bg-white text-[#000968] hover:bg-slate-100 font-bold text-base px-6 py-3.5 rounded-xl transition-all shadow-md inline-flex items-center gap-2">
+          Verify Someone
+          <svg class="w-5 h-5 text-[#000968]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+          </svg>
         </a>
       </div>
     </div>
@@ -1290,21 +1261,18 @@
 
 
   <!-- ========================================== -->
-  <!-- 4.11 FOOTER (DARK NAVY #020951)            -->
+  <!-- 4.11 FOOTER (White)                        -->
   <!-- ========================================== -->
-  <footer class="bg-[#020951] text-slate-400 pt-16 pb-12 border-t border-white/10 text-sm">
+  <footer class="bg-white text-slate-400 pt-16 pb-12 border-t border-white/10 text-sm">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       
       <div class="grid grid-cols-1 md:grid-cols-5 gap-10 pb-12 border-b border-white/10">
         
         <!-- Col 1: Brand Info -->
         <div class="md:col-span-2">
-          <div class="flex items-center gap-2 mb-4">
-            <div class="w-8 h-8 bg-[#0030FF] rounded-full relative">
-              <div class="w-3.5 h-3.5 bg-white rounded-full absolute top-1 right-1"></div>
-            </div>
-            <span class="text-2xl font-black text-white tracking-tight">onlok</span>
-          </div>
+          <a href="#" class="inline-block mb-4">
+            <img src="/src/assets/logo.png" alt="ONLOK Logo" class="h-9 w-auto object-contain">
+          </a>
           <p class="text-slate-400 text-xs sm:text-sm leading-relaxed mb-6 max-w-sm">
             ONLOK is Nigeria's premier business verification and trust platform, issuing verifiable Bronze, Silver, and Gold badges for transparent commerce.
           </p>
