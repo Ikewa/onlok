@@ -127,34 +127,34 @@
         </svg>
       </button>
     </div>
-
-    <!-- Mobile Drawer Menu -->
-    <div id="mobile-menu-drawer" class="hidden fixed inset-0 z-50 bg-[#000968] p-6 flex flex-col justify-between">
-      <div class="flex items-center justify-between pb-6 border-b border-white/10">
-        <a href="#" class="flex items-center gap-2">
-          <img src="/src/assets/logo.png" alt="ONLOK Logo" class="h-8 w-auto object-contain">
-        </a>
-        <button id="mobile-menu-close" aria-label="Close Menu" class="text-slate-300 hover:text-white p-2">
-          <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-          </svg>
-        </button>
-      </div>
-
-      <div class="flex flex-col gap-6 text-lg font-semibold text-slate-200 my-auto">
-        <a href="#how-it-works" class="hover:text-white">How It Works</a>
-        <a href="#features" class="hover:text-white">Features</a>
-        <a href="#tiers" class="hover:text-white">Badges</a>
-        <a href="#pricing" class="hover:text-white">Pricing</a>
-        <a href="#faq" class="hover:text-white">FAQ</a>
-      </div>
-
-      <div class="flex flex-col gap-3 pt-6 border-t border-white/10">
-        <a href="https://onlok.net/login" class="w-full text-center py-3 text-white font-semibold rounded-xl bg-white/10">Sign In</a>
-        <a href="https://onlok.net/register" class="w-full text-center py-3 text-white font-bold rounded-xl bg-[#0030FF]">Get Verified</a>
-      </div>
-    </div>
   </header>
+
+  <!-- Mobile Drawer Menu (Outside header to prevent fixed containing block issues) -->
+  <div id="mobile-menu-drawer" class="hidden fixed inset-0 z-50 p-6 flex flex-col justify-between" style="background-color: #000968;">
+    <div class="flex items-center justify-between pb-6 border-b border-white/10">
+      <a href="#" class="flex items-center gap-2">
+        <img src="/src/assets/logo.png" alt="ONLOK Logo" class="h-8 w-auto object-contain">
+      </a>
+      <button id="mobile-menu-close" aria-label="Close Menu" class="text-slate-300 hover:text-white p-2">
+        <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="flex flex-col gap-6 text-lg font-semibold text-slate-200 my-auto">
+      <a href="#how-it-works" class="hover:text-white">How It Works</a>
+      <a href="#features" class="hover:text-white">Features</a>
+      <a href="#tiers" class="hover:text-white">Badges</a>
+      <a href="#pricing" class="hover:text-white">Pricing</a>
+      <a href="#faq" class="hover:text-white">FAQ</a>
+    </div>
+
+    <div class="flex flex-col gap-3 pt-6 border-t border-white/10">
+      <a href="https://onlok.net/search" class="w-full text-center py-3 text-[#000968] font-semibold rounded-xl bg-white">Verify Someone</a>
+      <a href="https://onlok.net/register" class="w-full text-center py-3 text-white font-bold rounded-xl bg-[#0030FF]">Get Verified</a>
+    </div>
+  </div>
 
 
   <!-- ========================================== -->
