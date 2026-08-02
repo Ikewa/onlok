@@ -1,5 +1,7 @@
 {
   "dependencies": {
-    "prembly-react-kyc": "^1.0.2"
+    "@tailwindcss/vite": "^4.3.3",
+    "prembly-react-kyc": "^1.0.2",
+    "tailwindcss": "^4.3.3"
   }
 }
