@@ -8,7 +8,8 @@ const storage = multer.diskStorage({
         cb(null, path.join(__dirname, '../uploads'));
     },
     filename: function (req, file, cb) {
-        cb(null, `${req.user.vendor_id}-${file.fieldname}-${Date.now()}${path.extname(file.originalname)}`);
+        // Use req.user.id (always set) — vendor_id is null until after first payment
+        cb(null, `${req.user.id}-${file.fieldname}-${Date.now()}${path.extname(file.originalname)}`);
     }
 });
 
@@ -53,7 +54,7 @@ const submitVerification = async (req, res) => {
         }
 
         // Insert into verification table
-        const query = `INSERT INTO verifications (user_id, gov_id_url, cac_url, video_url) VALUES (?, ?, ?, ?)`;
+        const query = `INSERT INTO verifications (user_id, gov_id_url, cac_document_url, video_url) VALUES (?, ?, ?, ?)`;
         const [result] = await pool.query(query, [req.user.id, govIdUrl, cacUrl, videoUrl]);
 
         res.status(201).json({

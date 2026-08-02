@@ -27,7 +27,14 @@ app.use(cors({
     },
     credentials: true,
 }));
-app.use(express.json());
+// Capture raw body for Paystack webhook HMAC verification.
+// express.json()'s verify callback runs before the body is parsed,
+// giving us the original bytes that Paystack signed.
+app.use(express.json({
+    verify: (req, res, buf) => {
+        req.rawBody = buf;
+    }
+}));
 app.use(morgan('dev'));
 
 // Website hit tracking middleware

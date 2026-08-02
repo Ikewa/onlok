@@ -2,6 +2,9 @@ const axios = require('axios');
 const crypto = require('crypto');
 const pool = require('../config/db');
 const paystackPlanService = require('../utils/paystackPlanService');
+const { generateVendorId } = require('../utils/generateId');
+const { generateQRCode } = require('../utils/qrCodeGenerator');
+const { sendEmail } = require('../utils/emailService');
 
 // @desc    Initialize a 3-Tier subscription payment session
 // @route   POST /api/payments/initialize
@@ -71,30 +74,92 @@ const initializePayment = async (req, res) => {
     }
 };
 
-// @desc    Verify payment manually (fallback if webhook is delayed)
+// @desc    Verify payment & provision subscription (webhook fallback for local dev)
 // @route   GET /api/payments/verify/:reference
-// @access  Public / Private
+// @access  Private
+// NOTE: This is intentionally idempotent — if the webhook already provisioned the
+//       subscription, the processSuccessfulSubscription helper will simply upsert
+//       with the same data (no double-crediting).
 const verifyPayment = async (req, res) => {
     try {
         const { reference } = req.params;
         const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
 
+        // 1. Confirm the transaction with Paystack (15s timeout to avoid hanging requests)
         const response = await axios.get(
             `https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`,
             {
-                headers: {
-                    Authorization: `Bearer ${PAYSTACK_SECRET}`
-                }
+                headers: { Authorization: `Bearer ${PAYSTACK_SECRET}` },
+                timeout: 15000,
             }
         );
 
         const data = response.data.data;
-        if (data.status === 'success') {
-            res.status(200).json({ status: true, message: 'Payment successful', data });
-        } else {
-            res.status(400).json({ status: false, message: 'Payment not successful', data });
+
+        if (data.status !== 'success') {
+            return res.status(400).json({ status: false, message: 'Payment not successful', data });
         }
+
+        // 2. Extract the same metadata the frontend embedded during initialization
+        const { metadata, amount, customer, authorization, plan, subscription_code } = data;
+        const userId    = metadata?.user_id   || req.user?.id;
+        const tier      = metadata?.tier      || 'bronze';
+        const planName  = metadata?.plan      || 'Verified Vendor';
+        const billingCycle = metadata?.billing_cycle || 'annually';
+        const referrerId   = metadata?.referrer_id   || null;
+        const amountPaid   = metadata?.amount        || (amount / 100);
+
+        // 3. Idempotency guard — skip provisioning if webhook already handled this reference.
+        //    We detect this by checking whether the user already has an active subscription
+        //    recorded AFTER this payment (subscription_expires_at in the future).
+        let alreadyProvisioned = false;
+        if (userId) {
+            const [existing] = await pool.query(
+                `SELECT id FROM subscriptions 
+                 WHERE user_id = ? AND status = 'active' AND next_payment_date > NOW()`,
+                [userId]
+            );
+            alreadyProvisioned = existing.length > 0;
+        }
+
+        if (alreadyProvisioned) {
+            console.log(`[VerifyPayment] Webhook already provisioned sub for user #${userId} — skipping.`);
+        } else {
+            console.log(`[VerifyPayment] Webhook fallback: provisioning subscription for user #${userId}, tier: ${tier}`);
+            await processSuccessfulSubscription({
+                userId,
+                tier,
+                planName,
+                billingCycle,
+                amountPaid,
+                referrerId,
+                paystackSubCode:  subscription_code             || null,
+                paystackPlanCode: plan?.plan_code               || null,
+                paystackAuthCode: authorization?.authorization_code || null,
+                customerCode:     customer?.customer_code       || null,
+            });
+        }
+
+        return res.status(200).json({
+            status: true,
+            message: 'Payment verified and subscription activated',
+            provisioned: !alreadyProvisioned,
+            data,
+        });
+
     } catch (error) {
+        const paystackStatus = error.response?.status;
+        const isTimeout = error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT';
+        const isPaystackDown = isTimeout || (paystackStatus && paystackStatus >= 500);
+
+        if (isPaystackDown) {
+            console.error('Verify Payment Error (Paystack unavailable):', error.response?.data || error.message);
+            return res.status(503).json({
+                message: 'Paystack is temporarily unavailable. Your payment was received — please try again in a moment to activate your subscription.',
+                retryable: true,
+            });
+        }
+
         console.error('Verify Payment Error:', error.response?.data || error.message);
         res.status(500).json({ message: 'Failed to verify payment' });
     }
@@ -166,29 +231,88 @@ const processSuccessfulSubscription = async ({ userId, tier, planName, billingCy
         await pool.query('INSERT INTO badges (user_id, badge_type) VALUES (?, ?)', [userId, normalizedTier]);
     }
 
-    // 5. Calculate & Record 12% Referral Commission (Idempotent: prevent duplicate commission)
-    let actualReferrerId = referrerId;
-    if (!actualReferrerId) {
-        const [uRows] = await pool.query('SELECT referred_by FROM users WHERE id = ?', [userId]);
-        if (uRows.length > 0 && uRows[0].referred_by) {
-            actualReferrerId = uRows[0].referred_by;
+    // 5. Generate Onlok Vendor ID if user doesn't have one yet
+    const [userRows] = await pool.query('SELECT vendor_id, first_name, last_name, email, business_name, referred_by FROM users WHERE id = ?', [userId]);
+    const userInfo = userRows[0] || {};
+    let finalVendorId = userInfo.vendor_id;
+
+    if (!finalVendorId) {
+        finalVendorId = await generateVendorId();
+        await pool.query('UPDATE users SET vendor_id = ? WHERE id = ?', [finalVendorId, userId]);
+        console.log(`[Provisioning] Generated vendor ID ${finalVendorId} for user #${userId}`);
+    }
+
+    // 6. Create vendor_profile + QR code if one doesn't exist yet
+    const [existingProfile] = await pool.query('SELECT id FROM vendor_profiles WHERE user_id = ?', [userId]);
+    if (existingProfile.length === 0) {
+        const profileLink = `${process.env.CORS_ORIGIN || 'https://onlok.net'}/vendor/${finalVendorId}`;
+        let qrCodeUrl = null;
+        try {
+            qrCodeUrl = await generateQRCode(profileLink);
+        } catch (qrErr) {
+            console.warn(`[Provisioning] QR code generation failed for user #${userId}:`, qrErr.message);
         }
+        await pool.query(
+            'INSERT INTO vendor_profiles (user_id, profile_link, qr_code_url) VALUES (?, ?, ?)',
+            [userId, profileLink, qrCodeUrl]
+        );
+        console.log(`[Provisioning] Created vendor profile for user #${userId} at ${profileLink}`);
+    }
+
+    // 7. Referral commission — promote the existing pending signup referral to 'available'
+    //    OR insert a new commission record if no referral exists yet.
+    let actualReferrerId = referrerId;
+    if (!actualReferrerId && userInfo.referred_by) {
+        actualReferrerId = userInfo.referred_by;
     }
 
     if (actualReferrerId) {
+        const commission = amountPaid * 0.12; // 12% commission
         const [existingRef] = await pool.query(
-            'SELECT id FROM referrals WHERE referred_user_id = ?',
+            'SELECT id, status FROM referrals WHERE referred_user_id = ?',
             [userId]
         );
-        if (existingRef.length === 0) {
-            const commission = amountPaid * 0.12; // 12% commission
+
+        if (existingRef.length > 0) {
+            // Promote the pending signup referral to available with the real commission
+            await pool.query(
+                `UPDATE referrals 
+                 SET status = 'available', subscription_plan = ?, amount_paid = ?, commission_earned = ?
+                 WHERE referred_user_id = ? AND status = 'pending'`,
+                [planName || 'Verified Vendor', amountPaid, commission, userId]
+            );
+            console.log(`[Referral Reward] Promoted referral to 'available' — ₦${commission} for referrer #${actualReferrerId}`);
+        } else {
+            // No prior referral record — insert fresh
             await pool.query(
                 `INSERT INTO referrals (referrer_id, referred_user_id, subscription_plan, amount_paid, commission_earned, status)
                  VALUES (?, ?, ?, ?, ?, 'available')`,
                 [actualReferrerId, userId, planName || 'Verified Vendor', amountPaid, commission]
             );
-            console.log(`[Referral Reward] Credited ₦${commission} commission to referrer #${actualReferrerId} for user #${userId}`);
+            console.log(`[Referral Reward] Created referral — ₦${commission} for referrer #${actualReferrerId}`);
         }
+    }
+
+    // 8. Send confirmation email to the vendor
+    try {
+        const tierLabel = normalizedTier.charAt(0).toUpperCase() + normalizedTier.slice(1);
+        const confirmHtml = `
+            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+                <h2 style="color: #0F172A;">🎉 Welcome to Onlok, ${userInfo.first_name}!</h2>
+                <p>Your subscription is now <strong>active</strong>.</p>
+                <table style="width:100%; border-collapse:collapse; margin: 16px 0;">
+                    <tr><td style="padding:8px; border:1px solid #e2e8f0;"><strong>Onlok ID</strong></td><td style="padding:8px; border:1px solid #e2e8f0;">${finalVendorId}</td></tr>
+                    <tr><td style="padding:8px; border:1px solid #e2e8f0;"><strong>Plan</strong></td><td style="padding:8px; border:1px solid #e2e8f0;">${planName || 'Verified Vendor'} (${tierLabel})</td></tr>
+                    <tr><td style="padding:8px; border:1px solid #e2e8f0;"><strong>Amount Paid</strong></td><td style="padding:8px; border:1px solid #e2e8f0;">₦${Number(amountPaid).toLocaleString()}</td></tr>
+                </table>
+                <p>You can now log in to your dashboard using your Onlok ID: <strong>${finalVendorId}</strong></p>
+                <br/>
+                <p>Best regards,<br/><strong>The Onlok Team</strong></p>
+            </div>
+        `;
+        await sendEmail(userInfo.email, 'Your Onlok Subscription is Active', confirmHtml);
+    } catch (emailErr) {
+        console.warn('[Provisioning] Confirmation email failed:', emailErr.message);
     }
 };
 
@@ -196,7 +320,9 @@ const processSuccessfulSubscription = async ({ userId, tier, planName, billingCy
 const paystackWebhook = async (req, res) => {
     try {
         const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
-        const hash = crypto.createHmac('sha512', PAYSTACK_SECRET).update(JSON.stringify(req.body)).digest('hex');
+        // Use raw body buffer for HMAC — re-serialising req.body can change key order/whitespace
+        const rawBody = req.rawBody || Buffer.from(JSON.stringify(req.body));
+        const hash = crypto.createHmac('sha512', PAYSTACK_SECRET).update(rawBody).digest('hex');
         
         if (hash === req.headers['x-paystack-signature']) {
             const event = req.body;
@@ -304,6 +430,8 @@ const paystackWebhook = async (req, res) => {
                     ['Transfer Reversed Webhook', 'HIGH', `Paystack transfer reversed. Ref: ${reference}. Reason: ${reversalMsg}`]
                 );
             }
+        } else {
+            console.warn('[Paystack Webhook] ⚠️  Signature mismatch — event ignored. Check PAYSTACK_SECRET_KEY matches your Paystack dashboard webhook secret.');
         }
         res.sendStatus(200);
     } catch (error) {
