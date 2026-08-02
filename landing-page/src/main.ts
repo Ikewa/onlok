@@ -1,60 +1,99 @@
-import './style.css'
-import typescriptLogo from './assets/typescript.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import { setupCounter } from './counter.ts'
+// ONLOK Landing Page Interactive Logic
 
-document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
-<section id="center">
-  <div class="hero">
-    <img src="${heroImg}" class="base" width="170" height="179">
-    <img src="${typescriptLogo}" class="framework" alt="TypeScript logo"/>
-    <img src="${viteLogo}" class="vite" alt="Vite logo" />
-  </div>
-  <div>
-    <h1>Get started</h1>
-    <p>Edit <code>src/main.ts</code> and save to test <code>HMR</code></p>
-  </div>
-  <button id="counter" type="button" class="counter"></button>
-</section>
+document.addEventListener('DOMContentLoaded', () => {
+  // 1. Pricing Billing Cycle Toggle
+  const billingToggleMonthly = document.getElementById('billing-monthly');
+  const billingToggleAnnual = document.getElementById('billing-annual');
+  const priceTier1 = document.getElementById('price-tier-1');
+  const priceTier2 = document.getElementById('price-tier-2');
+  const priceTier3 = document.getElementById('price-tier-3');
+  const cycleLabel1 = document.getElementById('cycle-label-1');
+  const cycleLabel2 = document.getElementById('cycle-label-2');
+  const cycleLabel3 = document.getElementById('cycle-label-3');
 
-<div class="ticks"></div>
+  if (billingToggleMonthly && billingToggleAnnual) {
+    billingToggleMonthly.addEventListener('click', () => {
+      // Activate Monthly
+      billingToggleMonthly.classList.add('bg-white', 'text-[#0F172A]', 'shadow-sm');
+      billingToggleMonthly.classList.remove('text-[#64748B]', 'bg-transparent');
+      billingToggleAnnual.classList.remove('bg-white', 'text-[#0F172A]', 'shadow-sm');
+      billingToggleAnnual.classList.add('text-[#64748B]', 'bg-transparent');
 
-<section id="next-steps">
-  <div id="docs">
-    <svg class="icon" role="presentation" aria-hidden="true"><use href="/icons.svg#documentation-icon"></use></svg>
-    <h2>Documentation</h2>
-    <p>Your questions, answered</p>
-    <ul>
-      <li>
-        <a href="https://vite.dev/" target="_blank">
-          <img class="logo" src="${viteLogo}" alt="" />
-          Explore Vite
-        </a>
-      </li>
-      <li>
-        <a href="https://www.typescriptlang.org" target="_blank">
-          <img class="button-icon" src="${typescriptLogo}" alt="">
-          Learn more
-        </a>
-      </li>
-    </ul>
-  </div>
-  <div id="social">
-    <svg class="icon" role="presentation" aria-hidden="true"><use href="/icons.svg#social-icon"></use></svg>
-    <h2>Connect with us</h2>
-    <p>Join the Vite community</p>
-    <ul>
-      <li><a href="https://github.com/vitejs/vite" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#github-icon"></use></svg>GitHub</a></li>
-      <li><a href="https://chat.vite.dev/" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#discord-icon"></use></svg>Discord</a></li>
-      <li><a href="https://x.com/vite_js" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#x-icon"></use></svg>X.com</a></li>
-      <li><a href="https://bsky.app/profile/vite.dev" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#bluesky-icon"></use></svg>Bluesky</a></li>
-    </ul>
-  </div>
-</section>
+      if (priceTier1) priceTier1.textContent = '₦850';
+      if (priceTier2) priceTier2.textContent = '₦1,300';
+      if (priceTier3) priceTier3.textContent = '₦2,150';
 
-<div class="ticks"></div>
-<section id="spacer"></section>
-`
+      if (cycleLabel1) cycleLabel1.textContent = '/month';
+      if (cycleLabel2) cycleLabel2.textContent = '/month';
+      if (cycleLabel3) cycleLabel3.textContent = '/month';
+    });
 
-setupCounter(document.querySelector<HTMLButtonElement>('#counter')!)
+    billingToggleAnnual.addEventListener('click', () => {
+      // Activate Annual
+      billingToggleAnnual.classList.add('bg-white', 'text-[#0F172A]', 'shadow-sm');
+      billingToggleAnnual.classList.remove('text-[#64748B]', 'bg-transparent');
+      billingToggleMonthly.classList.remove('bg-white', 'text-[#0F172A]', 'shadow-sm');
+      billingToggleMonthly.classList.add('text-[#64748B]', 'bg-transparent');
+
+      if (priceTier1) priceTier1.textContent = '₦10,000';
+      if (priceTier2) priceTier2.textContent = '₦15,000';
+      if (priceTier3) priceTier3.textContent = '₦25,000';
+
+      if (cycleLabel1) cycleLabel1.textContent = '/year';
+      if (cycleLabel2) cycleLabel2.textContent = '/year';
+      if (cycleLabel3) cycleLabel3.textContent = '/year';
+    });
+  }
+
+  // 2. FAQ Accordion Logic
+  const accordionButtons = document.querySelectorAll('.accordion-header');
+  accordionButtons.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const item = btn.closest('.accordion-item');
+      if (!item) return;
+
+      const isActive = item.classList.contains('active');
+
+      // Close all other items
+      document.querySelectorAll('.accordion-item').forEach((i) => {
+        i.classList.remove('active');
+        const content = i.querySelector('.accordion-content') as HTMLElement;
+        if (content) content.style.maxHeight = '0px';
+      });
+
+      // Toggle current item
+      if (!isActive) {
+        item.classList.add('active');
+        const content = item.querySelector('.accordion-content') as HTMLElement;
+        if (content) {
+          content.style.maxHeight = content.scrollHeight + 'px';
+        }
+      }
+    });
+  });
+
+  // 3. Mobile Navigation Menu Toggle
+  const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+  const mobileMenuDrawer = document.getElementById('mobile-menu-drawer');
+  const mobileMenuClose = document.getElementById('mobile-menu-close');
+
+  if (mobileMenuBtn && mobileMenuDrawer) {
+    mobileMenuBtn.addEventListener('click', () => {
+      mobileMenuDrawer.classList.remove('hidden');
+    });
+  }
+
+  if (mobileMenuClose && mobileMenuDrawer) {
+    mobileMenuClose.addEventListener('click', () => {
+      mobileMenuDrawer.classList.add('hidden');
+    });
+  }
+
+  // Close mobile menu on clicking any link inside it
+  const mobileNavLinks = document.querySelectorAll('#mobile-menu-drawer a');
+  mobileNavLinks.forEach((link) => {
+    link.addEventListener('click', () => {
+      if (mobileMenuDrawer) mobileMenuDrawer.classList.add('hidden');
+    });
+  });
+});
