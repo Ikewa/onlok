@@ -54,7 +54,7 @@ const submitVerification = async (req, res) => {
         }
 
         // Insert into verification table
-        const query = `INSERT INTO verifications (user_id, gov_id_url, cac_document_url, video_url) VALUES (?, ?, ?, ?)`;
+        const query = `INSERT INTO verifications (user_id, gov_id_url, cac_url, video_url) VALUES (?, ?, ?, ?)`;
         const [result] = await pool.query(query, [req.user.id, govIdUrl, cacUrl, videoUrl]);
 
         res.status(201).json({

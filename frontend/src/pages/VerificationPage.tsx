@@ -123,7 +123,7 @@ export default function VerificationPage() {
         user_id: user?.id || 1,
         status: mockStatus as any,
         gov_id_url: '',
-        cac_document_url: '',
+        cac_url: '',
         business_video_url: '',
         submitted_at: new Date().toISOString(),
         reviewed_at: ['approved', 'rejected', 'flagged'].includes(mockStatus) ? new Date().toISOString() : null,

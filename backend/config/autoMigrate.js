@@ -55,9 +55,9 @@ async function createTables() {
         CREATE TABLE IF NOT EXISTS verifications (
             id            INT AUTO_INCREMENT PRIMARY KEY,
             user_id       INT NOT NULL,
-            gov_id_url         VARCHAR(255) NOT NULL,
-            cac_document_url   VARCHAR(255) NULL,
-            video_url          VARCHAR(255) NOT NULL,
+            gov_id_url    VARCHAR(255) NOT NULL,
+            cac_url       VARCHAR(255) NULL,
+            video_url     VARCHAR(255) NOT NULL,
             status        ENUM('pending','tier_assigned','payment_received','approved','rejected','flagged') DEFAULT 'pending',
             assigned_tier VARCHAR(50) NULL,
             payment_status ENUM('unpaid','paid') DEFAULT 'unpaid',
@@ -118,7 +118,7 @@ async function createTables() {
     // Each statement has its own try/catch so one failure doesn't skip the rest.
     const alterQueries = [
         "ALTER TABLE users MODIFY COLUMN vendor_id VARCHAR(20) NULL",
-        "ALTER TABLE verifications ADD COLUMN cac_document_url VARCHAR(255) NULL AFTER gov_id_url",
+        "ALTER TABLE verifications ADD COLUMN cac_url VARCHAR(255) NULL AFTER gov_id_url",
         "ALTER TABLE reports ADD COLUMN reference_number VARCHAR(50) UNIQUE NULL AFTER id",
         "ALTER TABLE reports ADD COLUMN contact_email VARCHAR(255) NULL AFTER reported_vendor_id",
         "ALTER TABLE reports ADD COLUMN phone_number VARCHAR(20) NULL AFTER contact_email",
@@ -302,7 +302,7 @@ const COLUMN_MIGRATIONS = [
     { table: 'users', column: 'reset_password_token', definition: 'VARCHAR(255) NULL AFTER updated_at' },
     { table: 'users', column: 'reset_password_expires', definition: 'BIGINT NULL AFTER reset_password_token' },
     // CAC document URL for business verifications
-    { table: 'verifications', column: 'cac_document_url', definition: 'VARCHAR(255) NULL AFTER gov_id_url' },
+    { table: 'verifications', column: 'cac_url', definition: 'VARCHAR(255) NULL AFTER gov_id_url' },
 ];
 
 async function addMissingColumns() {
@@ -316,6 +316,13 @@ async function addMissingColumns() {
                 console.warn(`⚠️  [AutoMigrate] ${table}.${column}: ${err.message}`);
             }
         }
+    }
+    // Rename legacy cac_document_url column to cac_url if present
+    try {
+        await pool.query(`ALTER TABLE verifications CHANGE COLUMN cac_document_url cac_url VARCHAR(255) NULL`);
+        console.log(`✅ [AutoMigrate] Renamed column cac_document_url to cac_url`);
+    } catch (err) {
+        // ignore if old column does not exist
     }
     try {
         await pool.query(`ALTER TABLE withdrawals MODIFY COLUMN status ENUM('pending','processing','paid','failed','rejected','reversed') DEFAULT 'pending'`);
