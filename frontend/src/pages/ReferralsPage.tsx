@@ -83,6 +83,24 @@ export default function ReferralsPage() {
     }
   }, [withdrawModalOpen, banks.length]);
 
+  // Pre-fill saved bank details when withdrawal modal opens
+  useEffect(() => {
+    if (withdrawModalOpen && data?.bankDetails) {
+      if (data.bankDetails.bank_code && !selectedBankCode) {
+        setSelectedBankCode(data.bankDetails.bank_code);
+      }
+      if (data.bankDetails.bank_name && !selectedBankName) {
+        setSelectedBankName(data.bankDetails.bank_name);
+      }
+      if (data.bankDetails.account_number && !accountNumber) {
+        setAccountNumber(data.bankDetails.account_number);
+      }
+      if (data.bankDetails.account_name && !resolvedAccountName) {
+        setResolvedAccountName(data.bankDetails.account_name);
+      }
+    }
+  }, [withdrawModalOpen, data?.bankDetails]);
+
   // Automatically resolve bank account name when 10-digit account number and bank code are set
   useEffect(() => {
     if (accountNumber.length === 10 && selectedBankCode) {
@@ -160,15 +178,11 @@ export default function ReferralsPage() {
         bank_name: selectedBankName,
         account_number: accountNumber,
         account_name: resolvedAccountName,
-        payment_method: `${selectedBankName} - ${accountNumber}`
+        payment_method: 'Bank Transfer'
       });
       toast.success('Withdrawal request submitted successfully');
       setWithdrawModalOpen(false);
       setWithdrawAmount('');
-      setSelectedBankCode('');
-      setSelectedBankName('');
-      setAccountNumber('');
-      setResolvedAccountName('');
       fetchReferrals();
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to submit withdrawal request');
