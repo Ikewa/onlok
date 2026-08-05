@@ -91,7 +91,7 @@ export default function LandingPage() {
                 display: 'flex',
                 alignItems: 'center',
                 boxShadow: '0 20px 50px rgba(0,0,0,0.08)',
-                border: '1px solid #E2E8F0',
+                border: '2px solid #CBD5E1',
                 mx: 'auto',
                 position: 'relative'
               }}
