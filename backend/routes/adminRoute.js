@@ -17,6 +17,7 @@ const {
     approveBulkWithdrawalsAdmin,
     rejectWithdrawalAdmin,
     rejectBulkWithdrawalsAdmin,
+    syncWithdrawalStatusAdmin,
     getWebsiteHits
 } = require('../controllers/adminController');
 const { protect, adminOnly } = require('../middlewares/authMiddleware');
@@ -53,5 +54,7 @@ router.post('/withdrawals/reject-bulk', rejectBulkWithdrawalsAdmin);
 router.put('/withdrawals/:id/approve', approveWithdrawalAdmin);
 router.put('/withdrawals/:id/reject', rejectWithdrawalAdmin);
 router.put('/withdrawals/:id/status', updateWithdrawalStatus);
+router.post('/withdrawals/:id/sync-status', syncWithdrawalStatusAdmin);
+router.put('/withdrawals/:id/sync-status', syncWithdrawalStatusAdmin);
 
 module.exports = router;

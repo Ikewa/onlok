@@ -174,6 +174,23 @@ export default function AdminReferrals() {
     }
   };
 
+  const handleSyncWithdrawalStatus = async (id: number) => {
+    setActionLoading(true);
+    const toastId = toast.loading('Syncing status with Paystack...');
+    try {
+      const res = await axiosInstance.post(`/admin/withdrawals/${id}/sync-status`);
+      toast.success(res.data?.message || 'Withdrawal status synced successfully', { id: toastId });
+      fetchWithdrawals();
+      fetchReferrals();
+    } catch (error: any) {
+      console.error(error);
+      const msg = error.response?.data?.message || 'Failed to sync status with Paystack';
+      toast.error(msg, { id: toastId });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   // Bulk approval / rejection
   const handleBulkApprove = async () => {
     if (selectedIds.length === 0) return;
@@ -295,6 +312,7 @@ export default function AdminReferrals() {
           onBulkReject={handleBulkReject}
           onSingleApprove={handleSingleApprove}
           onSingleReject={handleSingleReject}
+          onSyncStatus={handleSyncWithdrawalStatus}
           onUpdateStatus={handleUpdateWithdrawalStatus}
           formatCurrency={formatCurrency}
         />

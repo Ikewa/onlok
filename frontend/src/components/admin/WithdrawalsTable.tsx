@@ -28,6 +28,7 @@ import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import SendIcon from '@mui/icons-material/Send';
 import CancelIcon from '@mui/icons-material/Cancel';
+import SyncIcon from '@mui/icons-material/Sync';
 
 interface WithdrawalsTableProps {
   loading: boolean;
@@ -51,6 +52,7 @@ interface WithdrawalsTableProps {
   onBulkReject: () => void;
   onSingleApprove: (id: number) => void;
   onSingleReject: (id: number) => void;
+  onSyncStatus?: (id: number) => void;
   onUpdateStatus: (id: number, newStatus: string) => void;
   formatCurrency: (val: number) => string;
 }
@@ -72,6 +74,7 @@ export const WithdrawalsTable: React.FC<WithdrawalsTableProps> = ({
   onBulkReject,
   onSingleApprove,
   onSingleReject,
+  onSyncStatus,
   onUpdateStatus,
   formatCurrency,
 }) => {
@@ -407,57 +410,78 @@ export const WithdrawalsTable: React.FC<WithdrawalsTableProps> = ({
                     </TableCell>
 
                     <TableCell align="right">
-                      {canApproveOrReject ? (
-                        <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+                      <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end', alignItems: 'center' }}>
+                        {canApproveOrReject && (
+                          <>
+                            <Button
+                              size="small"
+                              variant="contained"
+                              disabled={actionLoading}
+                              startIcon={<CheckCircleOutlinedIcon sx={{ fontSize: 16 }} />}
+                              onClick={() => onSingleApprove(row.id)}
+                              sx={{
+                                borderRadius: '6px',
+                                textTransform: 'none',
+                                bgcolor: '#16A34A',
+                                '&:hover': { bgcolor: '#15803D' },
+                                color: '#FFFFFF',
+                                fontSize: '0.78rem',
+                                fontWeight: 600,
+                                py: 0.4,
+                                px: 1.2,
+                              }}
+                            >
+                              Approve
+                            </Button>
+
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              color="error"
+                              disabled={actionLoading}
+                              startIcon={<HighlightOffOutlinedIcon sx={{ fontSize: 16 }} />}
+                              onClick={() => onSingleReject(row.id)}
+                              sx={{
+                                borderRadius: '6px',
+                                textTransform: 'none',
+                                fontSize: '0.78rem',
+                                fontWeight: 500,
+                                py: 0.4,
+                                px: 1.2,
+                              }}
+                            >
+                              Reject
+                            </Button>
+                          </>
+                        )}
+
+                        {onSyncStatus && (row.transfer_reference || statusLower === 'processing' || statusLower === 'pending') && (
                           <Button
                             size="small"
-                            variant="contained"
+                            variant="outlined"
+                            color="info"
                             disabled={actionLoading}
-                            startIcon={<CheckCircleOutlinedIcon sx={{ fontSize: 16 }} />}
-                            onClick={() => onSingleApprove(row.id)}
+                            startIcon={<SyncIcon sx={{ fontSize: 16 }} />}
+                            onClick={() => onSyncStatus(row.id)}
                             sx={{
                               borderRadius: '6px',
                               textTransform: 'none',
-                              bgcolor: '#16A34A',
-                              '&:hover': { bgcolor: '#15803D' },
-                              color: '#FFFFFF',
                               fontSize: '0.78rem',
                               fontWeight: 600,
                               py: 0.4,
                               px: 1.2,
                             }}
                           >
-                            Approve
+                            Sync Status
                           </Button>
+                        )}
 
-                          <Button
-                            size="small"
-                            variant="outlined"
-                            color="error"
-                            disabled={actionLoading}
-                            startIcon={<HighlightOffOutlinedIcon sx={{ fontSize: 16 }} />}
-                            onClick={() => onSingleReject(row.id)}
-                            sx={{
-                              borderRadius: '6px',
-                              textTransform: 'none',
-                              fontSize: '0.78rem',
-                              fontWeight: 500,
-                              py: 0.4,
-                              px: 1.2,
-                            }}
-                          >
-                            Reject
-                          </Button>
-                        </Box>
-                      ) : statusLower === 'processing' ? (
-                        <Typography sx={{ color: '#2563EB', fontSize: '0.8rem', fontStyle: 'italic' }}>
-                          Processing via Paystack...
-                        </Typography>
-                      ) : (
-                        <Typography sx={{ color: '#9CA3AF', fontSize: '0.8rem' }}>
-                          Completed
-                        </Typography>
-                      )}
+                        {!canApproveOrReject && statusLower !== 'processing' && !onSyncStatus && (
+                          <Typography sx={{ color: '#9CA3AF', fontSize: '0.8rem' }}>
+                            Completed
+                          </Typography>
+                        )}
+                      </Box>
                     </TableCell>
                   </TableRow>
                 );

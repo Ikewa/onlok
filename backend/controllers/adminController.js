@@ -1059,6 +1059,72 @@ const getWebsiteHits = async (req, res) => {
     }
 };
 
+// @desc    Check and sync status of a withdrawal transfer directly with Paystack
+// @route   POST /api/admin/withdrawals/:id/sync-status
+// @access  Private/Admin
+const syncWithdrawalStatusAdmin = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const [rows] = await pool.query(
+            `SELECT id, status, transfer_reference, transfer_code, amount, failure_reason FROM withdrawals WHERE id = ?`,
+            [id]
+        );
+
+        if (rows.length === 0) {
+            return res.status(404).json({ message: 'Withdrawal request not found' });
+        }
+
+        const w = rows[0];
+        const refToVerify = w.transfer_reference || w.transfer_code;
+
+        if (!refToVerify) {
+            return res.status(400).json({ message: `Withdrawal #${id} has no transfer reference to verify on Paystack` });
+        }
+
+        try {
+            const paystackRes = await paystackService.verifyTransfer(refToVerify);
+            const data = paystackRes.data || {};
+            const pStatus = (data.status || '').toLowerCase(); // 'success', 'failed', 'pending', 'reversed'
+
+            let newStatus = w.status;
+            let failureMsg = w.failure_reason;
+
+            if (pStatus === 'success') {
+                newStatus = 'paid';
+                failureMsg = null;
+            } else if (pStatus === 'failed' || pStatus === 'reversed') {
+                newStatus = 'failed';
+                failureMsg = data.gateway_response || data.reason || `Transfer ${pStatus} on Paystack`;
+            } else if (pStatus === 'processing' || pStatus === 'pending') {
+                newStatus = 'processing';
+            }
+
+            await pool.query(
+                `UPDATE withdrawals SET status = ?, failure_reason = ?, transfer_code = COALESCE(?, transfer_code) WHERE id = ?`,
+                [newStatus, failureMsg, data.transfer_code || null, id]
+            );
+
+            await pool.query(
+                'INSERT INTO audit_logs (user_id, action, severity, details) VALUES (NULL, ?, ?, ?)',
+                ['Sync Withdrawal Status', 'LOW', `Admin synced status for withdrawal #${id}. Paystack status: ${data.status} -> DB status: ${newStatus}`]
+            );
+
+            return res.status(200).json({
+                message: `Withdrawal #${id} status synced with Paystack: ${newStatus.toUpperCase()}`,
+                status: newStatus,
+                paystack_status: data.status,
+                data
+            });
+        } catch (pErr) {
+            console.error(`Paystack verifyTransfer error for withdrawal #${id}:`, pErr.response?.data || pErr.message);
+            const errDetail = pErr.response?.data?.message || pErr.message || 'Failed to connect to Paystack';
+            return res.status(400).json({ message: `Paystack verification failed: ${errDetail}` });
+        }
+    } catch (error) {
+        console.error('Sync Withdrawal Status Admin Error:', error);
+        res.status(500).json({ message: 'Server error syncing withdrawal status' });
+    }
+};
 
 module.exports = {
     adminLogin,
@@ -1077,5 +1143,6 @@ module.exports = {
     approveBulkWithdrawalsAdmin,
     rejectWithdrawalAdmin,
     rejectBulkWithdrawalsAdmin,
+    syncWithdrawalStatusAdmin,
     getWebsiteHits
 };
