@@ -8,7 +8,6 @@ const storage = multer.diskStorage({
         cb(null, path.join(__dirname, '../uploads'));
     },
     filename: function (req, file, cb) {
-        // Use req.user.id (always set) — vendor_id is null until after first payment
         cb(null, `${req.user.id}-${file.fieldname}-${Date.now()}${path.extname(file.originalname)}`);
     }
 });
