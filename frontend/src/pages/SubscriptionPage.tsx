@@ -48,6 +48,7 @@ export default function SubscriptionPage() {
         email: user.email,
         amount: amount,
         plan: tier,
+        billingCycle: billingCycle === 'annual' ? 'annually' : 'monthly',
       });
       
       if (res && res.data && res.data.authorization_url) {
@@ -293,14 +294,15 @@ export default function SubscriptionPage() {
             </Box>
             <Button 
               variant="outlined" 
-              onClick={() => navigate('/register')}
+              onClick={() => handleSubscribe('Premium Category', 25000)}
+              disabled={loadingTier === 'Premium Category'}
               sx={{ 
                 borderRadius: 1.5, py: 1.2, fontWeight: 700, textTransform: 'none', 
                 borderColor: '#0029FF', color: '#0029FF', 
                 '&:hover': { bgcolor: '#F0F4FF', borderColor: '#0029FF' } 
               }}
             >
-              Get Verified
+              {loadingTier === 'Premium Category' ? <CircularProgress size={24} /> : (user ? 'Subscribe Now' : 'Get Verified')}
             </Button>
           </Box>
 

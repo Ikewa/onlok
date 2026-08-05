@@ -27,7 +27,14 @@ app.use(cors({
     },
     credentials: true,
 }));
-app.use(express.json());
+// Capture raw body for Paystack webhook HMAC verification.
+// express.json()'s verify callback runs before the body is parsed,
+// giving us the original bytes that Paystack signed.
+app.use(express.json({
+    verify: (req, res, buf) => {
+        req.rawBody = buf;
+    }
+}));
 app.use(morgan('dev'));
 
 // Website hit tracking middleware
@@ -59,6 +66,7 @@ const withdrawalRoutes = require('./routes/withdrawalRoute');
 const premblyRoutes = require('./routes/premblyRoute');
 const paymentRoutes = require('./routes/paymentRoute');
 const identityRoutes = require('./routes/identityRoute');
+const subscriptionRoutes = require('./routes/subscriptionRoute');
 
 app.use('/api/users', userRoutes);
 app.use('/api/verifications', verificationRoutes);
@@ -69,6 +77,7 @@ app.use('/api/withdrawals', withdrawalRoutes);
 app.use('/api/admin/prembly', premblyRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/identities', identityRoutes);
+app.use('/api/subscriptions', subscriptionRoutes);
 
 // Test Route
 app.get('/api/health', (req, res) => {

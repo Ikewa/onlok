@@ -21,6 +21,7 @@ import ReportPage from './pages/ReportPage';
 import ReportSuccessPage from './pages/ReportSuccessPage';
 import ComingSoonPage from './pages/ComingSoonPage';
 import SubscriptionPage from './pages/SubscriptionPage';
+import VendorSubscriptionPage from './pages/VendorSubscriptionPage';
 import CheckoutPage from './pages/CheckoutPage';
 import PaymentSuccessPage from './pages/PaymentSuccessPage';
 import ProfileUpdatePage from './pages/ProfileUpdatePage';
@@ -76,6 +77,7 @@ export default function App() {
               <Route index element={<DashboardPage />} />
               <Route path="verification" element={<VerificationPage />} />
               <Route path="badge" element={<BadgePage />} />
+              <Route path="subscription" element={<VendorSubscriptionPage />} />
               <Route path="referrals" element={<ReferralsPage />} />
               <Route path="update" element={<ProfileUpdatePage />} />
               <Route path="update/bio" element={<ProfileBioEditPage />} />

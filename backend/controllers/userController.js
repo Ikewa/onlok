@@ -150,7 +150,7 @@ const loginUser = async (req, res) => {
 const getMe = async (req, res) => {
     try {
         const [rows] = await pool.query(
-            'SELECT id, vendor_id, first_name, last_name, business_name, email, phone_number, role, status, profile_picture_url FROM users WHERE id = ?',
+            'SELECT id, vendor_id, first_name, last_name, business_name, email, phone_number, role, status, badge_type, subscription_expires_at, active_subscription_id, profile_picture_url FROM users WHERE id = ?',
             [req.user.id]
         );
         
@@ -310,6 +310,13 @@ const getReferrals = async (req, res) => {
         // So Available Earnings in UI should be the currentWalletBalance if they want to see what they can withdraw.
         const netAvailable = currentWalletBalance > 0 ? currentWalletBalance : 0;
 
+        // 4. Fetch saved user bank details
+        const [userRows] = await pool.query(
+            'SELECT bank_code, bank_name, account_number, account_name FROM users WHERE id = ?',
+            [userId]
+        );
+        const bankDetails = userRows.length > 0 ? userRows[0] : null;
+
         res.status(200).json({
             stats: {
                 totalReferrals: referrals.length,
@@ -321,6 +328,7 @@ const getReferrals = async (req, res) => {
                 pendingWithdrawals,
                 currentWalletBalance: netAvailable
             },
+            bankDetails,
             referrals,
             withdrawals
         });

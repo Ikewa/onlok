@@ -5,6 +5,7 @@ import PersonOutlinedIcon from '@mui/icons-material/PersonOutlined';
 import VerifiedUserOutlinedIcon from '@mui/icons-material/VerifiedUserOutlined';
 import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined';
 import CardGiftcardOutlinedIcon from '@mui/icons-material/CardGiftcardOutlined';
+import CreditCardOutlinedIcon from '@mui/icons-material/CreditCardOutlined';
 import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
 import { useAuth } from '../context/AuthContext';
 
@@ -114,6 +115,7 @@ export default function DashboardLayout() {
             {navItem('/dashboard', 'My Profile', <PersonOutlinedIcon />)}
             {navItem('/dashboard/verification', 'Verification', <VerifiedUserOutlinedIcon />)}
             {navItem('/dashboard/badge', 'My Badge', <BadgeOutlinedIcon />)}
+            {navItem('/dashboard/subscription', 'My Subscription', <CreditCardOutlinedIcon />)}
             
             <Box sx={{ position: 'relative', mt: 3, mb: 1 }}>
               <Box sx={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', width: 6, height: 6, bgcolor: '#EAB308', borderRadius: '50%' }} />

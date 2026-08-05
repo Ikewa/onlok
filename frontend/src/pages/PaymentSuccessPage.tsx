@@ -1,5 +1,7 @@
-import { Box, Typography, Button, Container, Paper } from '@mui/material';
+import { useEffect, useState } from 'react';
+import { Box, Typography, Button, Container, Paper, CircularProgress } from '@mui/material';
 import VerifiedIcon from '@mui/icons-material/Verified';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutlined';
 import DownloadIcon from '@mui/icons-material/Download';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Navbar from '../components/Navbar';
@@ -104,12 +106,12 @@ export default function PaymentSuccessPage() {
       <Navbar />
 
       <Container maxWidth="sm" sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', py: 8 }}>
-        <Paper 
+        <Paper
           elevation={0}
-          sx={{ 
-            bgcolor: '#F0F4FF', 
-            borderRadius: 4, 
-            p: { xs: 4, md: 6 }, 
+          sx={{
+            bgcolor: '#F0F4FF',
+            borderRadius: 4,
+            p: { xs: 4, md: 6 },
             textAlign: 'center',
             width: '100%',
             border: '1px solid #E2E8F0',
@@ -173,3 +175,4 @@ export default function PaymentSuccessPage() {
     </Box>
   );
 }
+
