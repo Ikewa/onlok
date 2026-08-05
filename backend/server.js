@@ -104,6 +104,11 @@ app.use((req, res, next) => {
 // THE FIX: Using native RegExp /.*/ instead of '*' string
 // ==========================================
 app.get(/.*/, (req, res) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.setHeader('Surrogate-Control', 'no-store');
+    
     if (req.hostname.startsWith('app.') || req.hostname === 'localhost') {
         res.sendFile('index.html', { root: frontendDistPath }, (err) => {
             if (err) {
