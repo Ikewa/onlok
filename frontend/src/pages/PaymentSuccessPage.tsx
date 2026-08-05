@@ -8,7 +8,7 @@ import Navbar from '../components/Navbar';
 import { jsPDF } from 'jspdf';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
-import { useEffect, useState } from 'react';
+
 import axios from 'axios';
 
 export default function PaymentSuccessPage() {
