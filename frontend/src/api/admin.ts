@@ -37,6 +37,8 @@ export interface DashboardMetrics {
     pendingVerifications: number;
     approvedVendors: number;
     flaggedAccounts: number;
+    totalRevenue?: number;
+    revenueFromYesterday?: number;
   };
   userTrends?: {
     month: string;

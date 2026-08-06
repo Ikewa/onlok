@@ -361,13 +361,30 @@ const getDashboardMetrics = async (req, res) => {
             LIMIT 50
         `);
 
+        // Query revenue metrics from subscriptions
+        const [totalRevResult] = await pool.query(`
+            SELECT COALESCE(SUM(amount), 0) as total 
+            FROM subscriptions 
+            WHERE status IN ('active', 'completed')
+        `);
+        const [yesterdayRevResult] = await pool.query(`
+            SELECT COALESCE(SUM(amount), 0) as total 
+            FROM subscriptions 
+            WHERE created_at >= DATE_SUB(NOW(), INTERVAL 1 DAY) AND status IN ('active', 'completed')
+        `);
+
+        const totalRevenue = parseFloat(totalRevResult[0]?.total) || 0;
+        const revenueFromYesterday = parseFloat(yesterdayRevResult[0]?.total) || 0;
+
         res.status(200).json({
             metrics: {
                 totalUsers: usersCount[0].total,
                 pendingVerifications: pendingCount[0].total,
                 approvedVendors: approvedCount[0].total,
                 flaggedAccounts: flaggedCount[0].total,
-                rejectedVerifications: rejectedCount[0].total
+                rejectedVerifications: rejectedCount[0].total,
+                totalRevenue,
+                revenueFromYesterday
             },
             userTrends,
             users
