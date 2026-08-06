@@ -30,18 +30,16 @@ export default function LandingPage() {
       <Container maxWidth="lg" sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', py: { xs: 2, md: 4 }, pb: { xs: '80px', md: 4 } }}>
         <Box sx={{ my: 'auto', width: '100%', display: 'flex', flexDirection: 'column' }}>
           <Box sx={{ textAlign: 'center', mb: { xs: 2, md: 8 } }}>
-            {/* GIGANTIC Size - Virtually Cropped via CSS Zoom */}
-            <Box sx={{ display: 'flex', justifyContent: 'center', mb: { xs: 2, md: 8 } }}>
+            {/* Hero Logo */}
+            <Box sx={{ display: 'inline-block', transform: { xs: 'scale(0.8)', md: 'scale(1.0)' }, transformOrigin: 'top center' }}>
               <Box 
                 sx={{ 
-                  width: { xs: '90%', md: 700 }, // Responsive width
-                  maxWidth: { xs: 350, md: 700 },
-                  height: { xs: 60, md: 150 }, // Scaled height for mobile
-                  overflow: 'hidden',
+                  width: '100%',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  position: 'relative'
+                  position: 'relative',
+                  mb: 4
                 }}
               >
                 <Box 
@@ -49,13 +47,10 @@ export default function LandingPage() {
                   src="/logo.png"
                   alt="Onlok Logo"
                   sx={{ 
-                    width: '180%', // Reduced zoom to show more of the logo
+                    width: '100%', 
+                    maxWidth: 400,
                     height: 'auto',
-                    display: 'block',
-                    position: 'absolute',
-                    top: '50%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)'
+                    display: 'block'
                   }} 
                 />
               </Box>
