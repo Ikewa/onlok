@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Box, Typography, Grid, Paper, Divider, CircularProgress, Chip } from '@mui/material';
+import { Box, Typography, Grid, Paper, Divider, CircularProgress, Chip, ToggleButton, ToggleButtonGroup } from '@mui/material';
 import PeopleOutlinedIcon from '@mui/icons-material/PeopleOutlined';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import VerifiedOutlinedIcon from '@mui/icons-material/VerifiedOutlined';
@@ -9,13 +9,29 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
   ResponsiveContainer, Legend,
 } from 'recharts';
-import { getDashboardMetrics, getAlerts, type DashboardMetrics, type AuditLog } from '../../api/admin';
+import { getDashboardMetrics, getAlerts, getWebsiteHits, type DashboardMetrics, type AuditLog } from '../../api/admin';
 import toast from 'react-hot-toast';
+
+import { RevenueOverviewCard } from '../../components/admin/RevenueOverviewCard';
 
 export default function AdminDashboard() {
   const [data, setData] = useState<DashboardMetrics | null>(null);
   const [alerts, setAlerts] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hits, setHits] = useState<number>(0);
+  const [hitsPeriod, setHitsPeriod] = useState<'week' | 'month' | 'quarterly' | 'all'>('week');
+
+  useEffect(() => {
+    const fetchHits = async () => {
+      try {
+        const res = await getWebsiteHits(hitsPeriod);
+        setHits(res.totalHits);
+      } catch (err) {
+        console.error('Failed to load hits', err);
+      }
+    };
+    fetchHits();
+  }, [hitsPeriod]);
 
   useEffect(() => {
     const fetchMetrics = async () => {
@@ -115,6 +131,12 @@ export default function AdminDashboard() {
         ))}
       </Grid>
 
+      {/* Revenue Overview Section */}
+      <RevenueOverviewCard
+        totalRevenue={metrics.totalRevenue || 0}
+        revenueFromYesterday={metrics.revenueFromYesterday || 0}
+      />
+
       {/* User Trends Chart */}
       <Paper elevation={0} sx={{ borderRadius: '12px', border: '1px solid #E5E7EB', bgcolor: '#FFFFFF', p: 3, mb: 3, mt: 3 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
@@ -177,6 +199,46 @@ export default function AdminDashboard() {
               />
             </AreaChart>
           </ResponsiveContainer>
+        </Box>
+      </Paper>
+
+      {/* Website Hits & Traffic */}
+      <Paper elevation={0} sx={{ borderRadius: '12px', border: '1px solid #E5E7EB', bgcolor: '#FFFFFF', p: 3, mb: 3 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 2 }}>
+          <Box>
+            <Typography variant="h6" fontWeight={600} color="#111827" sx={{ fontSize: '1.05rem' }}>
+              Website Hits & Traffic Analytics
+            </Typography>
+            <Typography variant="caption" color="#6B7280" sx={{ fontSize: '0.78rem' }}>
+              Total visitor interactions and page hits recorded across selected timeframe
+            </Typography>
+          </Box>
+          <ToggleButtonGroup
+            value={hitsPeriod}
+            exclusive
+            onChange={(_, newPeriod) => { if (newPeriod) setHitsPeriod(newPeriod); }}
+            size="small"
+            sx={{
+              '& .MuiToggleButton-root': { textTransform: 'none', fontWeight: 600, color: '#64748B', px: 2, fontSize: '0.78rem' },
+              '& .Mui-selected': { color: '#5B5FEC !important', bgcolor: '#EEF2FF !important' }
+            }}
+          >
+            <ToggleButton value="week">Week</ToggleButton>
+            <ToggleButton value="month">Month</ToggleButton>
+            <ToggleButton value="quarterly">Quarterly</ToggleButton>
+            <ToggleButton value="all">All Time</ToggleButton>
+          </ToggleButtonGroup>
+        </Box>
+
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', py: 4, bgcolor: '#F8FAFC', borderRadius: '10px', border: '1px dashed #E2E8F0', mt: 1 }}>
+          <Box sx={{ textAlign: 'center' }}>
+            <Typography variant="h2" fontWeight={800} color="#5B5FEC" sx={{ fontSize: { xs: '2.5rem', md: '3.25rem' } }}>
+              {hits.toLocaleString()}
+            </Typography>
+            <Typography variant="body1" color="#6B7280" fontWeight={500} mt={0.5} sx={{ fontSize: '0.88rem' }}>
+              Total visits this {hitsPeriod === 'quarterly' ? 'quarter' : hitsPeriod === 'all' ? 'time' : hitsPeriod}
+            </Typography>
+          </Box>
         </Box>
       </Paper>
 
