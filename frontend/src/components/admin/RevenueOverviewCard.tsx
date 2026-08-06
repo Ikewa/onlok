@@ -26,7 +26,8 @@ export const RevenueOverviewCard: React.FC<RevenueOverviewCardProps> = ({
         bgcolor: '#060B43',
         p: { xs: 3, md: 4 },
         mb: 3,
-        color: '#FFFFFF',
+	mt: 3,
+        color: '#000000',
         boxShadow: '0 4px 20px rgba(6, 11, 67, 0.2)',
       }}
     >

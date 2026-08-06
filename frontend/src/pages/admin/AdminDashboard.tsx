@@ -101,7 +101,7 @@ export default function AdminDashboard() {
         </Typography>
       </Box>
 
-      <Grid container spacing={2.5} mb={3}>
+      <Grid container spacing={2.5} mb={4}>
         {statCards.map((card, idx) => (
           <Grid item xs={12} sm={6} md={2.4} key={idx}>
             <Paper elevation={0} sx={{ 
