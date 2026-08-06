@@ -86,18 +86,44 @@ app.get('/api/health', (req, res) => {
 
 // Serve Frontend in Production (Express Wrapper Strategy)
 const frontendDistPath = path.join(__dirname, 'client-dist');
-app.use(express.static(frontendDistPath));
+const landingDistPath = path.join(__dirname, 'landing-dist');
+
+const serveApp = express.static(frontendDistPath);
+const serveLanding = express.static(landingDistPath);
+
+app.use((req, res, next) => {
+    // Route app.* to the React web app, otherwise default to the landing page
+    if (req.hostname.startsWith('app.') || req.hostname === 'localhost') {
+        serveApp(req, res, next);
+    } else {
+        serveLanding(req, res, next);
+    }
+});
 
 // ==========================================
 // THE FIX: Using native RegExp /.*/ instead of '*' string
 // ==========================================
 app.get(/.*/, (req, res) => {
-    res.sendFile('index.html', { root: frontendDistPath }, (err) => {
-        if (err) {
-            console.error('Error sending index.html:', err);
-            res.status(500).send('Frontend not found on server.');
-        }
-    });
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.setHeader('Surrogate-Control', 'no-store');
+    
+    if (req.hostname.startsWith('app.') || req.hostname === 'localhost') {
+        res.sendFile('index.html', { root: frontendDistPath }, (err) => {
+            if (err) {
+                console.error('Error sending app index.html:', err);
+                res.status(500).send('Frontend not found on server. Did you build client-dist?');
+            }
+        });
+    } else {
+        res.sendFile('index.html', { root: landingDistPath }, (err) => {
+            if (err) {
+                console.error('Error sending landing index.html:', err);
+                res.status(500).send('Landing page not found on server. Did you build landing-dist?');
+            }
+        });
+    }
 });
 
 // Auto-migrate: create tables, add missing columns, seed admin

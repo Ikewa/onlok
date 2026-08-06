@@ -34,7 +34,7 @@ router.post('/nin', protect, adminOnly, async (req, res) => {
         const { nin } = req.body;
         if (!nin) return res.status(400).json({ message: 'NIN is required' });
 
-        const data = await premblyRequest('/identitypass/verification/nin', { number: nin });
+        const data = await premblyRequest('/identitypass/verification/nin', { number_nin: nin });
         res.json(data);
     } catch (error) {
         console.error('Prembly NIN Error:', error.response?.data || error.message);
@@ -50,7 +50,10 @@ router.post('/cac', protect, adminOnly, async (req, res) => {
         const { cac } = req.body;
         if (!cac) return res.status(400).json({ message: 'CAC (RC Number) is required' });
 
-        const data = await premblyRequest('/identitypass/verification/cac', { rc_number: cac, company_name: req.body.company_name || '' });
+        const payload = { rc_number: cac, company_type: 'RC' };
+        if (req.body.company_name) payload.company_name = req.body.company_name;
+
+        const data = await premblyRequest('/identitypass/verification/cac/advance', payload);
         res.json(data);
     } catch (error) {
         console.error('Prembly CAC Error:', error.response?.data || error.message);
@@ -71,6 +74,46 @@ router.post('/vnin', protect, adminOnly, async (req, res) => {
     } catch (error) {
         console.error('Prembly VNIN Error:', error.response?.data || error.message);
         res.status(error.response?.status || 500).json(error.response?.data || { message: 'Failed to verify VNIN' });
+    }
+});
+
+// @desc    Verify Driver's License
+// @route   POST /api/admin/prembly/drivers_license
+// @access  Private/Admin
+router.post('/drivers_license', protect, adminOnly, async (req, res) => {
+    try {
+        const { drivers_license, first_name, last_name } = req.body;
+        if (!drivers_license) return res.status(400).json({ message: "Driver's License is required" });
+
+        const payload = { number: drivers_license };
+        if (first_name) payload.first_name = first_name;
+        if (last_name) payload.last_name = last_name;
+
+        const data = await premblyRequest('/identitypass/verification/drivers_license', payload);
+        res.json(data);
+    } catch (error) {
+        console.error('Prembly DL Error:', error.response?.data || error.message);
+        res.status(error.response?.status || 500).json(error.response?.data || { message: "Failed to verify Driver's License" });
+    }
+});
+
+// @desc    Verify Passport
+// @route   POST /api/admin/prembly/passport
+// @access  Private/Admin
+router.post('/passport', protect, adminOnly, async (req, res) => {
+    try {
+        const { passport, nin, dob } = req.body;
+        if (!passport) return res.status(400).json({ message: 'Passport number is required' });
+
+        const payload = { number: passport };
+        if (nin) payload.nin = nin;
+        if (dob) payload.dob = dob;
+
+        const data = await premblyRequest('/identitypass/verification/passport', payload);
+        res.json(data);
+    } catch (error) {
+        console.error('Prembly Passport Error:', error.response?.data || error.message);
+        res.status(error.response?.status || 500).json(error.response?.data || { message: 'Failed to verify Passport' });
     }
 });
 
