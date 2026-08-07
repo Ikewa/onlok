@@ -149,12 +149,10 @@ export default function RegisterPage() {
         let msg = err?.response?.data?.message;
         
         // Handle NGINX / server limits (e.g. 413 Payload Too Large)
-        if (err?.message) {
-          msg = err.message;
-        } else if (err?.response?.status === 413) {
+        if (err?.response?.status === 413) {
           msg = 'Your video file is too large. Please upload a smaller video (max 100MB).';
         } else if (!msg) {
-          msg = 'Registration failed or file is too large. Please check your connection and try again.';
+          msg = err?.message || 'Registration failed or file is too large. Please check your connection and try again.';
         }
         
         toast.error(msg);
