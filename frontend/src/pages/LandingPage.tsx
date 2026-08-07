@@ -27,9 +27,8 @@ export default function LandingPage() {
     }}>
       <Navbar />
 
-      <Container maxWidth="lg" sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', py: { xs: 2, md: 4 }, pb: { xs: '80px', md: 4 } }}>
-        <Box sx={{ my: 'auto', width: '100%', display: 'flex', flexDirection: 'column' }}>
-          <Box sx={{ textAlign: 'center', mb: { xs: 2, md: 8 } }}>
+      <Container maxWidth="lg" sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', py: { xs: 4, md: 12 } }}>
+        <Box sx={{ textAlign: 'center', mb: { xs: 4, md: 8 } }}>
             {/* Hero Logo */}
             <Box sx={{ display: 'inline-block', transform: { xs: 'scale(0.8)', md: 'scale(1.0)' }, transformOrigin: 'top center' }}>
               <Box 
@@ -74,7 +73,7 @@ export default function LandingPage() {
           </Box>
 
           {/* Search Box */}
-          <Box sx={{ display: 'flex', justifyContent: 'center', mb: { xs: 2, md: 4 }, px: { xs: 2, md: 0 } }}>
+          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4, px: { xs: 2, md: 0 } }}>
             <Box 
               sx={{ 
                 width: '100%',
@@ -211,7 +210,6 @@ export default function LandingPage() {
               Report A User
             </Button>
           </Box>
-        </Box>
       </Container>
       
       {/* Desktop Floating Report Button - Large Circle */}
