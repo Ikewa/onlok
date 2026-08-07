@@ -29,31 +29,36 @@ export default function LandingPage() {
 
       <Container maxWidth="lg" sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', py: { xs: 4, md: 12 } }}>
         <Box sx={{ textAlign: 'center', mb: { xs: 4, md: 8 } }}>
-            {/* Hero Logo */}
-            <Box sx={{ display: 'inline-block', transform: { xs: 'scale(0.8)', md: 'scale(1.0)' }, transformOrigin: 'top center' }}>
+          {/* GIGANTIC Size - Virtually Cropped via CSS Zoom */}
+          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 8 }}>
+            <Box 
+              sx={{ 
+                width: { xs: '90%', md: 700 }, // Responsive width
+                maxWidth: { xs: 350, md: 700 },
+                height: { xs: 60, md: 150 }, // Scaled height for mobile
+                overflow: 'hidden',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                position: 'relative'
+              }}
+            >
               <Box 
+                component="img"
+                src="/logo.png"
+                alt="Onlok Logo"
                 sx={{ 
-                  width: '100%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  position: 'relative',
-                  mb: 4
-                }}
-              >
-                <Box 
-                  component="img"
-                  src="/logo.png"
-                  alt="Onlok Logo"
-                  sx={{ 
-                    width: '100%', 
-                    maxWidth: 400,
-                    height: 'auto',
-                    display: 'block'
-                  }} 
-                />
-              </Box>
+                  width: '180%', // Reduced zoom to show more of the logo
+                  height: 'auto',
+                  display: 'block',
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)'
+                }} 
+              />
             </Box>
+          </Box>
 
             <Typography 
               variant="body1" 
