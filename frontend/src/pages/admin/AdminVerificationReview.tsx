@@ -71,6 +71,7 @@ export default function AdminVerificationReview() {
       payload.last_name = lastName;
     } else if (searchType === 'passport') {
       payload.dob = dob;
+      payload.nin = passportNin;
     }
 
     setIsSearching(true);
@@ -319,6 +320,14 @@ export default function AdminVerificationReview() {
 
                 {searchType === 'passport' && (
                   <Box sx={{ display: 'flex', gap: 2 }}>
+                    <TextField
+                      size="small"
+                      fullWidth
+                      placeholder="NIN (11 digits)"
+                      value={passportNin}
+                      onChange={(e) => setPassportNin(e.target.value)}
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 6, backgroundColor: '#FFFFFF' } }}
+                    />
                     <TextField
                       size="small"
                       fullWidth
