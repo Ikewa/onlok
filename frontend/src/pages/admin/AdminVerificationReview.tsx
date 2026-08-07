@@ -361,10 +361,10 @@ export default function AdminVerificationReview() {
                       <Typography variant="body2" color="#991B1B">
                         {searchResult.error?.message || searchResult.message || 'Unknown error occurred'}
                       </Typography>
-                      {searchResult.errors && (
+                      {(searchResult.errors || searchResult.error?.errors) && (
                         <Box sx={{ mt: 2, p: 1.5, bgcolor: '#FFFFFF', borderRadius: '8px', border: '1px solid #FECACA' }}>
                           <pre style={{ fontSize: '0.75rem', color: '#7F1D1D', margin: 0, whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}>
-                            {JSON.stringify(searchResult.errors, null, 2)}
+                            {JSON.stringify(searchResult.errors || searchResult.error?.errors, null, 2)}
                           </pre>
                         </Box>
                       )}
