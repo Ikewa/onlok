@@ -12,6 +12,7 @@ import ShareIcon from '@mui/icons-material/Share';
 import WhatsAppIcon from '@mui/icons-material/WhatsApp';
 import InstagramIcon from '@mui/icons-material/Instagram';
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
+import StarIcon from '@mui/icons-material/Star';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
 import { useNavigate, Navigate, Link as RouterLink } from 'react-router-dom';
@@ -282,10 +283,10 @@ export default function DashboardPage() {
                     </Box>
                   </Box>
                 </Box>
-                <Box sx={{ width: 140, bgcolor: '#F8FAFC', borderRadius: 3, p: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', border: '1px solid #E2E8F0' }}>
-                  <WhatsAppIcon sx={{ color: '#25D366', fontSize: 32, mb: 1 }} />
-                  <Typography sx={{ fontSize: '0.65rem', color: '#64748B', textAlign: 'center', lineHeight: 1.2, mb: 1 }}>Typically Responds In</Typography>
-                  <Typography sx={{ fontWeight: 900, fontSize: '1rem', color: '#1A1FE8' }}>{'< 10 Mins'}</Typography>
+                <Box sx={{ width: 140, bgcolor: '#F8FAFC', borderRadius: 3, p: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: '1px solid #E2E8F0' }}>
+                  <StarIcon sx={{ color: '#F59E0B', fontSize: 32, mb: 0.5 }} />
+                  <Typography sx={{ fontSize: '0.75rem', color: '#64748B', textAlign: 'center', fontWeight: 600, mb: 0.5 }}>Reviews</Typography>
+                  <Typography sx={{ fontWeight: 800, fontSize: '0.85rem', color: '#1A1FE8', textAlign: 'center', lineHeight: 1.2 }}>Coming Soon</Typography>
                 </Box>
               </Box>
             </Paper>

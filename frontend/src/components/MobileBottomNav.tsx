@@ -22,7 +22,7 @@ const get3DIcon = (IconComponent: any, color: string, gradient: string) => (
 export default function MobileBottomNav() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAuthenticated } = useAuth();
+  const { user, isAuthenticated } = useAuth();
 
   // Hide bottom nav on admin pages, login, register, etc
   if (location.pathname.startsWith('/admin') || location.pathname === '/login' || location.pathname === '/register' || location.pathname === '/checkout' || location.pathname === '/payment-success') {
@@ -34,29 +34,26 @@ export default function MobileBottomNav() {
     return location.pathname.startsWith(path);
   };
 
-  const getMobileActiveIndex = () => {
-    if (isActive('/search')) return 1;
-    if (isActive('/dashboard/referrals')) return 2;
-    if (isActive('/dashboard/badge')) return 3;
-    if (isActive('/dashboard')) return 0;
-    return -1;
-  };
+  const navItems = [
+    { label: 'Dashboard', path: '/dashboard', icon: get3DIcon(GridViewOutlinedIcon, '#3B82F6', 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)'), public: false },
+    { label: 'Search', path: '/search', icon: get3DIcon(SearchOutlinedIcon, '#8B5CF6', 'linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%)'), public: true },
+    ...(user?.role === 'admin' ? [{ label: 'Earning', path: '/dashboard/referrals', icon: get3DIcon(PaymentsOutlinedIcon, '#10B981', 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)'), public: false }] : []),
+    { label: 'Badge', path: '/dashboard/badge', icon: get3DIcon(WorkspacePremiumOutlinedIcon, '#F59E0B', 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)'), public: false },
+  ];
 
-  const handleMobileNav = (event: any, newValue: number) => {
-    if (newValue === 1) {
-      navigate('/search');
-      return;
-    }
+  const activeIndex = navItems.findIndex(item => isActive(item.path));
 
-    if (!isAuthenticated) {
+  const handleMobileNav = (_event: any, newValue: number) => {
+    const targetItem = navItems[newValue];
+    if (!targetItem) return;
+
+    if (!targetItem.public && !isAuthenticated) {
       toast.error('Please sign in to access this page.');
       navigate('/login');
       return;
     }
 
-    if (newValue === 0) navigate('/dashboard');
-    if (newValue === 2) navigate('/dashboard/referrals');
-    if (newValue === 3) navigate('/dashboard/badge');
+    navigate(targetItem.path);
   };
 
   return (
@@ -70,7 +67,7 @@ export default function MobileBottomNav() {
     >
       <BottomNavigation
         showLabels
-        value={getMobileActiveIndex()}
+        value={activeIndex >= 0 ? activeIndex : false}
         onChange={handleMobileNav}
         sx={{
           height: 65,
@@ -87,10 +84,9 @@ export default function MobileBottomNav() {
           }
         }}
       >
-        <BottomNavigationAction label="Dashboard" icon={get3DIcon(GridViewOutlinedIcon, '#3B82F6', 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)')} />
-        <BottomNavigationAction label="Search" icon={get3DIcon(SearchOutlinedIcon, '#8B5CF6', 'linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%)')} />
-        <BottomNavigationAction label="Earning" icon={get3DIcon(PaymentsOutlinedIcon, '#10B981', 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)')} />
-        <BottomNavigationAction label="Badge" icon={get3DIcon(WorkspacePremiumOutlinedIcon, '#F59E0B', 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)')} />
+        {navItems.map((item) => (
+          <BottomNavigationAction key={item.label} label={item.label} icon={item.icon} />
+        ))}
       </BottomNavigation>
     </Paper>
   );

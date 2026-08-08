@@ -117,10 +117,12 @@ export default function DashboardLayout() {
             {navItem('/dashboard/badge', 'My Badge', <BadgeOutlinedIcon />)}
             {navItem('/dashboard/subscription', 'My Subscription', <CreditCardOutlinedIcon />)}
             
-            <Box sx={{ position: 'relative', mt: 3, mb: 1 }}>
-              <Box sx={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', width: 6, height: 6, bgcolor: '#EAB308', borderRadius: '50%' }} />
-              {navItem('/dashboard/referrals', 'Referrals / Earn Rewards', <CardGiftcardOutlinedIcon />, true)}
-            </Box>
+            {user?.role === 'admin' && (
+              <Box sx={{ position: 'relative', mt: 3, mb: 1 }}>
+                <Box sx={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', width: 6, height: 6, bgcolor: '#EAB308', borderRadius: '50%' }} />
+                {navItem('/dashboard/referrals', 'Referrals / Earn Rewards', <CardGiftcardOutlinedIcon />, true)}
+              </Box>
+            )}
           </Box>
           <Box sx={{ p: 2, pb: 4 }}>
             <Button onClick={handleLogout} startIcon={<LogoutOutlinedIcon />} sx={{ justifyContent: 'flex-start', color: '#CBD5E1', width: '100%', px: 2.5, py: 1.2, borderRadius: 2, textTransform: 'none', fontWeight: 500, '&:hover': { color: '#fff', bgcolor: 'rgba(255,255,255,0.05)' } }}>

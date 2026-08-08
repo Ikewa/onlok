@@ -10,6 +10,7 @@ import InstagramIcon from '@mui/icons-material/Instagram';
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
 import TwitterIcon from '@mui/icons-material/Twitter';
 import FacebookIcon from '@mui/icons-material/Facebook';
+import StarIcon from '@mui/icons-material/Star';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import CloseIcon from '@mui/icons-material/Close';
@@ -485,13 +486,9 @@ export default function PublicProfilePage() {
               <SocialRow icon={<FacebookIcon sx={{ color: '#1877F2', fontSize: 32 }} />} label="Facebook" sub="Connect With Us" url={getSocialUrl('facebook', vendor?.facebook_handle)} />
             </Box>
             <Box sx={{ width: 110, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', bgcolor: '#F8FAFC', borderRadius: 2, p: 1.5, gap: 0.5 }}>
-              <WhatsAppIcon sx={{ color: '#25D366', fontSize: 28 }} />
-              <Typography sx={{ fontSize: '0.7rem', color: '#64748B', textAlign: 'center' }}>Typically Responds In</Typography>
-              <Typography sx={{ fontWeight: 900, fontSize: '1rem', color: '#0F172A' }}>{'< 10 Mins'}</Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <Box sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: '#22C55E' }} />
-                <Typography sx={{ fontSize: '0.7rem', color: '#22C55E', fontWeight: 600 }}>active today</Typography>
-              </Box>
+              <StarIcon sx={{ color: '#F59E0B', fontSize: 28 }} />
+              <Typography sx={{ fontSize: '0.75rem', color: '#64748B', textAlign: 'center', fontWeight: 600 }}>Reviews</Typography>
+              <Typography sx={{ fontWeight: 800, fontSize: '0.8rem', color: '#0F172A', textAlign: 'center', lineHeight: 1.2 }}>Coming Soon</Typography>
             </Box>
           </Box>
         </Box>
