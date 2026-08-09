@@ -84,9 +84,9 @@ export default function VendorSubscriptionPage() {
 
   const sub = subData?.subscription;
   const badgeTier = resolveVendorBadgeTier({
-    badges: subData?.badges ? subData.badges.map(b => (typeof b === 'string' ? b : (b as any).badge_type)) : undefined,
+    badges: subData?.badges,
+    assigned_tier: subData?.assigned_tier || sub?.tier,
     badge_type: subData?.badge_type || (user as any)?.badge_type,
-    assigned_tier: sub?.tier,
     status: user?.status,
   });
   const isActive = sub?.status === 'active';

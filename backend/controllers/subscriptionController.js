@@ -28,9 +28,16 @@ const getMySubscription = async (req, res) => {
 
         const currentSub = subs.length > 0 ? subs[0] : null;
 
+        // Fetch user badges & verification assigned tier
+        const [badges] = await pool.query('SELECT badge_type FROM badges WHERE user_id = ?', [userId]);
+        const [verifications] = await pool.query('SELECT assigned_tier FROM verifications WHERE user_id = ? ORDER BY submitted_at DESC LIMIT 1', [userId]);
+        const assignedTier = verifications.length > 0 ? verifications[0].assigned_tier : null;
+
         res.status(200).json({
             user_id: userId,
-            badge_type: user.badge_type || 'bronze',
+            badge_type: user.badge_type || null,
+            badges: badges.map(b => b.badge_type),
+            assigned_tier: assignedTier,
             account_status: user.status,
             subscription_expires_at: user.subscription_expires_at,
             subscription: currentSub
