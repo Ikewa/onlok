@@ -10,6 +10,7 @@ export interface User {
   phone_number?: string;
   role: 'vendor' | 'admin';
   status: 'pending' | 'verified' | 'rejected' | 'suspended';
+  badge_type?: string | null;
   profile_picture_url?: string | null;
   token: string;
 }
@@ -20,15 +21,17 @@ export interface AuthUser extends Omit<User, 'token'> {
 
 export interface VerificationStatus {
   id: number;
-  status: 'pending' | 'approved' | 'rejected' | 'flagged';
+  status: 'pending' | 'approved' | 'rejected' | 'flagged' | 'tier_assigned' | 'payment_received';
   admin_notes?: string;
+  assigned_tier?: string | null;
+  payment_status?: string | null;
   submitted_at: string;
   reviewed_at: string | null;
 }
 
 export interface Badge {
   id: number;
-  badge_type: 'basic' | 'verified_vendor' | 'premium';
+  badge_type: 'gold' | 'silver' | 'bronze' | 'basic' | 'verified_vendor' | 'premium' | string;
   issued_at: string;
 }
 

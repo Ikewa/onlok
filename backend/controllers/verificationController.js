@@ -19,8 +19,11 @@ const fileFilter = (req, file, cb) => {
             return cb(new Error('Please upload an image or PDF for ID/CAC'));
         }
     } else if (file.fieldname === "business_video") {
-        if (!file.mimetype.match(/(mp4|mkv|avi)$/)) {
-            return cb(new Error('Please upload a valid video format'));
+        const isVideoMime = file.mimetype.startsWith('video/') || file.mimetype.match(/(mp4|mkv|avi|quicktime|mov|x-m4v|3gpp|qt)$/i);
+        const ext = path.extname(file.originalname).toLowerCase();
+        const isVideoExt = ['.mp4', '.mov', '.qt', '.m4v', '.avi', '.mkv', '.webm', '.3gp'].includes(ext);
+        if (!isVideoMime && !isVideoExt) {
+            return cb(new Error('Please upload a valid video format (MP4, MOV, etc.)'));
         }
     }
     cb(null, true);

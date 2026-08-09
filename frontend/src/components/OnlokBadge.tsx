@@ -147,6 +147,50 @@ export function getTierFromBadgeType(badge_type: string): BadgeTier | null {
   return null;
 }
 
+export interface BadgeResolveInputs {
+  badges?: Array<string | { badge_type: string }>;
+  badge_type?: string | null;
+  assigned_tier?: string | null;
+  status?: string | null;
+}
+
+/**
+ * Resolves a unified BadgeTier ('gold' | 'silver' | 'bronze') from various vendor data sources.
+ */
+export function resolveVendorBadgeTier(inputs?: BadgeResolveInputs | null): BadgeTier {
+  if (!inputs) return 'bronze';
+
+  // 1. Check array of badges first if available
+  if (inputs.badges && Array.isArray(inputs.badges) && inputs.badges.length > 0) {
+    for (const b of inputs.badges) {
+      const typeStr = typeof b === 'string' ? b : b?.badge_type;
+      if (typeStr) {
+        const tier = getTierFromBadgeType(typeStr);
+        if (tier) return tier;
+      }
+    }
+  }
+
+  // 2. Check assigned_tier (e.g. 'Gold', 'Silver', 'Bronze')
+  if (inputs.assigned_tier) {
+    const tier = getTierFromBadgeType(inputs.assigned_tier);
+    if (tier) return tier;
+  }
+
+  // 3. Check single badge_type string (e.g. from user object)
+  if (inputs.badge_type) {
+    const tier = getTierFromBadgeType(inputs.badge_type);
+    if (tier) return tier;
+  }
+
+  // 4. Default fallback: If user status is verified, default to 'silver', else 'bronze'
+  if (inputs.status === 'verified') {
+    return 'silver';
+  }
+
+  return 'bronze';
+}
+
 export const BADGE_TIERS: Array<{ tier: BadgeTier; name: string; label: string; description: string }> = [
   { tier: 'gold',   name: 'Gold',   label: 'Gold Verified',   description: 'Premium full-verification badge' },
   { tier: 'silver', name: 'Silver', label: 'Silver Verified', description: 'Standard identity-verified badge' },
@@ -154,3 +198,4 @@ export const BADGE_TIERS: Array<{ tier: BadgeTier; name: string; label: string; 
 ];
 
 export default OnlokBadge;
+

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import {
   Box, Container, Typography, TextField, Button, CircularProgress, Paper, MenuItem, Select, FormControl, Stack, Chip, IconButton, InputAdornment, Switch, FormControlLabel
 } from '@mui/material';
@@ -353,8 +353,8 @@ export default function RegisterPage() {
         onChange={(f: File) => set('business_video_file', f)} 
         onRemove={() => set('business_video_file', null)}
         title="2 minute shot video"
-        labels={['Video']}
-        accept=".mp4"
+        labels={['Video (MP4, MOV)']}
+        accept="video/mp4,video/quicktime,video/mov,video/x-m4v,video/*,.mp4,.mov"
         maxSize="100mb"
         icon={<PlayCircleOutlinedIcon />}
       />
@@ -555,6 +555,8 @@ const FileReviewRow = ({ label, file }: { label: string; file: File | null }) =>
 };
 
 const FileUploadDropzone = ({ file, onChange, onRemove, title, labels, accept, maxSize, icon }: any) => {
+  const inputRef = useRef<HTMLInputElement>(null);
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (!selectedFile) return;
@@ -604,24 +606,38 @@ const FileUploadDropzone = ({ file, onChange, onRemove, title, labels, accept, m
     );
   }
 
+  const isVideoInput = accept.includes('video');
+  const formatLabel = isVideoInput ? 'MP4, MOV, QuickTime' : accept.toUpperCase().replace(/\./g, '');
+
   return (
-    <Box sx={{ position: 'relative', p: 4, borderRadius: 3, border: '1px dashed #CBD5E1', textAlign: 'center', mb: 3, '&:hover': { borderColor: '#94A3B8', bgcolor: '#F8FAFC' } }}>
+    <Box 
+      onClick={() => inputRef.current?.click()}
+      sx={{ 
+        position: 'relative', 
+        p: 4, 
+        borderRadius: 3, 
+        border: '1px dashed #CBD5E1', 
+        textAlign: 'center', 
+        mb: 3, 
+        cursor: 'pointer',
+        '&:hover': { borderColor: '#94A3B8', bgcolor: '#F8FAFC' } 
+      }}
+    >
       <Box sx={{ width: 40, height: 40, borderRadius: '50%', bgcolor: '#F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748B', mx: 'auto', mb: 2 }}>
         <FileUploadOutlinedIcon fontSize="small" />
       </Box>
       <Typography variant="subtitle2" sx={{ fontWeight: 800, color: '#0F172A', mb: 0.5 }}>
-        Click To Upload {icon.type === PlayCircleOutlinedIcon ? 'Video' : 'Document'}
+        Click To Upload {isVideoInput ? 'Video' : 'Document'}
       </Typography>
       <Typography variant="caption" sx={{ color: '#64748B', mb: 2, display: 'block' }}>
-        {accept.toUpperCase().replace(/\./g, '')} (max. {maxSize})
+        {formatLabel} (max. {maxSize})
       </Typography>
       <Stack direction="row" spacing={1} sx={{ justifyContent: 'center' }}>
         {labels.map((l: string) => (
           <Chip key={l} label={l} size="small" variant="outlined" sx={{ borderRadius: 1, color: '#64748B', borderColor: '#E2E8F0' }} />
         ))}
       </Stack>
-      <input type="file" accept={accept} hidden onChange={handleFileChange} style={{ display: 'none' }} id={`upload-${title}`} />
-      <label htmlFor={`upload-${title}`} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, cursor: 'pointer' }} />
+      <input ref={inputRef} type="file" accept={accept} hidden onChange={handleFileChange} style={{ display: 'none' }} id={`upload-${title}`} />
     </Box>
   );
 };

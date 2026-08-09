@@ -31,6 +31,7 @@ import PriceCheckOutlinedIcon from '@mui/icons-material/PriceCheckOutlined';
 import MoneyOffCsredOutlinedIcon from '@mui/icons-material/MoneyOffCsredOutlined';
 import VerifiedIcon from '@mui/icons-material/Verified';
 import { useAuth } from '../context/AuthContext';
+import { Navigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useState, useEffect } from 'react';
 import axiosInstance from '../api/axiosInstance';
@@ -38,6 +39,10 @@ import axiosInstance from '../api/axiosInstance';
 export default function ReferralsPage() {
   const { user } = useAuth();
   
+  if (user && user.role !== 'admin') {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [withdrawModalOpen, setWithdrawModalOpen] = useState(false);
