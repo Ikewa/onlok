@@ -248,8 +248,8 @@ export default function ProfileDocUploadPage() {
             <UploadZone
               title="video upload"
               subtitle="Upload two minute of you and your business environment"
-              accept="video/mp4"
-              labels={['Video']}
+              accept="video/mp4,video/quicktime,video/mov,video/x-m4v,video/*,.mp4,.mov"
+              labels={['Video (MP4, MOV)']}
               onFile={setVideo}
             />
           </Box>
