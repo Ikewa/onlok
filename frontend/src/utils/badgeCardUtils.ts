@@ -267,7 +267,7 @@ export async function renderBadgeCardToCanvas(opts: BadgeCardOptions): Promise<H
   ctx.textBaseline = 'middle';
   ctx.fillStyle    = textColor;
   ctx.font         = `650 ${W * 0.025}px "Inter", Arial, sans-serif`;
-  ctx.fillText(opts.businessName, W / 2, scrollY);
+  ctx.fillText(opts.businessName.toUpperCase().slice(0, 16), W / 2, scrollY);
 
   // ── 8. Body paragraph ────────────────────────────────────────────────────
   const bodyTop      = badgeY + badgeSize + H * 0.04;

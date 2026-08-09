@@ -2,7 +2,9 @@ import api from './axiosInstance';
 
 export interface UserSubscriptionInfo {
   user_id: number;
-  badge_type: string;
+  badge_type: string | null;
+  badges?: string[];
+  assigned_tier?: string | null;
   account_status: string;
   subscription_expires_at: string | null;
   subscription: {

@@ -11,7 +11,7 @@ import ArrowForwardOutlinedIcon from '@mui/icons-material/ArrowForwardOutlined';
 import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
 import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
-import { OnlokBadge, getTierFromBadgeType } from '../components/OnlokBadge';
+import { OnlokBadge, resolveVendorBadgeTier } from '../components/OnlokBadge';
 import { useAuth } from '../context/AuthContext';
 import { getMySubscription, getManageSubscriptionLink, cancelSubscription, type UserSubscriptionInfo } from '../api/subscriptions';
 import toast from 'react-hot-toast';
@@ -83,7 +83,12 @@ export default function VendorSubscriptionPage() {
   }
 
   const sub = subData?.subscription;
-  const badgeTier = getTierFromBadgeType(subData?.badge_type || user?.badge_type || 'bronze') || 'bronze';
+  const badgeTier = resolveVendorBadgeTier({
+    badges: subData?.badges,
+    assigned_tier: subData?.assigned_tier || sub?.tier,
+    badge_type: subData?.badge_type || (user as any)?.badge_type,
+    status: user?.status,
+  });
   const isActive = sub?.status === 'active';
   const isCancelled = sub?.status === 'cancelled';
   const isAttention = sub?.status === 'attention';
@@ -164,7 +169,7 @@ export default function VendorSubscriptionPage() {
               {/* Badge Visual & Tier Details */}
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, p: 3, bgcolor: '#F8FAFC', borderRadius: 2.5, mb: 3, border: '1px solid #F1F5F9' }}>
                 <Box sx={{ transform: 'scale(0.85)', transformOrigin: 'center flex-start', flexShrink: 0, width: 80, height: 80, display: 'flex', alignItems: 'center', justify: 'center' }}>
-                  <OnlokBadge tier={badgeTier} size={90} tooltip={false} vendorId={user?.vendor_id || 'OL-NG-0000'} />
+                  <OnlokBadge tier={badgeTier} size={90} tooltip={false} vendorId={user?.vendor_id || 'OL-NG-0000'} businessName={user?.business_name} />
                 </Box>
                 <Box>
                   <Typography sx={{ textTransform: 'uppercase', fontSize: '0.75rem', fontWeight: 800, color: '#64748B', letterSpacing: '0.05em', mb: 0.5 }}>
