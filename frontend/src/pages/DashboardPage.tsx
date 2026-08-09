@@ -227,8 +227,6 @@ export default function DashboardPage() {
                 </Button>
               </Box>
             </Paper>
-              </Box>
-            </Paper>
 
             {/* Contact And Order */}
             <Paper sx={{ ...cardStyle }}>
