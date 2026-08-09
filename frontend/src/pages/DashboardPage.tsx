@@ -21,7 +21,7 @@ import { getDashboard } from '../api/dashboard';
 import { initializePayment } from '../api/payment';
 import type { DashboardData } from '../types';
 import toast from 'react-hot-toast';
-import { OnlokBadge } from '../components/OnlokBadge';
+import { OnlokBadge, resolveVendorBadgeTier } from '../components/OnlokBadge';
 import { QRCode } from 'react-qr-code';
 
 export default function DashboardPage() {
@@ -116,6 +116,13 @@ export default function DashboardPage() {
   const vendorId = dashUser?.vendor_id ?? 'ONL-7829-KX';
   const profileLink = `https://onlok.net/profile?id=${vendorId}`;
 
+  const badgeTier = resolveVendorBadgeTier({
+    badges: data?.badges,
+    assigned_tier: data?.verification?.assigned_tier,
+    badge_type: (dashUser as any)?.badge_type,
+    status: dashUser?.status,
+  });
+
   const cardStyle = { p: 2.5, borderRadius: 3, border: '1px solid #E2E8F0', boxShadow: 'none', bgcolor: '#F8FAFC', mb: 2.5 };
 
   return (
@@ -187,7 +194,7 @@ export default function DashboardPage() {
             <Paper sx={{ ...cardStyle, bgcolor: '#F4F7FB' }}>
               <Box sx={{ display: 'flex', flexDirection: 'row', gap: 2, mb: 3 }}>
                 <Box sx={{ width: '40%', display: 'flex', justifyContent: 'center', pt: 1 }}>
-                  <OnlokBadge tier="gold" size={130} vendorId={vendorId} tooltip={false} />
+                  <OnlokBadge tier={badgeTier} size={130} vendorId={vendorId} businessName={dashUser?.business_name} tooltip={false} />
                 </Box>
                 <Box sx={{ width: '60%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
@@ -206,7 +213,7 @@ export default function DashboardPage() {
                 </Box>
               </Box>
               <Box sx={{ display: 'flex', gap: 2 }}>
-                <Button variant="contained" fullWidth sx={{ borderRadius: '24px', textTransform: 'none', bgcolor: '#1A1FE8', py: 1, boxShadow: 'none' }}>
+                <Button variant="contained" fullWidth onClick={() => navigate('/dashboard/badge')} sx={{ borderRadius: '24px', textTransform: 'none', bgcolor: '#1A1FE8', py: 1, boxShadow: 'none' }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <FileDownloadOutlinedIcon sx={{ fontSize: 20 }} />
                     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1.2 }}>
@@ -215,9 +222,11 @@ export default function DashboardPage() {
                     </Box>
                   </Box>
                 </Button>
-                <Button variant="outlined" fullWidth sx={{ borderRadius: '24px', textTransform: 'none', fontWeight: 800, fontSize: '1rem', color: '#0F172A', borderColor: '#CBD5E1', py: 1, bgcolor: '#FFFFFF' }}>
+                <Button variant="outlined" fullWidth onClick={() => navigate('/dashboard/badge')} sx={{ borderRadius: '24px', textTransform: 'none', fontWeight: 800, fontSize: '1rem', color: '#0F172A', borderColor: '#CBD5E1', py: 1, bgcolor: '#FFFFFF' }}>
                   View Badge
                 </Button>
+              </Box>
+            </Paper>
               </Box>
             </Paper>
 

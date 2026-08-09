@@ -18,7 +18,7 @@ import { Link as RouterLink, useSearchParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { searchVendors } from '../api/dashboard';
 import type { VendorSearchResult } from '../types';
-import { OnlokBadge } from '../components/OnlokBadge';
+import { OnlokBadge, resolveVendorBadgeTier } from '../components/OnlokBadge';
 
 const API_BASE = import.meta.env.PROD ? '' : (import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000');
 
@@ -360,7 +360,7 @@ export default function PublicProfilePage() {
           {/* Shield badge or OnlokBadge sticker */}
           {isVerified && vendor ? (
             <OnlokBadge
-              tier={vendor.badges?.includes('premium') ? 'gold' : (vendor.badges?.includes('verified_vendor') ? 'silver' : 'bronze')}
+              tier={resolveVendorBadgeTier({ badges: vendor.badges, status: vendor.status })}
               size={160}
               vendorId={vendor.vendor_id}
               businessName={vendor.business_name}

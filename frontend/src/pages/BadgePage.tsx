@@ -1,11 +1,13 @@
+import { useState, useEffect } from 'react';
 import { Box, Typography, Button } from '@mui/material';
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
 import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined';
 import CodeOutlinedIcon from '@mui/icons-material/CodeOutlined';
 import PictureAsPdfOutlinedIcon from '@mui/icons-material/PictureAsPdfOutlined';
-import { OnlokBadge } from '../components/OnlokBadge';
-import { getTierFromBadgeType } from '../components/OnlokBadge';
+import { OnlokBadge, resolveVendorBadgeTier } from '../components/OnlokBadge';
 import { useAuth } from '../context/AuthContext';
+import { getDashboard } from '../api/dashboard';
+import type { DashboardData } from '../types';
 import { downloadBadgeAsPNG, downloadBadgeAsSVG, downloadBadgeAsPDF } from '../utils/badgeCardUtils';
 import type { BadgeCardOptions } from '../utils/badgeCardUtils';
 
@@ -13,13 +15,24 @@ import toast from 'react-hot-toast';
 
 export default function BadgePage() {
   const { user } = useAuth();
+  const [dashData, setDashData] = useState<DashboardData | null>(null);
 
-  // Resolve tier from badge_type field, falling back to 'gold'
-  const rawBadgeType = (user as any)?.badge_type ?? 'gold';
-  const badgeTier = getTierFromBadgeType(rawBadgeType) ?? 'gold';
+  useEffect(() => {
+    getDashboard()
+      .then((res) => setDashData(res))
+      .catch(() => {});
+  }, []);
 
-  const vendorId     = user?.vendor_id     ?? 'OL-NG-0000';
-  const businessName = user?.business_name ?? 'Your Business';
+  const dashUser = dashData?.user ?? user;
+  const badgeTier = resolveVendorBadgeTier({
+    badges: dashData?.badges,
+    assigned_tier: dashData?.verification?.assigned_tier,
+    badge_type: (dashUser as any)?.badge_type,
+    status: dashUser?.status,
+  });
+
+  const vendorId     = dashUser?.vendor_id     ?? 'OL-NG-0000';
+  const businessName = dashUser?.business_name ?? 'Your Business';
 
   const cardOpts: BadgeCardOptions = {
     vendorId,
