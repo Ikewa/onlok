@@ -268,6 +268,23 @@ const updateVerificationStatus = async (req, res) => {
                 </div>
             `;
             await sendEmail(verification.email, 'Action Required: Complete Your Verification - Onlok', html);
+        } else if (status === 'pending' && notes) {
+            const html = `
+                <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+                    <h2 style="color: #D97706;">Action Required: Information Requested</h2>
+                    <p>Hi ${verification.first_name},</p>
+                    <p>An admin has reviewed your verification submission and requested additional information:</p>
+                    <div style="background: #FEFCE8; border-left: 4px solid #CA8A04; padding: 15px; margin: 15px 0; color: #854D0E; font-size: 14px;">
+                        <strong>Admin Message:</strong><br/>
+                        ${notes}
+                    </div>
+                    <p>Please log into your dashboard to update your profile or resubmit documents.</p>
+                    <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/dashboard" style="padding: 10px 15px; background: #D97706; color: #fff; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 0;">Go to Vendor Dashboard</a>
+                    <br/><br/>
+                    <p>Best regards,<br/><strong>The Onlok Team</strong></p>
+                </div>
+            `;
+            await sendEmail(verification.email, 'Action Required: Information Requested by Admin - Onlok', html);
         } else if (status === 'rejected' || status === 'flagged') {
             const html = `
                 <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333;">

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   Box, Typography, Button, Paper, Avatar, Divider, Chip,
-  Container, Alert, Collapse, useTheme, useMediaQuery, IconButton
+  Container, Alert, Collapse, useTheme, useMediaQuery, IconButton, Stack, CircularProgress
 } from '@mui/material';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import VerifiedIcon from '@mui/icons-material/Verified';
@@ -9,6 +9,7 @@ import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
 import ShareIcon from '@mui/icons-material/Share';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import WhatsAppIcon from '@mui/icons-material/WhatsApp';
 import InstagramIcon from '@mui/icons-material/Instagram';
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
@@ -132,6 +133,59 @@ export default function DashboardPage() {
           <ArrowBackIosNewIcon sx={{ fontSize: 16, color: '#0F172A', fontWeight: 900 }} />
           <Typography sx={{ fontWeight: 800, fontSize: '0.9rem', color: '#0F172A' }}>Back To Search</Typography>
         </Box>
+
+        {/* Admin Information Requested Alert Card */}
+        {data?.verification?.admin_notes && (data?.verification?.status === 'pending' || user?.status === 'pending') && (
+          <Paper
+            elevation={0}
+            sx={{
+              p: 3,
+              mb: 4,
+              borderRadius: 3,
+              bgcolor: '#FEFCE8',
+              border: '1px solid #FDE047',
+              boxShadow: '0 4px 20px rgba(234, 179, 8, 0.1)',
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
+              <Box sx={{ width: 44, height: 44, borderRadius: '50%', bgcolor: '#FEF08A', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <InfoOutlinedIcon sx={{ color: '#CA8A04', fontSize: 24 }} />
+              </Box>
+              <Box sx={{ flexGrow: 1 }}>
+                <Typography sx={{ fontWeight: 800, fontSize: '1.1rem', color: '#854D0E', mb: 0.5 }}>
+                  Action Required: Information Requested by Admin
+                </Typography>
+                <Typography sx={{ fontSize: '0.88rem', color: '#A16207', mb: 2 }}>
+                  An admin reviewed your submission and requested additional details before approving your account.
+                </Typography>
+                <Box sx={{ bgcolor: '#FEF9C3', p: 2, borderRadius: 2, border: '1px solid #FDE047', mb: 2.5 }}>
+                  <Typography sx={{ fontWeight: 700, color: '#854D0E', fontSize: '0.82rem', mb: 0.5 }}>
+                    ADMIN MESSAGE:
+                  </Typography>
+                  <Typography sx={{ color: '#A16207', fontSize: '0.92rem', fontWeight: 600 }}>
+                    {data.verification.admin_notes}
+                  </Typography>
+                </Box>
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                  <Button
+                    variant="contained"
+                    onClick={() => navigate('/dashboard/update/bio')}
+                    sx={{ bgcolor: '#CA8A04', color: '#fff', fontWeight: 700, textTransform: 'none', borderRadius: 2, '&:hover': { bgcolor: '#A16207' } }}
+                  >
+                    Update Business Details
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    onClick={() => navigate('/dashboard/verification')}
+                    sx={{ borderColor: '#CA8A04', color: '#854D0E', fontWeight: 700, textTransform: 'none', borderRadius: 2, '&:hover': { borderColor: '#A16207', bgcolor: '#FEF08A' } }}
+                  >
+                    View Verification Status
+                  </Button>
+                </Stack>
+              </Box>
+            </Box>
+          </Paper>
+        )}
 
         {/* Tier Assignment Notification */}
         {data?.verification?.status === 'tier_assigned' && (

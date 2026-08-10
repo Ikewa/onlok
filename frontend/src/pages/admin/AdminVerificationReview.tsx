@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Box, Typography, Button, Paper, Grid, TextField, CircularProgress, Divider } from '@mui/material';
+import { Box, Typography, Button, Paper, Grid, TextField, CircularProgress, Divider, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
 import HighlightOffIcon from '@mui/icons-material/HighlightOff';
@@ -19,6 +19,10 @@ export default function AdminVerificationReview() {
   const [notes, setNotes] = useState('');
   const [selectedTier, setSelectedTier] = useState('Silver');
   const [actionLoading, setActionLoading] = useState(false);
+
+  // Request Information Modal State
+  const [requestModalOpen, setRequestModalOpen] = useState(false);
+  const [requestMessage, setRequestMessage] = useState('');
 
   // Prembly Search State
   const [searchType, setSearchType] = useState('nin');
@@ -42,10 +46,11 @@ export default function AdminVerificationReview() {
     if (id) fetchDetails();
   }, [id, navigate]);
 
-  const handleAction = async (status: string) => {
+  const handleAction = async (status: string, customNotes?: string) => {
     setActionLoading(true);
     try {
-      await updateVerificationStatus(Number(id), status, notes, status === 'tier_assigned' ? selectedTier : undefined);
+      const finalNotes = customNotes !== undefined ? customNotes : notes;
+      await updateVerificationStatus(Number(id), status, finalNotes, status === 'tier_assigned' ? selectedTier : undefined);
       toast.success(`Verification ${status} successfully`);
       navigate('/admin/verifications');
     } catch (err) {
@@ -412,7 +417,7 @@ export default function AdminVerificationReview() {
               variant="contained"
               fullWidth
               startIcon={<InfoOutlinedIcon />}
-              onClick={() => handleAction('pending')}
+              onClick={() => setRequestModalOpen(true)}
               disabled={actionLoading || isPending}
               sx={{ bgcolor: '#D97706', '&:hover': { bgcolor: '#B45309' }, py: 1.25, borderRadius: '8px', textTransform: 'none', fontWeight: 600, fontSize: '0.88rem' }}
             >
@@ -432,6 +437,45 @@ export default function AdminVerificationReview() {
 
         </Grid>
       </Grid>
+
+      {/* Request Information Dialog */}
+      <Dialog open={requestModalOpen} onClose={() => setRequestModalOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 3, p: 1 } }}>
+        <DialogTitle sx={{ fontWeight: 800, color: '#0F172A', pb: 1 }}>
+          Request Information from Vendor
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="#64748B" mb={2}>
+            Please enter a clear message detailing what information or documents are requested from <strong>{details.first_name} {details.last_name}</strong>. This message will be sent via email and displayed on their vendor dashboard.
+          </Typography>
+          <TextField
+            multiline
+            rows={4}
+            fullWidth
+            placeholder="e.g., Please upload a clearer copy of your Government ID front & back, or update your Business Address."
+            value={requestMessage}
+            onChange={(e) => setRequestMessage(e.target.value)}
+            sx={{
+              '& .MuiOutlinedInput-root': { borderRadius: 2, fontSize: '0.9rem' }
+            }}
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setRequestModalOpen(false)} sx={{ textTransform: 'none', color: '#64748B', fontWeight: 600 }}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            disabled={!requestMessage.trim() || actionLoading}
+            onClick={() => {
+              setRequestModalOpen(false);
+              handleAction('pending', requestMessage.trim());
+            }}
+            sx={{ bgcolor: '#D97706', color: '#fff', borderRadius: 2, px: 3, fontWeight: 700, textTransform: 'none', '&:hover': { bgcolor: '#B45309' } }}
+          >
+            {actionLoading ? 'Sending...' : 'Send Request'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
