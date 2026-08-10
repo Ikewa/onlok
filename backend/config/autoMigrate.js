@@ -260,16 +260,16 @@ async function createTables() {
 // ─────────────────────────────────────────────────────────────────
 const COLUMN_MIGRATIONS = [
     // Social handles (added after initial launch)
-    { table: 'users', column: 'twitter_handle',   definition: 'VARCHAR(255) NULL AFTER status' },
+    { table: 'users', column: 'twitter_handle', definition: 'VARCHAR(255) NULL AFTER status' },
     { table: 'users', column: 'instagram_handle', definition: 'VARCHAR(255) NULL AFTER twitter_handle' },
-    { table: 'users', column: 'facebook_handle',  definition: 'VARCHAR(255) NULL AFTER instagram_handle' },
-    { table: 'users', column: 'tiktok_handle',    definition: 'VARCHAR(255) NULL AFTER facebook_handle' },
+    { table: 'users', column: 'facebook_handle', definition: 'VARCHAR(255) NULL AFTER instagram_handle' },
+    { table: 'users', column: 'tiktok_handle', definition: 'VARCHAR(255) NULL AFTER facebook_handle' },
 
     // Verifications enhancements
     { table: 'verifications', column: 'admin_notes', definition: 'TEXT NULL AFTER status' },
     { table: 'verifications', column: 'assigned_tier', definition: 'VARCHAR(50) NULL AFTER status' },
     { table: 'verifications', column: 'payment_status', definition: "ENUM('unpaid','paid') DEFAULT 'unpaid' AFTER assigned_tier" },
-    { table: 'verifications', column: 'flagged',     definition: "ENUM('pending','tier_assigned','payment_received','approved','rejected','flagged') NULL AFTER admin_notes" },
+    { table: 'verifications', column: 'flagged', definition: "ENUM('pending','tier_assigned','payment_received','approved','rejected','flagged') NULL AFTER admin_notes" },
 
     // ── ADD NEW COLUMNS BELOW THIS LINE ──────────────────────────
     { table: 'users', column: 'referred_by', definition: 'INT NULL AFTER vendor_id' },
@@ -280,22 +280,22 @@ const COLUMN_MIGRATIONS = [
     { table: 'users', column: 'profile_picture_url', definition: 'VARCHAR(500) NULL AFTER tiktok_handle' },
     // Withdrawals enhancements
     { table: 'withdrawals', column: 'account_details', definition: 'VARCHAR(255) NULL AFTER payment_method' },
-    { table: 'withdrawals', column: 'bank_code',          definition: 'VARCHAR(50) NULL AFTER payment_method' },
-    { table: 'withdrawals', column: 'bank_name',          definition: 'VARCHAR(255) NULL AFTER bank_code' },
-    { table: 'withdrawals', column: 'account_number',     definition: 'VARCHAR(50) NULL AFTER bank_name' },
-    { table: 'withdrawals', column: 'account_name',       definition: 'VARCHAR(255) NULL AFTER account_number' },
-    { table: 'withdrawals', column: 'recipient_code',     definition: 'VARCHAR(100) NULL AFTER account_name' },
-    { table: 'withdrawals', column: 'transfer_code',      definition: 'VARCHAR(100) NULL AFTER recipient_code' },
+    { table: 'withdrawals', column: 'bank_code', definition: 'VARCHAR(50) NULL AFTER payment_method' },
+    { table: 'withdrawals', column: 'bank_name', definition: 'VARCHAR(255) NULL AFTER bank_code' },
+    { table: 'withdrawals', column: 'account_number', definition: 'VARCHAR(50) NULL AFTER bank_name' },
+    { table: 'withdrawals', column: 'account_name', definition: 'VARCHAR(255) NULL AFTER account_number' },
+    { table: 'withdrawals', column: 'recipient_code', definition: 'VARCHAR(100) NULL AFTER account_name' },
+    { table: 'withdrawals', column: 'transfer_code', definition: 'VARCHAR(100) NULL AFTER recipient_code' },
     { table: 'withdrawals', column: 'transfer_reference', definition: 'VARCHAR(100) NULL AFTER transfer_code' },
-    { table: 'withdrawals', column: 'failure_reason',     definition: 'TEXT NULL AFTER transfer_reference' },
+    { table: 'withdrawals', column: 'failure_reason', definition: 'TEXT NULL AFTER transfer_reference' },
     // Saved bank details for users
-    { table: 'users', column: 'bank_code',               definition: 'VARCHAR(50) NULL' },
-    { table: 'users', column: 'bank_name',               definition: 'VARCHAR(255) NULL' },
-    { table: 'users', column: 'account_number',          definition: 'VARCHAR(50) NULL' },
-    { table: 'users', column: 'account_name',            definition: 'VARCHAR(255) NULL' },
+    { table: 'users', column: 'bank_code', definition: 'VARCHAR(50) NULL' },
+    { table: 'users', column: 'bank_name', definition: 'VARCHAR(255) NULL' },
+    { table: 'users', column: 'account_number', definition: 'VARCHAR(50) NULL' },
+    { table: 'users', column: 'account_name', definition: 'VARCHAR(255) NULL' },
     { table: 'users', column: 'paystack_recipient_code', definition: 'VARCHAR(100) NULL' },
-    { table: 'users', column: 'badge_type',              definition: 'VARCHAR(50) NULL AFTER status' },
-    { table: 'users', column: 'active_subscription_id',  definition: 'INT NULL' },
+    { table: 'users', column: 'badge_type', definition: 'VARCHAR(50) NULL AFTER status' },
+    { table: 'users', column: 'active_subscription_id', definition: 'INT NULL' },
     { table: 'users', column: 'subscription_expires_at', definition: 'DATETIME NULL' },
     { table: 'reports', column: 'assigned_to', definition: 'VARCHAR(255) NULL AFTER priority' },
     // Password reset fields
@@ -392,7 +392,7 @@ async function seedTestUser() {
 async function seedReferralsAndWithdrawals() {
     try {
         const hash = await bcrypt.hash('password123', 10);
-        
+
         // Seed demo vendor accounts if not present
         const demoVendors = [
             { vendor_id: 'ONL-VD-01', first_name: 'Muhammad Munir', last_name: 'Musa', business_name: 'Amgautos&Sons', email: 'muhammad@amgautos.com' },

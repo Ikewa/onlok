@@ -94,16 +94,34 @@ const searchVendor = async (req, res) => {
             return res.status(404).json({ message: 'No vendors found matching your query.' });
         }
 
-        // Fetch badges and verification info for found vendors
+        // Fetch badges, reports count, and verification info for found vendors
         for (let vendor of vendors) {
             const [badges] = await pool.query('SELECT badge_type FROM badges WHERE user_id = ?', [vendor.id]);
             vendor.badges = badges.map(b => b.badge_type);
 
             const [verifications] = await pool.query(
-                'SELECT reviewed_at FROM verifications WHERE user_id = ? AND status = "approved" ORDER BY reviewed_at DESC LIMIT 1',
+                'SELECT reviewed_at, status, admin_notes FROM verifications WHERE user_id = ? ORDER BY submitted_at DESC LIMIT 1',
                 [vendor.id]
             );
-            vendor.last_verified = verifications.length > 0 ? verifications[0].reviewed_at : null;
+            if (verifications.length > 0) {
+                vendor.last_verified = verifications[0].status === 'approved' ? verifications[0].reviewed_at : null;
+                vendor.admin_notes = verifications[0].admin_notes || null;
+                if (verifications[0].status === 'flagged' || vendor.status === 'suspended') {
+                    vendor.status = 'flagged';
+                } else if (verifications[0].status === 'rejected' || vendor.status === 'rejected') {
+                    vendor.status = 'revoked';
+                }
+            } else if (vendor.status === 'suspended') {
+                vendor.status = 'flagged';
+            } else if (vendor.status === 'rejected') {
+                vendor.status = 'revoked';
+            }
+
+            const [reportRows] = await pool.query(
+                'SELECT COUNT(*) as cnt FROM reports WHERE reported_vendor_id = ? OR reported_vendor_id = ?',
+                [vendor.vendor_id, String(vendor.id)]
+            );
+            vendor.reports_count = reportRows[0]?.cnt || 0;
         }
 
         res.status(200).json(vendors);

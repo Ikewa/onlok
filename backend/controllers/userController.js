@@ -92,10 +92,10 @@ const registerUser = async (req, res) => {
 
     } catch (error) {
         console.error('Registration Error:', error);
-        res.status(500).json({ 
-            message: 'Server error during registration', 
-            error: error.message, 
-            stack: error.stack 
+        res.status(500).json({
+            message: 'Server error during registration',
+            error: error.message,
+            stack: error.stack
         });
     }
 };
@@ -153,7 +153,7 @@ const getMe = async (req, res) => {
             'SELECT id, vendor_id, first_name, last_name, business_name, email, phone_number, role, status, badge_type, subscription_expires_at, active_subscription_id, profile_picture_url FROM users WHERE id = ?',
             [req.user.id]
         );
-        
+
         if (rows.length === 0) {
             return res.status(404).json({ message: 'User not found' });
         }
@@ -189,7 +189,7 @@ const updateUser = async (req, res) => {
         }
 
         const { first_name, last_name, business_name, phone_number } = req.body;
-        
+
         // Build query dynamically
         let updates = [];
         let values = [];
@@ -244,7 +244,7 @@ const deleteUser = async (req, res) => {
 const getReferrals = async (req, res) => {
     try {
         const userId = req.user.id;
-        
+
         // 1. Automatically move pending > 7 days to available
         await pool.query(`
             UPDATE referrals 
@@ -303,7 +303,7 @@ const getReferrals = async (req, res) => {
         // The current wallet balance is the sum of available referrals minus any withdrawals that are processing or paid
         // Since we are not changing referral status to 'withdrawn' explicitly (unless we want to), it's safer to deduct withdrawals.
         const currentWalletBalance = availableEarnings - totalWithdrawn - pendingWithdrawals;
-        
+
         // But if we want Available Earnings to show just available minus withdrawals:
         // Actually, let's keep availableEarnings as the gross available, and currentWalletBalance as net available.
         // The spec says: Available Earnings = Sum of all commissions with Available status.
@@ -389,7 +389,7 @@ const uploadProfilePicture = async (req, res) => {
 
         // 2. Magic bytes check (Layer 2 — defeats polyglot/renamed files)
         if (!isValidImageMagicBytes(uploadedFilePath)) {
-            fs.unlink(uploadedFilePath, () => {});
+            fs.unlink(uploadedFilePath, () => { });
             return res.status(400).json({ message: 'Invalid image file. Only JPEG, PNG, and WebP are accepted.' });
         }
 
@@ -399,13 +399,13 @@ const uploadProfilePicture = async (req, res) => {
             [req.user.id]
         );
         if (userRows.length === 0) {
-            fs.unlink(uploadedFilePath, () => {});
+            fs.unlink(uploadedFilePath, () => { });
             return res.status(404).json({ message: 'User not found.' });
         }
         const { updated_at, profile_picture_url: oldUrl } = userRows[0];
         const secondsSinceUpdate = (Date.now() - new Date(updated_at).getTime()) / 1000;
         if (secondsSinceUpdate < 60) {
-            fs.unlink(uploadedFilePath, () => {});
+            fs.unlink(uploadedFilePath, () => { });
             return res.status(429).json({ message: 'Please wait a moment before uploading another picture.' });
         }
 
@@ -437,7 +437,7 @@ const uploadProfilePicture = async (req, res) => {
 
     } catch (error) {
         // Clean up uploaded file on any unexpected error
-        if (uploadedFilePath) fs.unlink(uploadedFilePath, () => {});
+        if (uploadedFilePath) fs.unlink(uploadedFilePath, () => { });
         console.error('Upload Profile Picture Error:', error);
         res.status(500).json({ message: 'Server error uploading profile picture.' });
     }
@@ -458,7 +458,7 @@ const forgotPassword = async (req, res) => {
         }
 
         const user = users[0];
-        
+
         // Generate reset token (random hex string)
         const resetToken = crypto.randomBytes(32).toString('hex');
         const resetTokenExpires = Date.now() + 3600000; // 1 hour from now

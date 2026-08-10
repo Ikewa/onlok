@@ -72,6 +72,8 @@ export interface VendorSearchResult {
   facebook_handle?: string | null;
   tiktok_handle?: string | null;
   profile_picture_url?: string | null;
+  admin_notes?: string | null;
+  reports_count?: number;
 }
 
 export type ReportCategory =
