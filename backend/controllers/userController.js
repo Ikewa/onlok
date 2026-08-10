@@ -22,7 +22,7 @@ const generateToken = (id, role, vendor_id) => {
 // @access  Public
 const registerUser = async (req, res) => {
     try {
-        const { first_name, last_name, business_name, email, password, phone_number, country_code, twitter_handle, instagram_handle, facebook_handle, tiktok_handle, referred_by } = req.body;
+        const { first_name, last_name, business_name, email, password, phone_number, business_address, country_code, twitter_handle, instagram_handle, facebook_handle, tiktok_handle, referred_by } = req.body;
 
         if (!first_name || !last_name || !business_name || !email || !password || !phone_number) {
             return res.status(400).json({ message: 'Please add all fields' });
@@ -54,10 +54,10 @@ const registerUser = async (req, res) => {
 
         // Create user with null vendor_id (will be generated later upon admin approval)
         const query = `
-            INSERT INTO users (vendor_id, referred_by, first_name, last_name, business_name, email, password_hash, phone_number, twitter_handle, instagram_handle, facebook_handle, tiktok_handle) 
-            VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO users (vendor_id, referred_by, first_name, last_name, business_name, email, password_hash, phone_number, business_address, twitter_handle, instagram_handle, facebook_handle, tiktok_handle) 
+            VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
-        const [result] = await pool.execute(query, [referrerId, first_name, last_name, business_name, email, hashedPassword, phone_number, twitter_handle || null, instagram_handle || null, facebook_handle || null, tiktok_handle || null]);
+        const [result] = await pool.execute(query, [referrerId, first_name, last_name, business_name, email, hashedPassword, phone_number, business_address || null, twitter_handle || null, instagram_handle || null, facebook_handle || null, tiktok_handle || null]);
 
         const newUserId = result.insertId;
 
@@ -150,7 +150,7 @@ const loginUser = async (req, res) => {
 const getMe = async (req, res) => {
     try {
         const [rows] = await pool.query(
-            'SELECT id, vendor_id, first_name, last_name, business_name, email, phone_number, role, status, badge_type, subscription_expires_at, active_subscription_id, profile_picture_url FROM users WHERE id = ?',
+            'SELECT id, vendor_id, first_name, last_name, business_name, email, phone_number, business_address, country, role, status, badge_type, subscription_expires_at, active_subscription_id, profile_picture_url FROM users WHERE id = ?',
             [req.user.id]
         );
 
@@ -170,7 +170,7 @@ const getMe = async (req, res) => {
 // @access  Public or Admin (Configure as needed)
 const getUsers = async (req, res) => {
     try {
-        const [rows] = await pool.query('SELECT id, vendor_id, first_name, last_name, business_name, email, phone_number, role, status, created_at FROM users');
+        const [rows] = await pool.query('SELECT id, vendor_id, first_name, last_name, business_name, email, phone_number, business_address, country, role, status, created_at FROM users');
         res.status(200).json(rows);
     } catch (error) {
         console.error('Get Users Error:', error);
@@ -188,7 +188,7 @@ const updateUser = async (req, res) => {
             return res.status(403).json({ message: 'Not authorized to update this profile' });
         }
 
-        const { first_name, last_name, business_name, phone_number } = req.body;
+        const { first_name, last_name, business_name, phone_number, business_address, country } = req.body;
 
         // Build query dynamically
         let updates = [];
@@ -197,6 +197,8 @@ const updateUser = async (req, res) => {
         if (last_name) { updates.push('last_name = ?'); values.push(last_name); }
         if (business_name) { updates.push('business_name = ?'); values.push(business_name); }
         if (phone_number) { updates.push('phone_number = ?'); values.push(phone_number); }
+        if (business_address !== undefined) { updates.push('business_address = ?'); values.push(business_address); }
+        if (country !== undefined) { updates.push('country = ?'); values.push(country); }
 
         if (updates.length === 0) {
             return res.status(400).json({ message: 'No valid fields provided for update' });

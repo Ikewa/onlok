@@ -10,7 +10,7 @@ const getVendorDashboard = async (req, res) => {
         // Fetch User Info
         const [users] = await pool.query(
             `SELECT id, vendor_id, first_name, last_name, business_name, email,
-                    phone_number, role, status, profile_picture_url
+                    phone_number, business_address, country, role, status, profile_picture_url
              FROM users WHERE id = ?`,
             [userId]
         );
@@ -66,7 +66,7 @@ const searchVendor = async (req, res) => {
         try {
             const query = `
                 SELECT id, vendor_id, first_name, last_name, business_name, status, created_at,
-                       phone_number, twitter_handle, instagram_handle, facebook_handle,
+                       phone_number, business_address, country, twitter_handle, instagram_handle, facebook_handle,
                        tiktok_handle, profile_picture_url
                 FROM users
                 WHERE (vendor_id LIKE ? OR business_name LIKE ?) AND role = 'vendor'

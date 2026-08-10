@@ -28,6 +28,7 @@ interface FormData {
   phone_number: string;
   country_code: string;
   business_name: string;
+  business_address: string;
   twitter_handle: string;
   instagram_handle: string;
   facebook_handle: string;
@@ -44,7 +45,7 @@ interface FormData {
 
 const initialData: FormData = {
   first_name: '', last_name: '', email: '', phone_number: '',
-  country_code: 'NG', business_name: '',
+  country_code: 'NG', business_name: '', business_address: '',
   twitter_handle: '', instagram_handle: '', facebook_handle: '', tiktok_handle: '',
   password: '', confirm_password: '',
   gov_id_file: null, business_video_file: null, cac_file: null,
@@ -127,6 +128,7 @@ export default function RegisterPage() {
             first_name: form.first_name,
             last_name: form.last_name,
             business_name: form.business_name,
+            business_address: form.business_address,
             email: form.email,
             password: form.password,
             phone_number: form.phone_number,
@@ -295,7 +297,10 @@ export default function RegisterPage() {
       <Typography variant="body2" color="#64748B" mb={4}>Tell us about what you do so we can display it on your public profile.</Typography>
       
       <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} display="block">Business Name or Professional Role</Typography>
-      <TextField fullWidth value={form.business_name} onChange={(e) => set('business_name', e.target.value)} placeholder="e.g., Chen Design Studio OR UX Designer" sx={{ mb: 4 }} InputProps={{ sx: { borderRadius: 2 } }} />
+      <TextField fullWidth value={form.business_name} onChange={(e) => set('business_name', e.target.value)} placeholder="e.g., Chen Design Studio OR UX Designer" sx={{ mb: 3 }} InputProps={{ sx: { borderRadius: 2 } }} />
+      
+      <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} display="block">Business Address / Location</Typography>
+      <TextField fullWidth value={form.business_address} onChange={(e) => set('business_address', e.target.value)} placeholder="e.g., 12 Marina Boulevard, Marina Bay, Singapore" sx={{ mb: 4 }} InputProps={{ sx: { borderRadius: 2 } }} />
       
       <Typography variant="h6" fontWeight={800} color="#0F172A" mb={0.5}>social media presence</Typography>
       <Typography variant="body2" color="#64748B" mb={3}>used to understand your digital footprint abd brand presence</Typography>
@@ -409,6 +414,7 @@ export default function RegisterPage() {
           <Typography variant="caption" fontWeight={700} color="#1A1FE8" sx={{ cursor: 'pointer' }} onClick={() => setActiveStep(1)}>Edit</Typography>
         </Box>
         <GridRow label="Name/Role" value={form.business_name || '-'} />
+        <GridRow label="Address" value={form.business_address || '-'} />
       </Paper>
 
       <Box sx={{ p: 2.5, borderRadius: 3, bgcolor: '#E0F2FE', mb: 4, display: 'flex', alignItems: 'flex-start', gap: 2 }}>

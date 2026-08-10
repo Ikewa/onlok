@@ -303,6 +303,9 @@ const COLUMN_MIGRATIONS = [
     { table: 'users', column: 'reset_password_expires', definition: 'BIGINT NULL AFTER reset_password_token' },
     // CAC document URL for business verifications
     { table: 'verifications', column: 'cac_url', definition: 'VARCHAR(255) NULL AFTER gov_id_url' },
+    // Business Address and Country for user profiles
+    { table: 'users', column: 'business_address', definition: 'VARCHAR(255) NULL AFTER phone_number' },
+    { table: 'users', column: 'country',          definition: 'VARCHAR(100) NULL AFTER business_address' },
 ];
 
 async function addMissingColumns() {

@@ -53,13 +53,13 @@ const countryMap: Record<string, string> = {
 };
 
 const getCountryFromVendorId = (vendorId?: string) => {
-  if (!vendorId) return 'Singapore';
+  if (!vendorId) return null;
   const parts = vendorId.split('-');
   if (parts.length >= 3) {
     const code = parts[1].toUpperCase();
     return countryMap[code] ?? code;
   }
-  return 'Singapore';
+  return null;
 };
 
 const getSocialUrl = (platform: 'twitter' | 'instagram' | 'facebook' | 'tiktok' | 'whatsapp', val?: string | null) => {
@@ -233,7 +233,7 @@ export default function PublicProfilePage() {
     : 'Not Verified';
 
   const userRoleText = vendor?.business_name && vendor.business_name !== '-' ? vendor.business_name : 'UX Designer & Consultant';
-  const countryName = getCountryFromVendorId(vendor?.vendor_id);
+  const countryName = vendor?.business_address || vendor?.country || getCountryFromVendorId(vendor?.vendor_id) || 'Not Specified';
 
   // Status configuration mapping
   const statusConfig = {

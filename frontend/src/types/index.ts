@@ -8,6 +8,8 @@ export interface User {
   business_name: string;
   email: string;
   phone_number?: string;
+  business_address?: string | null;
+  country?: string | null;
   role: 'vendor' | 'admin';
   status: 'pending' | 'verified' | 'rejected' | 'suspended';
   badge_type?: string | null;
@@ -67,6 +69,8 @@ export interface VendorSearchResult {
   badges: string[];
   last_verified?: string | null;
   phone_number?: string | null;
+  business_address?: string | null;
+  country?: string | null;
   twitter_handle?: string | null;
   instagram_handle?: string | null;
   facebook_handle?: string | null;
@@ -92,7 +96,9 @@ export interface RegisterPayload {
   email: string;
   password: string;
   phone_number: string;
+  business_address?: string;
   country_code?: string;
+  referred_by?: string;
 }
 
 export interface LoginPayload {

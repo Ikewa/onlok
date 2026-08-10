@@ -31,7 +31,15 @@ export default function DashboardPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [isPaying, setIsPaying] = useState(false);
-  const [locationStr, setLocationStr] = useState('Fetching location...');
+  const getCountryFromVendorId = (vendorId?: string | null) => {
+    if (!vendorId) return null;
+    const match = vendorId.match(/^OL-([A-Z]{2})-/i);
+    if (!match) return null;
+    const map: Record<string, string> = {
+      NG: 'Nigeria', GH: 'Ghana', KE: 'Kenya', ZA: 'South Africa', US: 'USA', GB: 'UK'
+    };
+    return map[match[1].toUpperCase()] || null;
+  };
 
   const handlePay = async () => {
     if (!data?.verification || !user) return;
@@ -75,18 +83,6 @@ export default function DashboardPage() {
         setError('Failed to load dashboard. Please refresh.');
         setLoading(false);
       });
-
-    // Fetch current location
-    fetch('https://ipapi.co/json/')
-      .then(res => res.json())
-      .then(data => {
-        if (data.city && data.country_name) {
-          setLocationStr(`${data.city}, ${data.country_name}`);
-        } else {
-          setLocationStr('Unknown Location');
-        }
-      })
-      .catch(() => setLocationStr('Location Unavailable'));
   }, []);
 
   const copyToClipboard = (text: string) => {
@@ -402,8 +398,8 @@ export default function DashboardPage() {
                   {[
                     { label: 'Business Name', value: dashUser?.business_name ?? 'N/A' },
                     { label: 'Business Mail', value: dashUser?.email ?? 'N/A' },
-                    { label: 'Business Phone Number', value: dashUser?.phone_number ?? '+234 800 000 0000' },
-                    { label: 'Business Address', value: locationStr },
+                    { label: 'Business Phone Number', value: dashUser?.phone_number || 'Not Provided' },
+                    { label: 'Business Address', value: dashUser?.business_address || dashUser?.country || getCountryFromVendorId(dashUser?.vendor_id) || 'Not Provided' },
                   ].map((item, i) => (
                     <Box key={i} sx={{ mb: i === 3 ? 0 : 2.5 }}>
                       <Typography sx={{ fontSize: '0.75rem', color: '#64748B', mb: 0.3 }}>{item.label}</Typography>
