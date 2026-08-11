@@ -169,17 +169,17 @@ export default function DashboardPage() {
                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
                   <Button
                     variant="contained"
-                    onClick={() => navigate('/dashboard/update/bio')}
+                    onClick={() => navigate('/dashboard/verification')}
                     sx={{ bgcolor: '#CA8A04', color: '#fff', fontWeight: 700, textTransform: 'none', borderRadius: 2, '&:hover': { bgcolor: '#A16207' } }}
                   >
-                    Update Business Details
+                    Resubmit Requested Documents
                   </Button>
                   <Button
                     variant="outlined"
-                    onClick={() => navigate('/dashboard/verification')}
+                    onClick={() => navigate('/dashboard/update/bio')}
                     sx={{ borderColor: '#CA8A04', color: '#854D0E', fontWeight: 700, textTransform: 'none', borderRadius: 2, '&:hover': { borderColor: '#A16207', bgcolor: '#FEF08A' } }}
                   >
-                    View Verification Status
+                    Update Profile Details
                   </Button>
                 </Stack>
               </Box>

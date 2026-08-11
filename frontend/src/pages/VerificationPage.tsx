@@ -8,8 +8,10 @@ import AccessTimeOutlinedIcon from '@mui/icons-material/AccessTimeOutlined';
 import ErrorOutlineOutlinedIcon from '@mui/icons-material/ErrorOutlineOutlined';
 import HourglassEmptyOutlinedIcon from '@mui/icons-material/HourglassEmptyOutlined';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import { Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import { useAuth } from '../context/AuthContext';
-import { getMyVerification } from '../api/verifications';
+import { getMyVerification, resubmitVerificationDocuments } from '../api/verifications';
 import type { VerificationRecord } from '../api/verifications';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { initializePayment } from '../api/payment';
@@ -46,28 +48,45 @@ function buildTimeline(record: VerificationRecord) {
   });
 }
 
-/** Derive document list from real URLs */
+/** Derive document list from real URLs and granular statuses */
 function buildDocuments(record: VerificationRecord) {
-  const docStatus = record.status === 'approved' ? 'Verified' : record.status === 'rejected' ? 'Rejected' : 'Under Review';
-  const docColor = record.status === 'approved' ? '#166534' : record.status === 'rejected' ? '#991B1B' : '#92400E';
-  const docBg = record.status === 'approved' ? '#DCFCE7' : record.status === 'rejected' ? '#FEE2E2' : '#FEF3C7';
+  const getDocMeta = (url?: string, docStatus?: string, docNotes?: string | null) => {
+    const s = docStatus || record.status;
+    let label = 'Under Review';
+    let color = '#92400E';
+    let bg = '#FEF3C7';
+
+    if (s === 'approved') { label = 'Verified'; color = '#166534'; bg = '#DCFCE7'; }
+    else if (s === 'rejected') { label = 'Rejected'; color = '#991B1B'; bg = '#FEE2E2'; }
+
+    return { statusLabel: label, statusColor: color, statusBg: bg, notes: docNotes, hasUrl: !!url };
+  };
+
+  const govMeta = getDocMeta(record.gov_id_url, record.gov_id_status, record.gov_id_notes);
+  const cacMeta = getDocMeta(record.cac_url, record.cac_status, record.cac_notes);
+  const vidMeta = getDocMeta(record.video_url, record.video_status, record.video_notes);
 
   return [
     {
+      key: 'gov_id',
       title: 'Government ID',
       meta: `Identity • Submitted ${fmt(record.submitted_at)}`,
       icon: <BadgeOutlinedIcon sx={{ color: '#64748B' }} />,
-      statusLabel: docStatus,
-      statusColor: docColor,
-      statusBg: docBg,
+      ...govMeta,
     },
+    ...(record.cac_url || record.cac_status ? [{
+      key: 'cac',
+      title: 'CAC Registration Document',
+      meta: `Business Registration • Submitted ${fmt(record.submitted_at)}`,
+      icon: <InfoOutlinedIcon sx={{ color: '#64748B' }} />,
+      ...cacMeta,
+    }] : []),
     {
-      title: 'Business Video',
+      key: 'video',
+      title: 'Business Video Verification',
       meta: `Face Match • Submitted ${fmt(record.submitted_at)}`,
       icon: <CameraAltOutlinedIcon sx={{ color: '#64748B' }} />,
-      statusLabel: docStatus,
-      statusColor: docColor,
-      statusBg: docBg,
+      ...vidMeta,
     },
   ];
 }
@@ -83,6 +102,37 @@ export default function VerificationPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isPaying, setIsPaying] = useState(false);
+
+  // Targeted document resubmission state
+  const [resubmitModalOpen, setResubmitModalOpen] = useState(false);
+  const [activeDocKey, setActiveDocKey] = useState<'govId' | 'cac' | 'video'>('govId');
+  const [activeDocTitle, setActiveDocTitle] = useState<string>('Government ID');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isResubmitting, setIsResubmitting] = useState(false);
+
+  const openResubmitModal = (key: 'gov_id' | 'cac' | 'video', title: string) => {
+    const mapped = key === 'gov_id' ? 'govId' : key === 'cac' ? 'cac' : 'video';
+    setActiveDocKey(mapped);
+    setActiveDocTitle(title);
+    setSelectedFile(null);
+    setResubmitModalOpen(true);
+  };
+
+  const handleResubmit = async () => {
+    if (!selectedFile) return toast.error('Please select a file to upload');
+    setIsResubmitting(true);
+    try {
+      await resubmitVerificationDocuments({ [activeDocKey]: selectedFile });
+      toast.success(`${activeDocTitle} resubmitted! Account is now under pending review.`);
+      setResubmitModalOpen(false);
+      const updatedRec = await getMyVerification();
+      setRecord(updatedRec);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to resubmit document.');
+    } finally {
+      setIsResubmitting(false);
+    }
+  };
 
   const handlePay = async () => {
     if (!record || !user) return;
@@ -459,24 +509,47 @@ export default function VerificationPage() {
                 <Box sx={{ border: '1px solid #E2E8F0', borderRadius: 4, p: { xs: 2, md: 3 }, display: 'flex', flexDirection: 'column', gap: 2 }}>
                   {documents.map((doc, index) => (
                     <Box key={index} sx={{
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                       bgcolor: '#F8FAFC', borderRadius: 3, p: 2, border: '1px solid #E2E8F0',
+                      display: 'flex', flexDirection: 'column', gap: 1.5
                     }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                        <Box sx={{
-                          width: 40, height: 40, borderRadius: 2, bgcolor: '#fff', border: '1px solid #E2E8F0',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        }}>
-                          {doc.icon}
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                          <Box sx={{
+                            width: 40, height: 40, borderRadius: 2, bgcolor: '#fff', border: '1px solid #E2E8F0',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          }}>
+                            {doc.icon}
+                          </Box>
+                          <Box>
+                            <Typography sx={{ fontWeight: 600, fontSize: '0.95rem', color: '#0F172A' }}>{doc.title}</Typography>
+                            <Typography sx={{ color: '#64748B', fontSize: '0.75rem' }}>{doc.meta}</Typography>
+                          </Box>
                         </Box>
-                        <Box>
-                          <Typography sx={{ fontWeight: 600, fontSize: '0.95rem', color: '#0F172A' }}>{doc.title}</Typography>
-                          <Typography sx={{ color: '#64748B', fontSize: '0.75rem' }}>{doc.meta}</Typography>
+                        
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Box sx={{ bgcolor: doc.statusBg, px: 1.5, py: 0.5, borderRadius: 5 }}>
+                            <Typography sx={{ color: doc.statusColor, fontWeight: 700, fontSize: '0.75rem' }}>{doc.statusLabel}</Typography>
+                          </Box>
+                          {doc.statusLabel !== 'Verified' && (
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              onClick={() => openResubmitModal(doc.key as any, doc.title)}
+                              sx={{ textTransform: 'none', borderRadius: 2, fontSize: '0.75rem', fontWeight: 600, borderColor: '#CBD5E1', color: '#334155' }}
+                            >
+                              Re-upload
+                            </Button>
+                          )}
                         </Box>
                       </Box>
-                      <Box sx={{ bgcolor: doc.statusBg, px: 1.5, py: 0.5, borderRadius: 5 }}>
-                        <Typography sx={{ color: doc.statusColor, fontWeight: 700, fontSize: '0.75rem' }}>{doc.statusLabel}</Typography>
-                      </Box>
+
+                      {/* Display Admin Notes for this document if provided */}
+                      {doc.notes && (
+                        <Box sx={{ bgcolor: '#FEF2F2', p: 1.5, borderRadius: 2, border: '1px solid #FCA5A5' }}>
+                          <Typography sx={{ fontWeight: 700, color: '#991B1B', fontSize: '0.78rem', mb: 0.25 }}>Admin Feedback:</Typography>
+                          <Typography sx={{ color: '#B91C1C', fontSize: '0.85rem' }}>{doc.notes}</Typography>
+                        </Box>
+                      )}
                     </Box>
                   ))}
                 </Box>
@@ -486,6 +559,50 @@ export default function VerificationPage() {
           </>
         );
       })()}
+
+      {/* Targeted Document Resubmission Dialog */}
+      <Dialog open={resubmitModalOpen} onClose={() => setResubmitModalOpen(false)} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: 3, p: 1 } }}>
+        <DialogTitle sx={{ fontWeight: 800, color: '#0F172A', pb: 1 }}>
+          Re-upload {activeDocTitle}
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="#64748B" mb={2.5}>
+            Select a new file to replace your current <strong>{activeDocTitle}</strong>. Your account status will update to pending review once uploaded.
+          </Typography>
+          <Button
+            component="label"
+            variant="outlined"
+            fullWidth
+            startIcon={<CloudUploadIcon />}
+            sx={{ py: 3, borderStyle: 'dashed', borderRadius: 2, textTransform: 'none', fontWeight: 600, color: '#2563EB', borderColor: '#93C5FD' }}
+          >
+            {selectedFile ? selectedFile.name : `Choose new file (${activeDocKey === 'video' ? 'MP4/MOV' : 'JPG/PNG/PDF'})`}
+            <input
+              type="file"
+              hidden
+              accept={activeDocKey === 'video' ? 'video/*' : 'image/*,application/pdf'}
+              onChange={(e) => {
+                if (e.target.files && e.target.files[0]) {
+                  setSelectedFile(e.target.files[0]);
+                }
+              }}
+            />
+          </Button>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setResubmitModalOpen(false)} sx={{ textTransform: 'none', color: '#64748B', fontWeight: 600 }}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            disabled={!selectedFile || isResubmitting}
+            onClick={handleResubmit}
+            sx={{ bgcolor: '#2563EB', color: '#fff', borderRadius: 2, px: 3, fontWeight: 700, textTransform: 'none', '&:hover': { bgcolor: '#1D4ED8' } }}
+          >
+            {isResubmitting ? <CircularProgress size={20} color="inherit" /> : 'Upload & Submit'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
     </Box>
   );

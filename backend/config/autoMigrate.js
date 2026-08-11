@@ -306,6 +306,13 @@ const COLUMN_MIGRATIONS = [
     // Business Address and Country for user profiles
     { table: 'users', column: 'business_address', definition: 'VARCHAR(255) NULL AFTER phone_number' },
     { table: 'users', column: 'country',          definition: 'VARCHAR(100) NULL AFTER business_address' },
+    // Document-level verification statuses and admin notes
+    { table: 'verifications', column: 'gov_id_status', definition: "ENUM('pending', 'approved', 'rejected') DEFAULT 'pending'" },
+    { table: 'verifications', column: 'gov_id_notes',  definition: "TEXT NULL" },
+    { table: 'verifications', column: 'cac_status',    definition: "ENUM('pending', 'approved', 'rejected') DEFAULT 'pending'" },
+    { table: 'verifications', column: 'cac_notes',     definition: "TEXT NULL" },
+    { table: 'verifications', column: 'video_status',  definition: "ENUM('pending', 'approved', 'rejected') DEFAULT 'pending'" },
+    { table: 'verifications', column: 'video_notes',   definition: "TEXT NULL" },
 ];
 
 async function addMissingColumns() {

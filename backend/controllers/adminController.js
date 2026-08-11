@@ -3,6 +3,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const paystackService = require('../utils/paystackService');
+const paystackPlanService = require('../utils/paystackPlanService');
 const { generateVendorId } = require('../utils/generateId');
 const { generateQRCode } = require('../utils/qrCodeGenerator');
 const { sendEmail } = require('../utils/emailService');
@@ -134,6 +135,9 @@ const getVerificationDetails = async (req, res) => {
         const { id } = req.params;
         const query = `
             SELECT v.id as verification_id, v.gov_id_url, v.cac_url, v.video_url,
+                   v.gov_id_status, v.gov_id_notes,
+                   v.cac_status, v.cac_notes,
+                   v.video_status, v.video_notes,
                    CASE 
                      WHEN v.status = 'flagged' OR u.status = 'suspended' THEN 'flagged'
                      ELSE v.status 
@@ -165,7 +169,17 @@ const getVerificationDetails = async (req, res) => {
 const updateVerificationStatus = async (req, res) => {
     try {
         const { id } = req.params;
-        const { status, notes, assigned_tier } = req.body; 
+        const {
+            status,
+            notes,
+            assigned_tier,
+            gov_id_status,
+            gov_id_notes,
+            cac_status,
+            cac_notes,
+            video_status,
+            video_notes
+        } = req.body; 
 
         if (!['approved', 'rejected', 'flagged', 'pending', 'tier_assigned', 'payment_received'].includes(status)) {
             return res.status(400).json({ message: 'Invalid status' });
@@ -184,13 +198,62 @@ const updateVerificationStatus = async (req, res) => {
         
         const verification = verifications[0];
         
-        // Update verifications table (Now includes admin_notes!)
+        // Update verifications table (including per-document feedback)
         const updateQuery = `
             UPDATE verifications 
-            SET status = ?, admin_notes = ?, assigned_tier = IFNULL(?, assigned_tier), reviewed_at = CURRENT_TIMESTAMP, reviewed_by = ? 
+            SET status = ?, 
+                admin_notes = ?, 
+                assigned_tier = IFNULL(?, assigned_tier),
+                gov_id_status = IFNULL(?, gov_id_status),
+                gov_id_notes = IFNULL(?, gov_id_notes),
+                cac_status = IFNULL(?, cac_status),
+                cac_notes = IFNULL(?, cac_notes),
+                video_status = IFNULL(?, video_status),
+                video_notes = IFNULL(?, video_notes),
+                reviewed_at = CURRENT_TIMESTAMP, 
+                reviewed_by = ? 
             WHERE id = ?
         `;
-        await pool.query(updateQuery, [status, notes || null, assigned_tier || null, req.user.id, id]);
+        await pool.query(updateQuery, [
+            status,
+            notes || null,
+            assigned_tier || null,
+            gov_id_status || null,
+            gov_id_notes || null,
+            cac_status || null,
+            cac_notes || null,
+            video_status || null,
+            video_notes || null,
+            req.user.id,
+            id
+        ]);
+
+        // Auto-pause/cancel Paystack subscriptions if account is flagged (suspended) or rejected
+        if (status === 'flagged' || status === 'rejected') {
+            try {
+                const [activeSubs] = await pool.query(
+                    'SELECT id, paystack_subscription_code, paystack_email_token FROM subscriptions WHERE user_id = ? AND status = "active"',
+                    [verification.user_id]
+                );
+
+                for (const sub of activeSubs) {
+                    if (sub.paystack_subscription_code) {
+                        try {
+                            await paystackPlanService.disablePaystackSubscription(
+                                sub.paystack_subscription_code,
+                                sub.paystack_email_token
+                            );
+                        } catch (pErr) {
+                            console.warn('[Admin] Could not disable Paystack subscription:', pErr.response?.data || pErr.message);
+                        }
+                    }
+                    const newSubStatus = status === 'flagged' ? 'suspended' : 'cancelled';
+                    await pool.query('UPDATE subscriptions SET status = ? WHERE id = ?', [newSubStatus, sub.id]);
+                }
+            } catch (subErr) {
+                console.error('[Admin] Error processing subscription cancellation on status update:', subErr.message);
+            }
+        }
 
         // Update Users Table based on action
         if (status === 'approved') {
@@ -241,6 +304,25 @@ const updateVerificationStatus = async (req, res) => {
             [verification.user_id, actionText, severity, notes || `Admin manually ${status} user`]
         );
 
+        // Helper for formatting document feedback list in email
+        const renderDocBreakdown = () => {
+            const items = [];
+            if (gov_id_status) {
+                const label = gov_id_status === 'approved' ? '✅ Approved' : gov_id_status === 'rejected' ? '❌ Rejected' : '⚠️ Pending';
+                items.push(`<li><strong>Government ID:</strong> ${label} ${gov_id_notes ? `- <em>${gov_id_notes}</em>` : ''}</li>`);
+            }
+            if (cac_status) {
+                const label = cac_status === 'approved' ? '✅ Approved' : cac_status === 'rejected' ? '❌ Rejected' : '⚠️ Pending';
+                items.push(`<li><strong>CAC Document:</strong> ${label} ${cac_notes ? `- <em>${cac_notes}</em>` : ''}</li>`);
+            }
+            if (video_status) {
+                const label = video_status === 'approved' ? '✅ Approved' : video_status === 'rejected' ? '❌ Rejected' : '⚠️ Pending';
+                items.push(`<li><strong>Business Video:</strong> ${label} ${video_notes ? `- <em>${video_notes}</em>` : ''}</li>`);
+            }
+            if (items.length === 0) return '';
+            return `<div style="margin: 15px 0; background: #F8FAFC; padding: 12px; border-radius: 6px; border: 1px solid #E2E8F0;"><strong style="color: #0F172A;">Document Breakdown:</strong><ul style="margin: 8px 0 0 0; padding-left: 20px; font-size: 14px;">${items.join('')}</ul></div>`;
+        };
+
         // Send email notifications
         if (status === 'approved') {
             const html = `
@@ -248,7 +330,8 @@ const updateVerificationStatus = async (req, res) => {
                     <h2 style="color: #10B981;">Account Approved!</h2>
                     <p>Hi ${verification.first_name},</p>
                     <p>Great news! Your account verification has been approved.</p>
-                    <p>You can now log in and access all the features of your vendor portal.</p>
+                    ${renderDocBreakdown()}
+                    <p>You can now log in and access all features of your vendor portal.</p>
                     <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/login" style="padding: 10px 15px; background: #0F172A; color: #fff; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 0;">Log In to Onlok</a>
                     <br/><br/>
                     <p>Best regards,<br/><strong>The Onlok Team</strong></p>
@@ -261,6 +344,7 @@ const updateVerificationStatus = async (req, res) => {
                     <h2 style="color: #0029FF;">Verification Pre-Approved!</h2>
                     <p>Hi ${verification.first_name},</p>
                     <p>Your documents have been reviewed and you have been approved for the <strong>${assigned_tier}</strong> tier.</p>
+                    ${renderDocBreakdown()}
                     <p>Please log in to your dashboard to complete your subscription payment and finalize your verification.</p>
                     <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/dashboard" style="padding: 10px 15px; background: #0029FF; color: #fff; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 0;">Go to Dashboard</a>
                     <br/><br/>
@@ -268,18 +352,20 @@ const updateVerificationStatus = async (req, res) => {
                 </div>
             `;
             await sendEmail(verification.email, 'Action Required: Complete Your Verification - Onlok', html);
-        } else if (status === 'pending' && notes) {
+        } else if (status === 'pending' && (notes || gov_id_status || cac_status || video_status)) {
             const html = `
                 <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
                     <h2 style="color: #D97706;">Action Required: Information Requested</h2>
                     <p>Hi ${verification.first_name},</p>
                     <p>An admin has reviewed your verification submission and requested additional information:</p>
+                    ${notes ? `
                     <div style="background: #FEFCE8; border-left: 4px solid #CA8A04; padding: 15px; margin: 15px 0; color: #854D0E; font-size: 14px;">
                         <strong>Admin Message:</strong><br/>
                         ${notes}
-                    </div>
-                    <p>Please log into your dashboard to update your profile or resubmit documents.</p>
-                    <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/dashboard" style="padding: 10px 15px; background: #D97706; color: #fff; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 0;">Go to Vendor Dashboard</a>
+                    </div>` : ''}
+                    ${renderDocBreakdown()}
+                    <p>Please log into your dashboard to update your profile or resubmit requested documents.</p>
+                    <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/dashboard/verification" style="padding: 10px 15px; background: #D97706; color: #fff; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 0;">Go to Verification Page</a>
                     <br/><br/>
                     <p>Best regards,<br/><strong>The Onlok Team</strong></p>
                 </div>
@@ -290,8 +376,9 @@ const updateVerificationStatus = async (req, res) => {
                 <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
                     <h2 style="color: #EF4444;">Account Update</h2>
                     <p>Hi ${verification.first_name},</p>
-                    <p>Your account verification has been ${status}.</p>
-                    <p>Admin Notes: ${notes || 'Please contact support for more details.'}</p>
+                    <p>Your account verification status has been marked as <strong>${status}</strong>.</p>
+                    ${notes ? `<p><strong>Admin Notes:</strong> ${notes}</p>` : ''}
+                    ${renderDocBreakdown()}
                     <br/><br/>
                     <p>Best regards,<br/><strong>The Onlok Team</strong></p>
                 </div>

@@ -41,3 +41,26 @@ export const submitVerification = async (
   });
   return data;
 };
+
+export const resubmitVerificationDocuments = async (
+  files: { govId?: File | null; cac?: File | null; video?: File | null },
+  onProgress?: (progress: number) => void
+): Promise<VerificationResponse> => {
+  const formData = new FormData();
+  if (files.govId) formData.append('gov_id', files.govId);
+  if (files.cac) formData.append('cac_document', files.cac);
+  if (files.video) formData.append('business_video', files.video);
+
+  const { data } = await api.put<VerificationResponse>('/verifications/resubmit', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+    onUploadProgress: (progressEvent) => {
+      if (progressEvent.total && onProgress) {
+        const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+        onProgress(percentCompleted);
+      }
+    }
+  });
+  return data;
+};

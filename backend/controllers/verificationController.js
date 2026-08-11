@@ -77,7 +77,11 @@ const submitVerification = async (req, res) => {
 const getMyVerification = async (req, res) => {
     try {
         const [rows] = await pool.query(
-            `SELECT id, gov_id_url, cac_url, video_url, status, admin_notes, submitted_at, reviewed_at
+            `SELECT id, gov_id_url, cac_url, video_url, status, admin_notes,
+                    gov_id_status, gov_id_notes,
+                    cac_status, cac_notes,
+                    video_status, video_notes,
+                    submitted_at, reviewed_at
              FROM verifications
              WHERE user_id = ?
              ORDER BY submitted_at DESC
@@ -96,8 +100,75 @@ const getMyVerification = async (req, res) => {
     }
 };
 
+// @desc    Resubmit / update specific verification documents
+// @route   PUT /api/verifications/resubmit
+// @access  Private (Vendor only)
+const resubmitDocuments = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const [existing] = await pool.query(
+            'SELECT id, gov_id_url, cac_url, video_url FROM verifications WHERE user_id = ? ORDER BY submitted_at DESC LIMIT 1',
+            [userId]
+        );
+
+        if (existing.length === 0) {
+            return res.status(404).json({ message: 'No existing verification record found to resubmit.' });
+        }
+
+        const currentRec = existing[0];
+        const hasGovId = req.files && req.files['gov_id'];
+        const hasCac = req.files && req.files['cac_document'];
+        const hasVideo = req.files && req.files['business_video'];
+
+        if (!hasGovId && !hasCac && !hasVideo) {
+            return res.status(400).json({ message: 'Please upload at least one document to resubmit.' });
+        }
+
+        const newGovIdUrl = hasGovId ? `/uploads/${req.files['gov_id'][0].filename}` : currentRec.gov_id_url;
+        const newCacUrl = hasCac ? `/uploads/${req.files['cac_document'][0].filename}` : currentRec.cac_url;
+        const newVideoUrl = hasVideo ? `/uploads/${req.files['business_video'][0].filename}` : currentRec.video_url;
+
+        // Reset overall status to pending and reset status of uploaded docs
+        const updateQuery = `
+            UPDATE verifications 
+            SET status = 'pending',
+                admin_notes = NULL,
+                gov_id_url = ?,
+                gov_id_status = IF(?, 'pending', gov_id_status),
+                gov_id_notes = IF(?, NULL, gov_id_notes),
+                cac_url = ?,
+                cac_status = IF(?, 'pending', cac_status),
+                cac_notes = IF(?, NULL, cac_notes),
+                video_url = ?,
+                video_status = IF(?, 'pending', video_status),
+                video_notes = IF(?, NULL, video_notes),
+                submitted_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        `;
+
+        await pool.query(updateQuery, [
+            newGovIdUrl, hasGovId ? 1 : 0, hasGovId ? 1 : 0,
+            newCacUrl, hasCac ? 1 : 0, hasCac ? 1 : 0,
+            newVideoUrl, hasVideo ? 1 : 0, hasVideo ? 1 : 0,
+            currentRec.id
+        ]);
+
+        // Reset user table status to pending
+        await pool.query('UPDATE users SET status = "pending" WHERE id = ?', [userId]);
+
+        res.status(200).json({
+            message: 'Verification documents resubmitted successfully',
+            verification_id: currentRec.id
+        });
+    } catch (error) {
+        console.error('Verification Resubmit Error:', error);
+        res.status(500).json({ message: 'Server error resubmitting documents' });
+    }
+};
+
 module.exports = {
     upload,
     submitVerification,
-    getMyVerification
+    getMyVerification,
+    resubmitDocuments
 };

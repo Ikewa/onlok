@@ -20,6 +20,14 @@ export default function AdminVerificationReview() {
   const [selectedTier, setSelectedTier] = useState('Silver');
   const [actionLoading, setActionLoading] = useState(false);
 
+  // Document level statuses & feedback
+  const [govIdStatus, setGovIdStatus] = useState<string>('pending');
+  const [govIdNotes, setGovIdNotes] = useState<string>('');
+  const [cacStatus, setCacStatus] = useState<string>('pending');
+  const [cacNotes, setCacNotes] = useState<string>('');
+  const [videoStatus, setVideoStatus] = useState<string>('pending');
+  const [videoNotes, setVideoNotes] = useState<string>('');
+
   // Request Information Modal State
   const [requestModalOpen, setRequestModalOpen] = useState(false);
   const [requestMessage, setRequestMessage] = useState('');
@@ -36,6 +44,12 @@ export default function AdminVerificationReview() {
         const data = await getVerificationDetails(Number(id));
         setDetails(data);
         if (data.admin_notes) setNotes(data.admin_notes);
+        if (data.gov_id_status) setGovIdStatus(data.gov_id_status);
+        if (data.gov_id_notes) setGovIdNotes(data.gov_id_notes);
+        if (data.cac_status) setCacStatus(data.cac_status);
+        if (data.cac_notes) setCacNotes(data.cac_notes);
+        if (data.video_status) setVideoStatus(data.video_status);
+        if (data.video_notes) setVideoNotes(data.video_notes);
       } catch (err) {
         toast.error('Failed to load details');
         navigate('/admin/verifications');
@@ -50,7 +64,20 @@ export default function AdminVerificationReview() {
     setActionLoading(true);
     try {
       const finalNotes = customNotes !== undefined ? customNotes : notes;
-      await updateVerificationStatus(Number(id), status, finalNotes, status === 'tier_assigned' ? selectedTier : undefined);
+      await updateVerificationStatus(
+        Number(id), 
+        status, 
+        finalNotes, 
+        status === 'tier_assigned' ? selectedTier : undefined,
+        {
+          gov_id_status: govIdStatus,
+          gov_id_notes: govIdNotes,
+          cac_status: cacStatus,
+          cac_notes: cacNotes,
+          video_status: videoStatus,
+          video_notes: videoNotes
+        }
+      );
       toast.success(`Verification ${status} successfully`);
       navigate('/admin/verifications');
     } catch (err) {
@@ -162,15 +189,17 @@ export default function AdminVerificationReview() {
           {/* Uploaded Documents */}
           <Paper elevation={0} sx={{ p: 3, borderRadius: '12px', border: '1px solid #E5E7EB', mb: 3, bgcolor: '#FFFFFF' }}>
             <Typography variant="subtitle1" fontWeight={600} color="#111827" mb={2.5} sx={{ fontSize: '1.05rem' }}>
-              Uploaded Documents
+              Uploaded Documents & Granular Verification
             </Typography>
             <Grid container spacing={2.5}>
+
+              {/* ID Document */}
               <Grid item xs={12} sm={4}>
-                <Typography variant="caption" color="#6B7280" display="block" mb={1} sx={{ fontSize: '0.78rem' }}>ID Document</Typography>
+                <Typography variant="caption" color="#6B7280" display="block" mb={1} sx={{ fontSize: '0.78rem', fontWeight: 600 }}>ID Document</Typography>
                 <Box 
                   sx={{ 
-                    width: '100%', height: 180, bgcolor: '#F9FAFB', borderRadius: '8px', overflow: 'hidden', 
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #E5E7EB' 
+                    width: '100%', height: 160, bgcolor: '#F9FAFB', borderRadius: '8px', overflow: 'hidden', 
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #E5E7EB', mb: 1.5 
                   }}
                 >
                   {details.gov_id_url ? (
@@ -179,14 +208,34 @@ export default function AdminVerificationReview() {
                     : <Box component="img" src={getMediaUrl(details.gov_id_url)} sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   ) : <Typography variant="caption" color="#9CA3AF">No ID uploaded</Typography>}
                 </Box>
+                <Select
+                  fullWidth
+                  size="small"
+                  value={govIdStatus}
+                  onChange={(e) => setGovIdStatus(e.target.value)}
+                  sx={{ mb: 1, bgcolor: '#F8FAFC', fontSize: '0.82rem' }}
+                >
+                  <MenuItem value="pending">⚠️ Pending Review</MenuItem>
+                  <MenuItem value="approved">✅ Approved</MenuItem>
+                  <MenuItem value="rejected">❌ Rejected</MenuItem>
+                </Select>
+                <TextField
+                  fullWidth
+                  size="small"
+                  placeholder="ID Feedback / Reason..."
+                  value={govIdNotes}
+                  onChange={(e) => setGovIdNotes(e.target.value)}
+                  inputProps={{ style: { fontSize: '0.8rem' } }}
+                />
               </Grid>
               
+              {/* CAC Document */}
               <Grid item xs={12} sm={4}>
-                <Typography variant="caption" color="#6B7280" display="block" mb={1} sx={{ fontSize: '0.78rem' }}>CAC Document</Typography>
+                <Typography variant="caption" color="#6B7280" display="block" mb={1} sx={{ fontSize: '0.78rem', fontWeight: 600 }}>CAC Document</Typography>
                 <Box 
                   sx={{ 
-                    width: '100%', height: 180, bgcolor: '#F9FAFB', borderRadius: '8px', overflow: 'hidden', 
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #E5E7EB' 
+                    width: '100%', height: 160, bgcolor: '#F9FAFB', borderRadius: '8px', overflow: 'hidden', 
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #E5E7EB', mb: 1.5 
                   }}
                 >
                   {details.cac_url ? (
@@ -195,21 +244,61 @@ export default function AdminVerificationReview() {
                     : <Box component="img" src={getMediaUrl(details.cac_url)} sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   ) : <Typography variant="caption" color="#9CA3AF">No CAC uploaded</Typography>}
                 </Box>
+                <Select
+                  fullWidth
+                  size="small"
+                  value={cacStatus}
+                  onChange={(e) => setCacStatus(e.target.value)}
+                  sx={{ mb: 1, bgcolor: '#F8FAFC', fontSize: '0.82rem' }}
+                >
+                  <MenuItem value="pending">⚠️ Pending Review</MenuItem>
+                  <MenuItem value="approved">✅ Approved</MenuItem>
+                  <MenuItem value="rejected">❌ Rejected</MenuItem>
+                </Select>
+                <TextField
+                  fullWidth
+                  size="small"
+                  placeholder="CAC Feedback / Reason..."
+                  value={cacNotes}
+                  onChange={(e) => setCacNotes(e.target.value)}
+                  inputProps={{ style: { fontSize: '0.8rem' } }}
+                />
               </Grid>
 
+              {/* Business Video */}
               <Grid item xs={12} sm={4}>
-                <Typography variant="caption" color="#6B7280" display="block" mb={1} sx={{ fontSize: '0.78rem' }}>Business Video</Typography>
+                <Typography variant="caption" color="#6B7280" display="block" mb={1} sx={{ fontSize: '0.78rem', fontWeight: 600 }}>Business Video</Typography>
                 <Box 
                   sx={{ 
-                    width: '100%', height: 180, bgcolor: '#111827', borderRadius: '8px', overflow: 'hidden', 
-                    display: 'flex', alignItems: 'center', justifyContent: 'center' 
+                    width: '100%', height: 160, bgcolor: '#111827', borderRadius: '8px', overflow: 'hidden', 
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1.5 
                   }}
                 >
                   {details.video_url ? (
                     <video controls src={getMediaUrl(details.video_url)} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                   ) : <Typography variant="caption" color="#9CA3AF">No video uploaded</Typography>}
                 </Box>
+                <Select
+                  fullWidth
+                  size="small"
+                  value={videoStatus}
+                  onChange={(e) => setVideoStatus(e.target.value)}
+                  sx={{ mb: 1, bgcolor: '#F8FAFC', fontSize: '0.82rem' }}
+                >
+                  <MenuItem value="pending">⚠️ Pending Review</MenuItem>
+                  <MenuItem value="approved">✅ Approved</MenuItem>
+                  <MenuItem value="rejected">❌ Rejected</MenuItem>
+                </Select>
+                <TextField
+                  fullWidth
+                  size="small"
+                  placeholder="Video Feedback / Reason..."
+                  value={videoNotes}
+                  onChange={(e) => setVideoNotes(e.target.value)}
+                  inputProps={{ style: { fontSize: '0.8rem' } }}
+                />
               </Grid>
+
             </Grid>
           </Paper>
 

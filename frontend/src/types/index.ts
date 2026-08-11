@@ -27,6 +27,12 @@ export interface VerificationStatus {
   admin_notes?: string;
   assigned_tier?: string | null;
   payment_status?: string | null;
+  gov_id_status?: 'pending' | 'approved' | 'rejected';
+  gov_id_notes?: string | null;
+  cac_status?: 'pending' | 'approved' | 'rejected';
+  cac_notes?: string | null;
+  video_status?: 'pending' | 'approved' | 'rejected';
+  video_notes?: string | null;
   submitted_at: string;
   reviewed_at: string | null;
 }
