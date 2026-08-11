@@ -1,0 +1,36 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  }
+}
+
+/* Custom Utilities for Landing Page */
+.navy-gradient {
+  background: linear-gradient(135deg, #000968 0%, #020951 100%);
+}
+
+.card-shadow {
+  box-shadow: 0 10px 30px -5px rgba(0, 9, 104, 0.08);
+}
+
+.popular-card-shadow {
+  box-shadow: 0 25px 50px -12px rgba(0, 48, 255, 0.25);
+}
+
+.accordion-content {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s ease;
+}
+
+.accordion-item.active .accordion-content {
+  max-height: 500px;
+}
+
+.accordion-item.active .accordion-icon {
+  transform: rotate(45deg);
+}

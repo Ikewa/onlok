@@ -27,39 +27,38 @@ export default function LandingPage() {
     }}>
       <Navbar />
 
-      <Container maxWidth="lg" sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', py: { xs: 2, md: 4 }, pb: { xs: '80px', md: 4 } }}>
-        <Box sx={{ my: 'auto', width: '100%', display: 'flex', flexDirection: 'column' }}>
-          <Box sx={{ textAlign: 'center', mb: { xs: 2, md: 8 } }}>
-            {/* GIGANTIC Size - Virtually Cropped via CSS Zoom */}
-            <Box sx={{ display: 'flex', justifyContent: 'center', mb: { xs: 2, md: 8 } }}>
+      <Container maxWidth="lg" sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', py: { xs: 4, md: 12 } }}>
+        <Box sx={{ textAlign: 'center', mb: { xs: 4, md: 8 } }}>
+          {/* GIGANTIC Size - Virtually Cropped via CSS Zoom */}
+          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 8 }}>
+            <Box 
+              sx={{ 
+                width: { xs: '90%', md: 700 }, // Responsive width
+                maxWidth: { xs: 350, md: 700 },
+                height: { xs: 60, md: 150 }, // Scaled height for mobile
+                overflow: 'hidden',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                position: 'relative'
+              }}
+            >
               <Box 
+                component="img"
+                src="/logo.png"
+                alt="Onlok Logo"
                 sx={{ 
-                  width: { xs: '90%', md: 700 }, // Responsive width
-                  maxWidth: { xs: 350, md: 700 },
-                  height: { xs: 60, md: 150 }, // Scaled height for mobile
-                  overflow: 'hidden',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  position: 'relative'
-                }}
-              >
-                <Box 
-                  component="img"
-                  src="/logo.png"
-                  alt="Onlok Logo"
-                  sx={{ 
-                    width: '180%', // Reduced zoom to show more of the logo
-                    height: 'auto',
-                    display: 'block',
-                    position: 'absolute',
-                    top: '50%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)'
-                  }} 
-                />
-              </Box>
+                  width: '180%', // Reduced zoom to show more of the logo
+                  height: 'auto',
+                  display: 'block',
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)'
+                }} 
+              />
             </Box>
+          </Box>
 
             <Typography 
               variant="body1" 
@@ -79,7 +78,7 @@ export default function LandingPage() {
           </Box>
 
           {/* Search Box */}
-          <Box sx={{ display: 'flex', justifyContent: 'center', mb: { xs: 2, md: 4 }, px: { xs: 2, md: 0 } }}>
+          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4, px: { xs: 2, md: 0 } }}>
             <Box 
               sx={{ 
                 width: '100%',
@@ -91,6 +90,7 @@ export default function LandingPage() {
                 display: 'flex',
                 alignItems: 'center',
                 boxShadow: '0 20px 50px rgba(0,0,0,0.08)',
+                border: '4px solid #94A3B8',
                 mx: 'auto',
                 position: 'relative'
               }}
@@ -215,7 +215,6 @@ export default function LandingPage() {
               Report A User
             </Button>
           </Box>
-        </Box>
       </Container>
       
       {/* Desktop Floating Report Button - Large Circle */}

@@ -18,7 +18,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { getVerificationDetails, updateVerificationStatus, type AdminVerification } from '../../api/admin';
 import { MenuItem, Select } from '@mui/material';
 import toast from 'react-hot-toast';
-import axios from 'axios';
+import api from '../../api/axiosInstance';
 
 export default function AdminVerificationReview() {
   const navigate = useNavigate();
@@ -44,6 +44,11 @@ export default function AdminVerificationReview() {
   // Prembly Search State
   const [searchType, setSearchType] = useState('nin');
   const [searchValue, setSearchValue] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [dob, setDob] = useState('');
+  const [passportNin, setPassportNin] = useState('');
+  
   const [isSearching, setIsSearching] = useState(false);
   const [searchResult, setSearchResult] = useState<any>(null);
 
@@ -97,18 +102,24 @@ export default function AdminVerificationReview() {
   };
 
   const handlePremblySearch = async () => {
-    if (!searchValue.trim()) return toast.error('Please enter a value to search');
-    
+    if (!searchValue.trim()) return;
+
+    let payload: any = {};
+    payload[searchType] = searchValue;
+
+    if (searchType === 'drivers_license') {
+      payload.first_name = firstName;
+      payload.last_name = lastName;
+    } else if (searchType === 'passport') {
+      payload.dob = dob;
+      payload.nin = passportNin;
+    }
+
     setIsSearching(true);
     setSearchResult(null);
     try {
-      const token = localStorage.getItem('token');
-      const res = await axios.post(
-        `/api/admin/prembly/${searchType}`,
-        { [searchType]: searchValue },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      setSearchResult(res.data);
+      const { data } = await api.post(`/admin/prembly/${searchType}`, payload);
+      setSearchResult(data);
       toast.success('Search successful');
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Search failed');
@@ -512,14 +523,72 @@ export default function AdminVerificationReview() {
                 <MenuItem value="nin">NIN</MenuItem>
                 <MenuItem value="vnin">VNIN</MenuItem>
                 <MenuItem value="cac">CAC</MenuItem>
+                <MenuItem value="drivers_license">Driver's License</MenuItem>
+                <MenuItem value="passport">Passport</MenuItem>
               </TextField>
-              <TextField
-                size="small"
-                fullWidth
-                placeholder={`Enter ${searchType.toUpperCase()}`}
-                value={searchValue}
-                onChange={(e) => setSearchValue(e.target.value)}
-              />
+              <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <TextField
+                  size="small"
+                  fullWidth
+                  placeholder={
+                    searchType === 'nin' ? "Enter NIN (e.g. 12345678901)" :
+                    searchType === 'vnin' ? "Enter VNIN" : 
+                    searchType === 'cac' ? "Enter RC Number (e.g. 123456)" :
+                    searchType === 'drivers_license' ? "Enter License Number" :
+                    "Enter Passport Number"
+                  }
+                  value={searchValue}
+                  onChange={(e) => setSearchValue(e.target.value)}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 6,
+                      backgroundColor: '#FFFFFF',
+                    }
+                  }}
+                />
+                
+                {searchType === 'drivers_license' && (
+                  <Box sx={{ display: 'flex', gap: 2 }}>
+                    <TextField
+                      size="small"
+                      fullWidth
+                      placeholder="First Name"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 6, backgroundColor: '#FFFFFF' } }}
+                    />
+                    <TextField
+                      size="small"
+                      fullWidth
+                      placeholder="Last Name"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 6, backgroundColor: '#FFFFFF' } }}
+                    />
+                  </Box>
+                )}
+
+                {searchType === 'passport' && (
+                  <Box sx={{ display: 'flex', gap: 2 }}>
+                    <TextField
+                      size="small"
+                      fullWidth
+                      placeholder="NIN (11 digits)"
+                      value={passportNin}
+                      onChange={(e) => setPassportNin(e.target.value)}
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 6, backgroundColor: '#FFFFFF' } }}
+                    />
+                    <TextField
+                      size="small"
+                      fullWidth
+                      type="date"
+                      value={dob}
+                      onChange={(e) => setDob(e.target.value)}
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 6, backgroundColor: '#FFFFFF' } }}
+                    />
+                  </Box>
+                )}
+              </Box>
               <Button 
                 variant="contained" 
                 onClick={handlePremblySearch}
@@ -531,13 +600,139 @@ export default function AdminVerificationReview() {
             </Box>
 
             {searchResult && (
-              <Box sx={{ p: 2, bgcolor: '#F9FAFB', borderRadius: '8px', border: '1px solid #E5E7EB', overflowX: 'auto' }}>
-                <Typography variant="caption" fontWeight={600} color="#6B7280" display="block" mb={1}>
-                  Search Results
-                </Typography>
-                <pre style={{ fontSize: '0.8rem', color: '#374151', margin: 0 }}>
-                  {JSON.stringify(searchResult, null, 2)}
-                </pre>
+              <Box sx={{ mt: 3 }}>
+                {searchResult.error || searchResult.status === false ? (
+                  <Box sx={{ p: 3, bgcolor: '#FEF2F2', borderRadius: '12px', border: '1px solid #FEE2E2', display: 'flex', alignItems: 'flex-start', gap: 2 }}>
+                    <HighlightOffIcon sx={{ color: '#DC2626', mt: 0.5 }} />
+                    <Box>
+                      <Typography variant="subtitle2" color="#B91C1C" fontWeight={700} mb={0.5}>
+                        Verification Failed
+                      </Typography>
+                      <Typography variant="body2" color="#991B1B">
+                        {searchResult.error?.message || searchResult.message || 'Unknown error occurred'}
+                      </Typography>
+                      {(searchResult.errors || searchResult.error?.errors) && (
+                        <Box sx={{ mt: 2, p: 1.5, bgcolor: '#FFFFFF', borderRadius: '8px', border: '1px solid #FECACA' }}>
+                          <pre style={{ fontSize: '0.75rem', color: '#7F1D1D', margin: 0, whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}>
+                            {JSON.stringify(searchResult.errors || searchResult.error?.errors, null, 2)}
+                          </pre>
+                        </Box>
+                      )}
+                    </Box>
+                  </Box>
+                ) : (
+                  <Box sx={{ bgcolor: '#FFFFFF', borderRadius: '16px', border: '1px solid #E5E7EB', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
+                    {/* Header */}
+                    <Box sx={{ p: 2.5, bgcolor: '#F8FAFC', borderBottom: '1px solid #E5E7EB', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <CheckCircleOutlinedIcon sx={{ color: '#16A34A', fontSize: 28 }} />
+                        <Typography variant="h6" fontWeight={700} color="#0F172A">
+                          Identity Verified
+                        </Typography>
+                      </Box>
+                      {searchResult.message?.includes('sandbox') && (
+                        <Box sx={{ bgcolor: '#FEF3C7', color: '#B45309', px: 1.5, py: 0.5, borderRadius: 'full', fontSize: '0.75rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          <InfoOutlinedIcon sx={{ fontSize: 14 }} /> SANDBOX MODE
+                        </Box>
+                      )}
+                    </Box>
+                    
+                    {/* Body */}
+                    {searchResult.data && (() => {
+                      const displayData = Array.isArray(searchResult.data) ? searchResult.data[0] : searchResult.data;
+                      return (
+                      <Box sx={{ p: 3 }}>
+                        <Grid container spacing={4}>
+                          {displayData.photo && (
+                            <Grid item xs={12} sm={4} md={3} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                              <Box sx={{ 
+                                width: 140, height: 140, borderRadius: '50%', overflow: 'hidden', 
+                                border: '4px solid #FFFFFF', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)', mb: 2
+                              }}>
+                                <Box 
+                                  component="img" 
+                                  src={displayData.photo.startsWith('data:') ? displayData.photo : `data:image/jpeg;base64,${displayData.photo}`}
+                                  sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                />
+                              </Box>
+                              <Typography variant="caption" color="#94A3B8" fontWeight={600} sx={{ letterSpacing: 1 }}>
+                                FACIAL MATCH
+                              </Typography>
+                            </Grid>
+                          )}
+                          <Grid item xs={12} sm={displayData.photo ? 8 : 12} md={displayData.photo ? 9 : 12}>
+                            
+                            {/* Primary Info Highlights */}
+                            <Box sx={{ mb: 4 }}>
+                              <Typography variant="h4" fontWeight={800} color="#0F172A" sx={{ mb: 0.5, textTransform: 'uppercase', letterSpacing: '-0.5px' }}>
+                                {displayData.firstname} {displayData.middlename} {displayData.surname}
+                                {!displayData.firstname && (displayData.company_name || displayData.companyName)}
+                              </Typography>
+                              <Typography variant="subtitle1" color="#64748B" fontWeight={500} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                {displayData.nin && `NIN: ${displayData.nin}`}
+                                {displayData.vnin && `VNIN: ${displayData.vnin}`}
+                                {(displayData.rc_number || displayData.rcNumber) && `RC Number: ${displayData.rc_number || displayData.rcNumber}`}
+                              </Typography>
+                            </Box>
+
+                            {/* Detailed Grid */}
+                            <Grid container spacing={3}>
+                              {Object.entries(displayData).map(([key, value]) => {
+                                if (key === 'photo' || value === null || value === undefined || value === '' || ['firstname', 'surname', 'middlename', 'nin', 'vnin', 'company_name', 'companyName', 'rc_number', 'rcNumber'].includes(key)) return null;
+                                
+                                const isObject = typeof value === 'object';
+                                const isArray = Array.isArray(value);
+
+                                return (
+                                  <Grid item xs={12} sm={isObject ? 12 : 4} key={key}>
+                                    <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                                      <Typography variant="caption" color="#64748B" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.5, mb: 1 }}>
+                                        {key.replace(/_/g, ' ')}
+                                      </Typography>
+                                      
+                                      {isArray ? (
+                                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                                          {value.map((item: any, i: number) => (
+                                            <Box key={i} sx={{ p: 2, bgcolor: '#F8FAFC', borderRadius: 3, border: '1px solid #E2E8F0', display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+                                              {typeof item === 'object' && item !== null ? 
+                                                Object.entries(item).filter(([_, v]) => v !== null && v !== '').map(([k, v]) => (
+                                                  <Box key={k} sx={{ minWidth: 120 }}>
+                                                    <Typography variant="caption" color="#94A3B8" sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>{k.replace(/_/g, ' ')}</Typography>
+                                                    <Typography variant="body2" fontWeight={600} color="#334155">{String(v)}</Typography>
+                                                  </Box>
+                                                )) 
+                                                : <Typography variant="body2">{String(item)}</Typography>
+                                              }
+                                            </Box>
+                                          ))}
+                                        </Box>
+                                      ) : isObject ? (
+                                        <Box sx={{ p: 2, bgcolor: '#F8FAFC', borderRadius: 3, border: '1px solid #E2E8F0', display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+                                          {Object.entries(value).filter(([_, v]) => v !== null && v !== '').map(([k, v]) => (
+                                            <Box key={k} sx={{ minWidth: 120 }}>
+                                              <Typography variant="caption" color="#94A3B8" sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>{k.replace(/_/g, ' ')}</Typography>
+                                              <Typography variant="body2" fontWeight={600} color="#334155">{String(v)}</Typography>
+                                            </Box>
+                                          ))}
+                                        </Box>
+                                      ) : (
+                                        <Typography variant="body2" fontWeight={700} color="#1E293B" sx={{ wordBreak: 'break-word', fontSize: '0.9rem' }}>
+                                          {String(value)}
+                                        </Typography>
+                                      )}
+                                    </Box>
+                                  </Grid>
+                                );
+                              })}
+                            </Grid>
+                            
+                          </Grid>
+                        </Grid>
+                      </Box>
+                      );
+                    })()}
+                  </Box>
+                )}
               </Box>
             )}
           </Paper>
@@ -604,9 +799,19 @@ export default function AdminVerificationReview() {
                   startIcon={<CheckCircleOutlinedIcon />}
                   onClick={() => handleAction('tier_assigned')}
                   disabled={actionLoading}
-                  sx={{ bgcolor: '#0029FF', '&:hover': { bgcolor: '#0022D1' }, py: 1.25, borderRadius: '8px', textTransform: 'none', fontWeight: 600, fontSize: '0.88rem' }}
+                  sx={{ bgcolor: '#0029FF', '&:hover': { bgcolor: '#0022D1' }, py: 1.25, borderRadius: '8px', textTransform: 'none', fontWeight: 600, fontSize: '0.88rem', mb: 1 }}
                 >
-                  Assign Tier & Approve
+                  Assign Tier & Request Payment
+                </Button>
+                <Button
+                  variant="outlined"
+                  fullWidth
+                  startIcon={<CheckCircleOutlinedIcon />}
+                  onClick={() => handleAction('approved')}
+                  disabled={actionLoading}
+                  sx={{ borderColor: '#16A34A', color: '#16A34A', '&:hover': { bgcolor: '#F0FDF4' }, py: 1.25, borderRadius: '8px', textTransform: 'none', fontWeight: 600, fontSize: '0.88rem' }}
+                >
+                  Promo: Assign Tier & Skip Payment (Approve)
                 </Button>
               </Box>
             )}
@@ -615,7 +820,17 @@ export default function AdminVerificationReview() {
             {isTierAssigned && (
               <Box sx={{ bgcolor: '#FFFBEB', p: 2, borderRadius: 2, border: '1px solid #FEF3C7', mb: 1 }}>
                 <Typography variant="body2" color="#B45309" fontWeight={600} mb={1}>Awaiting Payment</Typography>
-                <Typography variant="caption" color="#92400E">User was assigned {details.assigned_tier} tier. Waiting for them to complete payment.</Typography>
+                <Typography variant="caption" color="#92400E" display="block" mb={1.5}>User was assigned {details.assigned_tier} tier. Waiting for them to complete payment.</Typography>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  fullWidth
+                  onClick={() => handleAction('approved')}
+                  disabled={actionLoading}
+                  sx={{ borderColor: '#B45309', color: '#B45309', textTransform: 'none', fontWeight: 600, '&:hover': { bgcolor: '#FEF3C7' } }}
+                >
+                  Override: Mark as Paid & Approve
+                </Button>
               </Box>
             )}
 
