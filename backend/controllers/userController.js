@@ -22,7 +22,7 @@ const generateToken = (id, role, vendor_id) => {
 // @access  Public
 const registerUser = async (req, res) => {
     try {
-        const { first_name, last_name, business_name, email, password, phone_number, country_code, twitter_handle, instagram_handle, facebook_handle, tiktok_handle, referred_by } = req.body;
+        const { first_name, last_name, business_name, email, password, phone_number, business_address, country_code, twitter_handle, instagram_handle, facebook_handle, tiktok_handle, referred_by } = req.body;
 
         if (!first_name || !last_name || !business_name || !email || !password || !phone_number) {
             return res.status(400).json({ message: 'Please add all fields' });
@@ -54,10 +54,10 @@ const registerUser = async (req, res) => {
 
         // Create user with null vendor_id (will be generated later upon admin approval)
         const query = `
-            INSERT INTO users (vendor_id, referred_by, first_name, last_name, business_name, email, password_hash, phone_number, twitter_handle, instagram_handle, facebook_handle, tiktok_handle) 
-            VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO users (vendor_id, referred_by, first_name, last_name, business_name, email, password_hash, phone_number, business_address, twitter_handle, instagram_handle, facebook_handle, tiktok_handle) 
+            VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
-        const [result] = await pool.execute(query, [referrerId, first_name, last_name, business_name, email, hashedPassword, phone_number, twitter_handle || null, instagram_handle || null, facebook_handle || null, tiktok_handle || null]);
+        const [result] = await pool.execute(query, [referrerId, first_name, last_name, business_name, email, hashedPassword, phone_number, business_address || null, twitter_handle || null, instagram_handle || null, facebook_handle || null, tiktok_handle || null]);
 
         const newUserId = result.insertId;
 
@@ -92,10 +92,10 @@ const registerUser = async (req, res) => {
 
     } catch (error) {
         console.error('Registration Error:', error);
-        res.status(500).json({ 
-            message: 'Server error during registration', 
-            error: error.message, 
-            stack: error.stack 
+        res.status(500).json({
+            message: 'Server error during registration',
+            error: error.message,
+            stack: error.stack
         });
     }
 };
@@ -150,10 +150,10 @@ const loginUser = async (req, res) => {
 const getMe = async (req, res) => {
     try {
         const [rows] = await pool.query(
-            'SELECT id, vendor_id, first_name, last_name, business_name, email, phone_number, role, status, badge_type, subscription_expires_at, active_subscription_id, profile_picture_url FROM users WHERE id = ?',
+            'SELECT id, vendor_id, first_name, last_name, business_name, email, phone_number, business_address, country, role, status, badge_type, subscription_expires_at, active_subscription_id, profile_picture_url FROM users WHERE id = ?',
             [req.user.id]
         );
-        
+
         if (rows.length === 0) {
             return res.status(404).json({ message: 'User not found' });
         }
@@ -170,7 +170,7 @@ const getMe = async (req, res) => {
 // @access  Public or Admin (Configure as needed)
 const getUsers = async (req, res) => {
     try {
-        const [rows] = await pool.query('SELECT id, vendor_id, first_name, last_name, business_name, email, phone_number, role, status, created_at FROM users');
+        const [rows] = await pool.query('SELECT id, vendor_id, first_name, last_name, business_name, email, phone_number, business_address, country, role, status, created_at FROM users');
         res.status(200).json(rows);
     } catch (error) {
         console.error('Get Users Error:', error);
@@ -188,8 +188,8 @@ const updateUser = async (req, res) => {
             return res.status(403).json({ message: 'Not authorized to update this profile' });
         }
 
-        const { first_name, last_name, business_name, phone_number } = req.body;
-        
+        const { first_name, last_name, business_name, phone_number, business_address, country } = req.body;
+
         // Build query dynamically
         let updates = [];
         let values = [];
@@ -197,6 +197,8 @@ const updateUser = async (req, res) => {
         if (last_name) { updates.push('last_name = ?'); values.push(last_name); }
         if (business_name) { updates.push('business_name = ?'); values.push(business_name); }
         if (phone_number) { updates.push('phone_number = ?'); values.push(phone_number); }
+        if (business_address !== undefined) { updates.push('business_address = ?'); values.push(business_address); }
+        if (country !== undefined) { updates.push('country = ?'); values.push(country); }
 
         if (updates.length === 0) {
             return res.status(400).json({ message: 'No valid fields provided for update' });
@@ -244,7 +246,7 @@ const deleteUser = async (req, res) => {
 const getReferrals = async (req, res) => {
     try {
         const userId = req.user.id;
-        
+
         // 1. Automatically move pending > 7 days to available
         await pool.query(`
             UPDATE referrals 
@@ -303,7 +305,7 @@ const getReferrals = async (req, res) => {
         // The current wallet balance is the sum of available referrals minus any withdrawals that are processing or paid
         // Since we are not changing referral status to 'withdrawn' explicitly (unless we want to), it's safer to deduct withdrawals.
         const currentWalletBalance = availableEarnings - totalWithdrawn - pendingWithdrawals;
-        
+
         // But if we want Available Earnings to show just available minus withdrawals:
         // Actually, let's keep availableEarnings as the gross available, and currentWalletBalance as net available.
         // The spec says: Available Earnings = Sum of all commissions with Available status.
@@ -389,7 +391,7 @@ const uploadProfilePicture = async (req, res) => {
 
         // 2. Magic bytes check (Layer 2 — defeats polyglot/renamed files)
         if (!isValidImageMagicBytes(uploadedFilePath)) {
-            fs.unlink(uploadedFilePath, () => {});
+            fs.unlink(uploadedFilePath, () => { });
             return res.status(400).json({ message: 'Invalid image file. Only JPEG, PNG, and WebP are accepted.' });
         }
 
@@ -399,13 +401,13 @@ const uploadProfilePicture = async (req, res) => {
             [req.user.id]
         );
         if (userRows.length === 0) {
-            fs.unlink(uploadedFilePath, () => {});
+            fs.unlink(uploadedFilePath, () => { });
             return res.status(404).json({ message: 'User not found.' });
         }
         const { updated_at, profile_picture_url: oldUrl } = userRows[0];
         const secondsSinceUpdate = (Date.now() - new Date(updated_at).getTime()) / 1000;
         if (secondsSinceUpdate < 60) {
-            fs.unlink(uploadedFilePath, () => {});
+            fs.unlink(uploadedFilePath, () => { });
             return res.status(429).json({ message: 'Please wait a moment before uploading another picture.' });
         }
 
@@ -437,7 +439,7 @@ const uploadProfilePicture = async (req, res) => {
 
     } catch (error) {
         // Clean up uploaded file on any unexpected error
-        if (uploadedFilePath) fs.unlink(uploadedFilePath, () => {});
+        if (uploadedFilePath) fs.unlink(uploadedFilePath, () => { });
         console.error('Upload Profile Picture Error:', error);
         res.status(500).json({ message: 'Server error uploading profile picture.' });
     }
@@ -458,7 +460,7 @@ const forgotPassword = async (req, res) => {
         }
 
         const user = users[0];
-        
+
         // Generate reset token (random hex string)
         const resetToken = crypto.randomBytes(32).toString('hex');
         const resetTokenExpires = Date.now() + 3600000; // 1 hour from now

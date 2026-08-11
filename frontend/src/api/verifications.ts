@@ -18,17 +18,40 @@ export const getMyVerification = async (): Promise<VerificationRecord> => {
 };
 
 export const submitVerification = async (
-  govIdFile: File,
-  cacFile: File,
-  businessVideoFile: File,
+  govIdFile?: File | null,
+  cacFile?: File | null,
+  businessVideoFile?: File | null,
   onProgress?: (progress: number) => void
 ): Promise<VerificationResponse> => {
   const formData = new FormData();
-  formData.append('gov_id', govIdFile);
+  if (govIdFile) formData.append('gov_id', govIdFile);
   if (cacFile) formData.append('cac_document', cacFile);
-  formData.append('business_video', businessVideoFile);
+  if (businessVideoFile) formData.append('business_video', businessVideoFile);
 
   const { data } = await api.post<VerificationResponse>('/verifications', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+    onUploadProgress: (progressEvent) => {
+      if (progressEvent.total && onProgress) {
+        const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+        onProgress(percentCompleted);
+      }
+    }
+  });
+  return data;
+};
+
+export const resubmitVerificationDocuments = async (
+  files: { govId?: File | null; cac?: File | null; video?: File | null },
+  onProgress?: (progress: number) => void
+): Promise<VerificationResponse> => {
+  const formData = new FormData();
+  if (files.govId) formData.append('gov_id', files.govId);
+  if (files.cac) formData.append('cac_document', files.cac);
+  if (files.video) formData.append('business_video', files.video);
+
+  const { data } = await api.put<VerificationResponse>('/verifications/resubmit', formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },

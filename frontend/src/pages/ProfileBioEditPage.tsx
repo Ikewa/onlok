@@ -7,6 +7,7 @@ import PaymentsIcon from '@mui/icons-material/Payments';
 import AutorenewIcon from '@mui/icons-material/Autorenew';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { updateUserProfile } from '../api/auth';
 import toast from 'react-hot-toast';
 
 
@@ -28,14 +29,46 @@ const inputSx = {
 };
 
 export default function ProfileBioEditPage() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const navigate = useNavigate();
-  const initials = `${user?.first_name?.[0] ?? ''}${user?.last_name?.[0] ?? ''}`.toUpperCase();
 
-  const [form, setForm] = useState({ fullName: '', twitter: '', instagram: '', facebook: '', tiktok: '' });
+  const [form, setForm] = useState({
+    fullName: `${user?.first_name || ''} ${user?.last_name || ''}`.trim(),
+    businessName: user?.business_name || '',
+    businessAddress: user?.business_address || '',
+    twitter: '',
+    instagram: '',
+    facebook: '',
+    tiktok: ''
+  });
+  const [loading, setLoading] = useState(false);
+
   const handleChange = (f: string) => (e: React.ChangeEvent<HTMLInputElement>) => setForm(p => ({ ...p, [f]: e.target.value }));
 
-  const handleSubmit = () => toast.success('Profile update submitted for review!');
+  const handleSubmit = async () => {
+    if (!user) return;
+    setLoading(true);
+    try {
+      const parts = form.fullName.trim().split(' ');
+      const first_name = parts[0] || '';
+      const last_name = parts.length > 1 ? parts.slice(1).join(' ') : '';
+      
+      await updateUserProfile(user.id, {
+        first_name: first_name || undefined,
+        last_name: last_name || undefined,
+        business_name: form.businessName || undefined,
+        business_address: form.businessAddress || undefined
+      });
+      
+      await refreshUser();
+      toast.success('Profile update submitted and saved successfully!');
+      navigate('/dashboard/update');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Failed to update profile.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: '#fff', fontFamily: 'Inter, sans-serif' }}>
@@ -138,10 +171,11 @@ export default function ProfileBioEditPage() {
         >
           {/* Personal Information */}
           <Box sx={{ mb: 4 }}>
-            <Typography sx={{ fontWeight: 800, fontSize: '1.15rem', color: '#0F172A', mb: 0.3 }}>Personal Information</Typography>
+            <Typography sx={{ fontWeight: 800, fontSize: '1.15rem', color: '#0F172A', mb: 0.3 }}>Personal & Business Information</Typography>
             <Typography sx={{ fontSize: '0.82rem', color: '#64748B', mb: 2 }}>
-              Please Provide Your Legal Name Exactly As It Appears On Your ID.
+              Please Provide Your Legal Name and Business Details Exactly As Required.
             </Typography>
+            
             <Typography
               component="label"
               htmlFor="fullName"
@@ -155,6 +189,40 @@ export default function ProfileBioEditPage() {
               placeholder="e.g., Sarah Chen"
               value={form.fullName}
               onChange={handleChange('fullName')}
+              sx={{ ...inputSx, mb: 2.5 }}
+              size="small"
+            />
+
+            <Typography
+              component="label"
+              htmlFor="businessName"
+              sx={{ fontSize: '0.78rem', color: '#0F172A', fontWeight: 600, display: 'block', mb: 0.8 }}
+            >
+              Business Name or Role
+            </Typography>
+            <TextField
+              id="businessName"
+              fullWidth
+              placeholder="e.g., Chen Design Studio"
+              value={form.businessName}
+              onChange={handleChange('businessName')}
+              sx={{ ...inputSx, mb: 2.5 }}
+              size="small"
+            />
+
+            <Typography
+              component="label"
+              htmlFor="businessAddress"
+              sx={{ fontSize: '0.78rem', color: '#0F172A', fontWeight: 600, display: 'block', mb: 0.8 }}
+            >
+              Business Address / Location
+            </Typography>
+            <TextField
+              id="businessAddress"
+              fullWidth
+              placeholder="e.g., 12 Marina Boulevard, Marina Bay, Singapore"
+              value={form.businessAddress}
+              onChange={handleChange('businessAddress')}
               sx={inputSx}
               size="small"
             />
@@ -190,10 +258,11 @@ export default function ProfileBioEditPage() {
           <Button
             variant="contained"
             fullWidth
+            disabled={loading}
             onClick={handleSubmit}
             sx={{ bgcolor: '#1A1FE8', color: '#fff', borderRadius: 2.5, py: 1.6, fontWeight: 700, fontSize: '1rem', textTransform: 'none', '&:hover': { bgcolor: '#1318C0' } }}
           >
-            Submit For Review
+            {loading ? 'Submitting...' : 'Submit For Review'}
           </Button>
         </Paper>
       </Box>

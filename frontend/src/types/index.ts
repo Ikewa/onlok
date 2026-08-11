@@ -8,6 +8,8 @@ export interface User {
   business_name: string;
   email: string;
   phone_number?: string;
+  business_address?: string | null;
+  country?: string | null;
   role: 'vendor' | 'admin';
   status: 'pending' | 'verified' | 'rejected' | 'suspended';
   badge_type?: string | null;
@@ -25,6 +27,12 @@ export interface VerificationStatus {
   admin_notes?: string;
   assigned_tier?: string | null;
   payment_status?: string | null;
+  gov_id_status?: 'pending' | 'approved' | 'rejected';
+  gov_id_notes?: string | null;
+  cac_status?: 'pending' | 'approved' | 'rejected';
+  cac_notes?: string | null;
+  video_status?: 'pending' | 'approved' | 'rejected';
+  video_notes?: string | null;
   submitted_at: string;
   reviewed_at: string | null;
 }
@@ -67,11 +75,15 @@ export interface VendorSearchResult {
   badges: string[];
   last_verified?: string | null;
   phone_number?: string | null;
+  business_address?: string | null;
+  country?: string | null;
   twitter_handle?: string | null;
   instagram_handle?: string | null;
   facebook_handle?: string | null;
   tiktok_handle?: string | null;
   profile_picture_url?: string | null;
+  admin_notes?: string | null;
+  reports_count?: number;
 }
 
 export type ReportCategory =
@@ -90,7 +102,9 @@ export interface RegisterPayload {
   email: string;
   password: string;
   phone_number: string;
+  business_address?: string;
   country_code?: string;
+  referred_by?: string;
 }
 
 export interface LoginPayload {

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { upload, submitVerification, getMyVerification } = require('../controllers/verificationController');
+const { upload, submitVerification, getMyVerification, resubmitDocuments } = require('../controllers/verificationController');
 const { protect } = require('../middlewares/authMiddleware');
 
 // Get current user's verification record
@@ -26,6 +26,21 @@ router.post(
         });
     },
     submitVerification
+);
+
+router.put(
+    '/resubmit',
+    protect,
+    (req, res, next) => {
+        uploadMiddleware(req, res, function (err) {
+            if (err) {
+                console.error('Multer resubmit error:', err);
+                return res.status(400).json({ message: err.message || 'File upload error. Check file size (max 100MB) and format.' });
+            }
+            next();
+        });
+    },
+    resubmitDocuments
 );
 
 module.exports = router;

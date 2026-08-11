@@ -16,6 +16,21 @@ export interface AdminVerification {
   gov_id_url?: string;
   cac_url?: string;
   video_url?: string;
+  admin_notes?: string;
+  assigned_tier?: string;
+  gov_id_status?: string;
+  gov_id_notes?: string;
+  cac_status?: string;
+  cac_notes?: string;
+  video_status?: string;
+  video_notes?: string;
+  phone_number?: string;
+  business_address?: string;
+  country?: string;
+  twitter_handle?: string;
+  instagram_handle?: string;
+  facebook_handle?: string;
+  tiktok_handle?: string;
 }
 
 export interface UserManagement {
@@ -209,8 +224,26 @@ export const getVerificationDetails = async (id: number): Promise<AdminVerificat
   return data;
 };
 
-export const updateVerificationStatus = async (id: number, status: string, notes?: string) => {
-  const { data } = await api.put(`/admin/verifications/${id}/status`, { status, notes });
+export const updateVerificationStatus = async (
+  id: number, 
+  status: string, 
+  notes?: string, 
+  assigned_tier?: string,
+  docStatuses?: {
+    gov_id_status?: string;
+    gov_id_notes?: string;
+    cac_status?: string;
+    cac_notes?: string;
+    video_status?: string;
+    video_notes?: string;
+  }
+) => {
+  const { data } = await api.put(`/admin/verifications/${id}/status`, {
+    status,
+    notes,
+    assigned_tier,
+    ...docStatuses
+  });
   return data;
 };
 

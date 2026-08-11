@@ -1,10 +1,19 @@
 import { useState, useEffect } from 'react';
-import { Box, Typography, Button, Paper, Grid, TextField, CircularProgress, Divider } from '@mui/material';
+import { Box, Typography, Button, Paper, Grid, TextField, CircularProgress, Divider, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
 import HighlightOffIcon from '@mui/icons-material/HighlightOff';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import FlagOutlinedIcon from '@mui/icons-material/FlagOutlined';
+import PhoneIcon from '@mui/icons-material/Phone';
+import LocationOnIcon from '@mui/icons-material/LocationOn';
+import PublicIcon from '@mui/icons-material/Public';
+import BusinessIcon from '@mui/icons-material/Business';
+import TwitterIcon from '@mui/icons-material/Twitter';
+import InstagramIcon from '@mui/icons-material/Instagram';
+import FacebookIcon from '@mui/icons-material/Facebook';
+import MusicNoteIcon from '@mui/icons-material/MusicNote';
+import AccessTimeOutlinedIcon from '@mui/icons-material/AccessTimeOutlined';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getVerificationDetails, updateVerificationStatus, type AdminVerification } from '../../api/admin';
 import { MenuItem, Select } from '@mui/material';
@@ -19,6 +28,18 @@ export default function AdminVerificationReview() {
   const [notes, setNotes] = useState('');
   const [selectedTier, setSelectedTier] = useState('Silver');
   const [actionLoading, setActionLoading] = useState(false);
+
+  // Document level statuses & feedback
+  const [govIdStatus, setGovIdStatus] = useState<string>('pending');
+  const [govIdNotes, setGovIdNotes] = useState<string>('');
+  const [cacStatus, setCacStatus] = useState<string>('pending');
+  const [cacNotes, setCacNotes] = useState<string>('');
+  const [videoStatus, setVideoStatus] = useState<string>('pending');
+  const [videoNotes, setVideoNotes] = useState<string>('');
+
+  // Request Information Modal State
+  const [requestModalOpen, setRequestModalOpen] = useState(false);
+  const [requestMessage, setRequestMessage] = useState('');
 
   // Prembly Search State
   const [searchType, setSearchType] = useState('nin');
@@ -37,6 +58,12 @@ export default function AdminVerificationReview() {
         const data = await getVerificationDetails(Number(id));
         setDetails(data);
         if (data.admin_notes) setNotes(data.admin_notes);
+        if (data.gov_id_status) setGovIdStatus(data.gov_id_status);
+        if (data.gov_id_notes) setGovIdNotes(data.gov_id_notes);
+        if (data.cac_status) setCacStatus(data.cac_status);
+        if (data.cac_notes) setCacNotes(data.cac_notes);
+        if (data.video_status) setVideoStatus(data.video_status);
+        if (data.video_notes) setVideoNotes(data.video_notes);
       } catch (err) {
         toast.error('Failed to load details');
         navigate('/admin/verifications');
@@ -47,10 +74,24 @@ export default function AdminVerificationReview() {
     if (id) fetchDetails();
   }, [id, navigate]);
 
-  const handleAction = async (status: string) => {
+  const handleAction = async (status: string, customNotes?: string) => {
     setActionLoading(true);
     try {
-      await updateVerificationStatus(Number(id), status, notes, status === 'tier_assigned' ? selectedTier : undefined);
+      const finalNotes = customNotes !== undefined ? customNotes : notes;
+      await updateVerificationStatus(
+        Number(id), 
+        status, 
+        finalNotes, 
+        status === 'tier_assigned' ? selectedTier : undefined,
+        {
+          gov_id_status: govIdStatus,
+          gov_id_notes: govIdNotes,
+          cac_status: cacStatus,
+          cac_notes: cacNotes,
+          video_status: videoStatus,
+          video_notes: videoNotes
+        }
+      );
       toast.success(`Verification ${status} successfully`);
       navigate('/admin/verifications');
     } catch (err) {
@@ -165,18 +206,122 @@ export default function AdminVerificationReview() {
             </Box>
           </Paper>
 
+          {/* Business Information, Contact & Social Links */}
+          <Paper elevation={0} sx={{ p: 3, borderRadius: '12px', border: '1px solid #E5E7EB', mb: 3, bgcolor: '#FFFFFF' }}>
+            <Typography variant="subtitle1" fontWeight={600} color="#111827" mb={2.5} sx={{ fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: 1 }}>
+              <BusinessIcon sx={{ color: '#5B5FEC', fontSize: 20 }} />
+              Business Information, Contact & Social Links
+            </Typography>
+
+            <Grid container spacing={2.5}>
+              <Grid item xs={12} sm={6}>
+                <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
+                  <PhoneIcon sx={{ color: '#6B7280', fontSize: 18, mt: 0.3 }} />
+                  <Box>
+                    <Typography variant="caption" color="#6B7280" display="block" sx={{ fontSize: '0.78rem' }}>Phone Number</Typography>
+                    <Typography variant="body2" fontWeight={600} color="#111827" sx={{ fontSize: '0.88rem' }}>
+                      {details.phone_number || 'N/A'}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
+                  <PublicIcon sx={{ color: '#6B7280', fontSize: 18, mt: 0.3 }} />
+                  <Box>
+                    <Typography variant="caption" color="#6B7280" display="block" sx={{ fontSize: '0.78rem' }}>Country</Typography>
+                    <Typography variant="body2" fontWeight={600} color="#111827" sx={{ fontSize: '0.88rem' }}>
+                      {details.country || 'Nigeria'}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Grid>
+
+              <Grid item xs={12}>
+                <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
+                  <LocationOnIcon sx={{ color: '#6B7280', fontSize: 18, mt: 0.3 }} />
+                  <Box>
+                    <Typography variant="caption" color="#6B7280" display="block" sx={{ fontSize: '0.78rem' }}>Business Address</Typography>
+                    <Typography variant="body2" fontWeight={600} color="#111827" sx={{ fontSize: '0.88rem' }}>
+                      {details.business_address || 'Not provided'}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Grid>
+            </Grid>
+
+            <Divider sx={{ my: 2.5, borderColor: '#F3F4F6' }} />
+
+            <Typography variant="caption" fontWeight={700} color="#6B7280" display="block" mb={1.5} sx={{ fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              Social Media Handles
+            </Typography>
+
+            <Grid container spacing={2}>
+              <Grid item xs={6} sm={3}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 1.2, bgcolor: '#F9FAFB', borderRadius: '8px', border: '1px solid #E5E7EB' }}>
+                  <TwitterIcon sx={{ color: '#1DA1F2', fontSize: 18 }} />
+                  <Box sx={{ overflow: 'hidden' }}>
+                    <Typography variant="caption" color="#9CA3AF" display="block" sx={{ fontSize: '0.7rem' }}>Twitter / X</Typography>
+                    <Typography variant="body2" fontWeight={600} color="#111827" sx={{ fontSize: '0.8rem' }} noWrap>
+                      {details.twitter_handle ? `@${details.twitter_handle.replace(/^@/, '')}` : 'N/A'}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Grid>
+
+              <Grid item xs={6} sm={3}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 1.2, bgcolor: '#F9FAFB', borderRadius: '8px', border: '1px solid #E5E7EB' }}>
+                  <InstagramIcon sx={{ color: '#E4405F', fontSize: 18 }} />
+                  <Box sx={{ overflow: 'hidden' }}>
+                    <Typography variant="caption" color="#9CA3AF" display="block" sx={{ fontSize: '0.7rem' }}>Instagram</Typography>
+                    <Typography variant="body2" fontWeight={600} color="#111827" sx={{ fontSize: '0.8rem' }} noWrap>
+                      {details.instagram_handle ? `@${details.instagram_handle.replace(/^@/, '')}` : 'N/A'}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Grid>
+
+              <Grid item xs={6} sm={3}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 1.2, bgcolor: '#F9FAFB', borderRadius: '8px', border: '1px solid #E5E7EB' }}>
+                  <FacebookIcon sx={{ color: '#1877F2', fontSize: 18 }} />
+                  <Box sx={{ overflow: 'hidden' }}>
+                    <Typography variant="caption" color="#9CA3AF" display="block" sx={{ fontSize: '0.7rem' }}>Facebook</Typography>
+                    <Typography variant="body2" fontWeight={600} color="#111827" sx={{ fontSize: '0.8rem' }} noWrap>
+                      {details.facebook_handle || 'N/A'}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Grid>
+
+              <Grid item xs={6} sm={3}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 1.2, bgcolor: '#F9FAFB', borderRadius: '8px', border: '1px solid #E5E7EB' }}>
+                  <MusicNoteIcon sx={{ color: '#000000', fontSize: 18 }} />
+                  <Box sx={{ overflow: 'hidden' }}>
+                    <Typography variant="caption" color="#9CA3AF" display="block" sx={{ fontSize: '0.7rem' }}>TikTok</Typography>
+                    <Typography variant="body2" fontWeight={600} color="#111827" sx={{ fontSize: '0.8rem' }} noWrap>
+                      {details.tiktok_handle ? `@${details.tiktok_handle.replace(/^@/, '')}` : 'N/A'}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Grid>
+            </Grid>
+          </Paper>
+
           {/* Uploaded Documents */}
           <Paper elevation={0} sx={{ p: 3, borderRadius: '12px', border: '1px solid #E5E7EB', mb: 3, bgcolor: '#FFFFFF' }}>
             <Typography variant="subtitle1" fontWeight={600} color="#111827" mb={2.5} sx={{ fontSize: '1.05rem' }}>
-              Uploaded Documents
+              Uploaded Documents & Granular Verification
             </Typography>
             <Grid container spacing={2.5}>
+
+              {/* ID Document */}
               <Grid item xs={12} sm={4}>
-                <Typography variant="caption" color="#6B7280" display="block" mb={1} sx={{ fontSize: '0.78rem' }}>ID Document</Typography>
+                <Typography variant="caption" color="#6B7280" display="block" mb={1} sx={{ fontSize: '0.78rem', fontWeight: 600 }}>ID Document</Typography>
                 <Box 
                   sx={{ 
-                    width: '100%', height: 180, bgcolor: '#F9FAFB', borderRadius: '8px', overflow: 'hidden', 
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #E5E7EB' 
+                    width: '100%', height: 160, bgcolor: '#F9FAFB', borderRadius: '8px', overflow: 'hidden', 
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #E5E7EB', mb: 1.5 
                   }}
                 >
                   {details.gov_id_url ? (
@@ -185,14 +330,49 @@ export default function AdminVerificationReview() {
                     : <Box component="img" src={getMediaUrl(details.gov_id_url)} sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   ) : <Typography variant="caption" color="#9CA3AF">No ID uploaded</Typography>}
                 </Box>
+                <Select
+                  fullWidth
+                  size="small"
+                  value={govIdStatus}
+                  onChange={(e) => setGovIdStatus(e.target.value)}
+                  sx={{ mb: 1, bgcolor: '#F8FAFC', fontSize: '0.82rem' }}
+                >
+                  <MenuItem value="pending">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <AccessTimeOutlinedIcon sx={{ fontSize: 16, color: '#CA8A04' }} />
+                      <span>Pending Review</span>
+                    </Box>
+                  </MenuItem>
+                  <MenuItem value="approved">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <CheckCircleOutlinedIcon sx={{ fontSize: 16, color: '#16A34A' }} />
+                      <span>Approved</span>
+                    </Box>
+                  </MenuItem>
+                  <MenuItem value="rejected">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <HighlightOffIcon sx={{ fontSize: 16, color: '#DC2626' }} />
+                      <span>Rejected</span>
+                    </Box>
+                  </MenuItem>
+                </Select>
+                <TextField
+                  fullWidth
+                  size="small"
+                  placeholder="ID Feedback / Reason..."
+                  value={govIdNotes}
+                  onChange={(e) => setGovIdNotes(e.target.value)}
+                  inputProps={{ style: { fontSize: '0.8rem' } }}
+                />
               </Grid>
               
+              {/* CAC Document */}
               <Grid item xs={12} sm={4}>
-                <Typography variant="caption" color="#6B7280" display="block" mb={1} sx={{ fontSize: '0.78rem' }}>CAC Document</Typography>
+                <Typography variant="caption" color="#6B7280" display="block" mb={1} sx={{ fontSize: '0.78rem', fontWeight: 600 }}>CAC Document</Typography>
                 <Box 
                   sx={{ 
-                    width: '100%', height: 180, bgcolor: '#F9FAFB', borderRadius: '8px', overflow: 'hidden', 
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #E5E7EB' 
+                    width: '100%', height: 160, bgcolor: '#F9FAFB', borderRadius: '8px', overflow: 'hidden', 
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #E5E7EB', mb: 1.5 
                   }}
                 >
                   {details.cac_url ? (
@@ -201,21 +381,91 @@ export default function AdminVerificationReview() {
                     : <Box component="img" src={getMediaUrl(details.cac_url)} sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   ) : <Typography variant="caption" color="#9CA3AF">No CAC uploaded</Typography>}
                 </Box>
+                <Select
+                  fullWidth
+                  size="small"
+                  value={cacStatus}
+                  onChange={(e) => setCacStatus(e.target.value)}
+                  sx={{ mb: 1, bgcolor: '#F8FAFC', fontSize: '0.82rem' }}
+                >
+                  <MenuItem value="pending">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <AccessTimeOutlinedIcon sx={{ fontSize: 16, color: '#CA8A04' }} />
+                      <span>Pending Review</span>
+                    </Box>
+                  </MenuItem>
+                  <MenuItem value="approved">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <CheckCircleOutlinedIcon sx={{ fontSize: 16, color: '#16A34A' }} />
+                      <span>Approved</span>
+                    </Box>
+                  </MenuItem>
+                  <MenuItem value="rejected">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <HighlightOffIcon sx={{ fontSize: 16, color: '#DC2626' }} />
+                      <span>Rejected</span>
+                    </Box>
+                  </MenuItem>
+                </Select>
+                <TextField
+                  fullWidth
+                  size="small"
+                  placeholder="CAC Feedback / Reason..."
+                  value={cacNotes}
+                  onChange={(e) => setCacNotes(e.target.value)}
+                  inputProps={{ style: { fontSize: '0.8rem' } }}
+                />
               </Grid>
 
+              {/* Business Video */}
               <Grid item xs={12} sm={4}>
-                <Typography variant="caption" color="#6B7280" display="block" mb={1} sx={{ fontSize: '0.78rem' }}>Business Video</Typography>
+                <Typography variant="caption" color="#6B7280" display="block" mb={1} sx={{ fontSize: '0.78rem', fontWeight: 600 }}>Business Video</Typography>
                 <Box 
                   sx={{ 
-                    width: '100%', height: 180, bgcolor: '#111827', borderRadius: '8px', overflow: 'hidden', 
-                    display: 'flex', alignItems: 'center', justifyContent: 'center' 
+                    width: '100%', height: 160, bgcolor: '#111827', borderRadius: '8px', overflow: 'hidden', 
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1.5 
                   }}
                 >
                   {details.video_url ? (
                     <video controls src={getMediaUrl(details.video_url)} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                   ) : <Typography variant="caption" color="#9CA3AF">No video uploaded</Typography>}
                 </Box>
+                <Select
+                  fullWidth
+                  size="small"
+                  value={videoStatus}
+                  onChange={(e) => setVideoStatus(e.target.value)}
+                  sx={{ mb: 1, bgcolor: '#F8FAFC', fontSize: '0.82rem' }}
+                >
+                  <MenuItem value="pending">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <AccessTimeOutlinedIcon sx={{ fontSize: 16, color: '#CA8A04' }} />
+                      <span>Pending Review</span>
+                    </Box>
+                  </MenuItem>
+                  <MenuItem value="approved">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <CheckCircleOutlinedIcon sx={{ fontSize: 16, color: '#16A34A' }} />
+                      <span>Approved</span>
+                    </Box>
+                  </MenuItem>
+                  <MenuItem value="rejected">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <HighlightOffIcon sx={{ fontSize: 16, color: '#DC2626' }} />
+                      <span>Rejected</span>
+                    </Box>
+                  </MenuItem>
+                </Select>
+                <TextField
+                  fullWidth
+                  size="small"
+                  placeholder="Video Feedback / Reason..."
+                  value={videoNotes}
+                  onChange={(e) => setVideoNotes(e.target.value)}
+                  inputProps={{ style: { fontSize: '0.8rem' } }}
+                />
               </Grid>
+
             </Grid>
           </Paper>
 
@@ -627,7 +877,7 @@ export default function AdminVerificationReview() {
               variant="contained"
               fullWidth
               startIcon={<InfoOutlinedIcon />}
-              onClick={() => handleAction('pending')}
+              onClick={() => setRequestModalOpen(true)}
               disabled={actionLoading || isPending}
               sx={{ bgcolor: '#D97706', '&:hover': { bgcolor: '#B45309' }, py: 1.25, borderRadius: '8px', textTransform: 'none', fontWeight: 600, fontSize: '0.88rem' }}
             >
@@ -647,6 +897,45 @@ export default function AdminVerificationReview() {
 
         </Grid>
       </Grid>
+
+      {/* Request Information Dialog */}
+      <Dialog open={requestModalOpen} onClose={() => setRequestModalOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 3, p: 1 } }}>
+        <DialogTitle sx={{ fontWeight: 800, color: '#0F172A', pb: 1 }}>
+          Request Information from Vendor
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="#64748B" mb={2}>
+            Please enter a clear message detailing what information or documents are requested from <strong>{details.first_name} {details.last_name}</strong>. This message will be sent via email and displayed on their vendor dashboard.
+          </Typography>
+          <TextField
+            multiline
+            rows={4}
+            fullWidth
+            placeholder="e.g., Please upload a clearer copy of your Government ID front & back, or update your Business Address."
+            value={requestMessage}
+            onChange={(e) => setRequestMessage(e.target.value)}
+            sx={{
+              '& .MuiOutlinedInput-root': { borderRadius: 2, fontSize: '0.9rem' }
+            }}
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setRequestModalOpen(false)} sx={{ textTransform: 'none', color: '#64748B', fontWeight: 600 }}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            disabled={!requestMessage.trim() || actionLoading}
+            onClick={() => {
+              setRequestModalOpen(false);
+              handleAction('pending', requestMessage.trim());
+            }}
+            sx={{ bgcolor: '#D97706', color: '#fff', borderRadius: 2, px: 3, fontWeight: 700, textTransform: 'none', '&:hover': { bgcolor: '#B45309' } }}
+          >
+            {actionLoading ? 'Sending...' : 'Send Request'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
