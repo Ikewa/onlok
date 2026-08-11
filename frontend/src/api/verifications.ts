@@ -18,15 +18,15 @@ export const getMyVerification = async (): Promise<VerificationRecord> => {
 };
 
 export const submitVerification = async (
-  govIdFile: File,
-  cacFile: File,
-  businessVideoFile: File,
+  govIdFile?: File | null,
+  cacFile?: File | null,
+  businessVideoFile?: File | null,
   onProgress?: (progress: number) => void
 ): Promise<VerificationResponse> => {
   const formData = new FormData();
-  formData.append('gov_id', govIdFile);
+  if (govIdFile) formData.append('gov_id', govIdFile);
   if (cacFile) formData.append('cac_document', cacFile);
-  formData.append('business_video', businessVideoFile);
+  if (businessVideoFile) formData.append('business_video', businessVideoFile);
 
   const { data } = await api.post<VerificationResponse>('/verifications', formData, {
     headers: {

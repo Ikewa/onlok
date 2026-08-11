@@ -5,6 +5,15 @@ import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
 import HighlightOffIcon from '@mui/icons-material/HighlightOff';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import FlagOutlinedIcon from '@mui/icons-material/FlagOutlined';
+import PhoneIcon from '@mui/icons-material/Phone';
+import LocationOnIcon from '@mui/icons-material/LocationOn';
+import PublicIcon from '@mui/icons-material/Public';
+import BusinessIcon from '@mui/icons-material/Business';
+import TwitterIcon from '@mui/icons-material/Twitter';
+import InstagramIcon from '@mui/icons-material/Instagram';
+import FacebookIcon from '@mui/icons-material/Facebook';
+import MusicNoteIcon from '@mui/icons-material/MusicNote';
+import AccessTimeOutlinedIcon from '@mui/icons-material/AccessTimeOutlined';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getVerificationDetails, updateVerificationStatus, type AdminVerification } from '../../api/admin';
 import { MenuItem, Select } from '@mui/material';
@@ -186,6 +195,108 @@ export default function AdminVerificationReview() {
             </Box>
           </Paper>
 
+          {/* Business Information, Contact & Social Links */}
+          <Paper elevation={0} sx={{ p: 3, borderRadius: '12px', border: '1px solid #E5E7EB', mb: 3, bgcolor: '#FFFFFF' }}>
+            <Typography variant="subtitle1" fontWeight={600} color="#111827" mb={2.5} sx={{ fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: 1 }}>
+              <BusinessIcon sx={{ color: '#5B5FEC', fontSize: 20 }} />
+              Business Information, Contact & Social Links
+            </Typography>
+
+            <Grid container spacing={2.5}>
+              <Grid item xs={12} sm={6}>
+                <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
+                  <PhoneIcon sx={{ color: '#6B7280', fontSize: 18, mt: 0.3 }} />
+                  <Box>
+                    <Typography variant="caption" color="#6B7280" display="block" sx={{ fontSize: '0.78rem' }}>Phone Number</Typography>
+                    <Typography variant="body2" fontWeight={600} color="#111827" sx={{ fontSize: '0.88rem' }}>
+                      {details.phone_number || 'N/A'}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
+                  <PublicIcon sx={{ color: '#6B7280', fontSize: 18, mt: 0.3 }} />
+                  <Box>
+                    <Typography variant="caption" color="#6B7280" display="block" sx={{ fontSize: '0.78rem' }}>Country</Typography>
+                    <Typography variant="body2" fontWeight={600} color="#111827" sx={{ fontSize: '0.88rem' }}>
+                      {details.country || 'Nigeria'}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Grid>
+
+              <Grid item xs={12}>
+                <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
+                  <LocationOnIcon sx={{ color: '#6B7280', fontSize: 18, mt: 0.3 }} />
+                  <Box>
+                    <Typography variant="caption" color="#6B7280" display="block" sx={{ fontSize: '0.78rem' }}>Business Address</Typography>
+                    <Typography variant="body2" fontWeight={600} color="#111827" sx={{ fontSize: '0.88rem' }}>
+                      {details.business_address || 'Not provided'}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Grid>
+            </Grid>
+
+            <Divider sx={{ my: 2.5, borderColor: '#F3F4F6' }} />
+
+            <Typography variant="caption" fontWeight={700} color="#6B7280" display="block" mb={1.5} sx={{ fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              Social Media Handles
+            </Typography>
+
+            <Grid container spacing={2}>
+              <Grid item xs={6} sm={3}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 1.2, bgcolor: '#F9FAFB', borderRadius: '8px', border: '1px solid #E5E7EB' }}>
+                  <TwitterIcon sx={{ color: '#1DA1F2', fontSize: 18 }} />
+                  <Box sx={{ overflow: 'hidden' }}>
+                    <Typography variant="caption" color="#9CA3AF" display="block" sx={{ fontSize: '0.7rem' }}>Twitter / X</Typography>
+                    <Typography variant="body2" fontWeight={600} color="#111827" sx={{ fontSize: '0.8rem' }} noWrap>
+                      {details.twitter_handle ? `@${details.twitter_handle.replace(/^@/, '')}` : 'N/A'}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Grid>
+
+              <Grid item xs={6} sm={3}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 1.2, bgcolor: '#F9FAFB', borderRadius: '8px', border: '1px solid #E5E7EB' }}>
+                  <InstagramIcon sx={{ color: '#E4405F', fontSize: 18 }} />
+                  <Box sx={{ overflow: 'hidden' }}>
+                    <Typography variant="caption" color="#9CA3AF" display="block" sx={{ fontSize: '0.7rem' }}>Instagram</Typography>
+                    <Typography variant="body2" fontWeight={600} color="#111827" sx={{ fontSize: '0.8rem' }} noWrap>
+                      {details.instagram_handle ? `@${details.instagram_handle.replace(/^@/, '')}` : 'N/A'}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Grid>
+
+              <Grid item xs={6} sm={3}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 1.2, bgcolor: '#F9FAFB', borderRadius: '8px', border: '1px solid #E5E7EB' }}>
+                  <FacebookIcon sx={{ color: '#1877F2', fontSize: 18 }} />
+                  <Box sx={{ overflow: 'hidden' }}>
+                    <Typography variant="caption" color="#9CA3AF" display="block" sx={{ fontSize: '0.7rem' }}>Facebook</Typography>
+                    <Typography variant="body2" fontWeight={600} color="#111827" sx={{ fontSize: '0.8rem' }} noWrap>
+                      {details.facebook_handle || 'N/A'}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Grid>
+
+              <Grid item xs={6} sm={3}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 1.2, bgcolor: '#F9FAFB', borderRadius: '8px', border: '1px solid #E5E7EB' }}>
+                  <MusicNoteIcon sx={{ color: '#000000', fontSize: 18 }} />
+                  <Box sx={{ overflow: 'hidden' }}>
+                    <Typography variant="caption" color="#9CA3AF" display="block" sx={{ fontSize: '0.7rem' }}>TikTok</Typography>
+                    <Typography variant="body2" fontWeight={600} color="#111827" sx={{ fontSize: '0.8rem' }} noWrap>
+                      {details.tiktok_handle ? `@${details.tiktok_handle.replace(/^@/, '')}` : 'N/A'}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Grid>
+            </Grid>
+          </Paper>
+
           {/* Uploaded Documents */}
           <Paper elevation={0} sx={{ p: 3, borderRadius: '12px', border: '1px solid #E5E7EB', mb: 3, bgcolor: '#FFFFFF' }}>
             <Typography variant="subtitle1" fontWeight={600} color="#111827" mb={2.5} sx={{ fontSize: '1.05rem' }}>
@@ -215,9 +326,24 @@ export default function AdminVerificationReview() {
                   onChange={(e) => setGovIdStatus(e.target.value)}
                   sx={{ mb: 1, bgcolor: '#F8FAFC', fontSize: '0.82rem' }}
                 >
-                  <MenuItem value="pending">⚠️ Pending Review</MenuItem>
-                  <MenuItem value="approved">✅ Approved</MenuItem>
-                  <MenuItem value="rejected">❌ Rejected</MenuItem>
+                  <MenuItem value="pending">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <AccessTimeOutlinedIcon sx={{ fontSize: 16, color: '#CA8A04' }} />
+                      <span>Pending Review</span>
+                    </Box>
+                  </MenuItem>
+                  <MenuItem value="approved">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <CheckCircleOutlinedIcon sx={{ fontSize: 16, color: '#16A34A' }} />
+                      <span>Approved</span>
+                    </Box>
+                  </MenuItem>
+                  <MenuItem value="rejected">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <HighlightOffIcon sx={{ fontSize: 16, color: '#DC2626' }} />
+                      <span>Rejected</span>
+                    </Box>
+                  </MenuItem>
                 </Select>
                 <TextField
                   fullWidth
@@ -251,9 +377,24 @@ export default function AdminVerificationReview() {
                   onChange={(e) => setCacStatus(e.target.value)}
                   sx={{ mb: 1, bgcolor: '#F8FAFC', fontSize: '0.82rem' }}
                 >
-                  <MenuItem value="pending">⚠️ Pending Review</MenuItem>
-                  <MenuItem value="approved">✅ Approved</MenuItem>
-                  <MenuItem value="rejected">❌ Rejected</MenuItem>
+                  <MenuItem value="pending">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <AccessTimeOutlinedIcon sx={{ fontSize: 16, color: '#CA8A04' }} />
+                      <span>Pending Review</span>
+                    </Box>
+                  </MenuItem>
+                  <MenuItem value="approved">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <CheckCircleOutlinedIcon sx={{ fontSize: 16, color: '#16A34A' }} />
+                      <span>Approved</span>
+                    </Box>
+                  </MenuItem>
+                  <MenuItem value="rejected">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <HighlightOffIcon sx={{ fontSize: 16, color: '#DC2626' }} />
+                      <span>Rejected</span>
+                    </Box>
+                  </MenuItem>
                 </Select>
                 <TextField
                   fullWidth
@@ -285,9 +426,24 @@ export default function AdminVerificationReview() {
                   onChange={(e) => setVideoStatus(e.target.value)}
                   sx={{ mb: 1, bgcolor: '#F8FAFC', fontSize: '0.82rem' }}
                 >
-                  <MenuItem value="pending">⚠️ Pending Review</MenuItem>
-                  <MenuItem value="approved">✅ Approved</MenuItem>
-                  <MenuItem value="rejected">❌ Rejected</MenuItem>
+                  <MenuItem value="pending">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <AccessTimeOutlinedIcon sx={{ fontSize: 16, color: '#CA8A04' }} />
+                      <span>Pending Review</span>
+                    </Box>
+                  </MenuItem>
+                  <MenuItem value="approved">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <CheckCircleOutlinedIcon sx={{ fontSize: 16, color: '#16A34A' }} />
+                      <span>Approved</span>
+                    </Box>
+                  </MenuItem>
+                  <MenuItem value="rejected">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <HighlightOffIcon sx={{ fontSize: 16, color: '#DC2626' }} />
+                      <span>Rejected</span>
+                    </Box>
+                  </MenuItem>
                 </Select>
                 <TextField
                   fullWidth

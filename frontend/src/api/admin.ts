@@ -24,6 +24,13 @@ export interface AdminVerification {
   cac_notes?: string;
   video_status?: string;
   video_notes?: string;
+  phone_number?: string;
+  business_address?: string;
+  country?: string;
+  twitter_handle?: string;
+  instagram_handle?: string;
+  facebook_handle?: string;
+  tiktok_handle?: string;
 }
 
 export interface UserManagement {

@@ -145,6 +145,8 @@ const getVerificationDetails = async (req, res) => {
                    v.assigned_tier, v.payment_status,
                    v.admin_notes, v.submitted_at, v.reviewed_at,
                    u.id as user_id, u.first_name, u.last_name, u.email, u.vendor_id, u.business_name,
+                   u.phone_number, u.business_address, u.country,
+                   u.twitter_handle, u.instagram_handle, u.facebook_handle, u.tiktok_handle,
                    (CASE WHEN u.business_name IS NOT NULL AND u.business_name != '' THEN 'Business' ELSE 'Individual' END) as type
             FROM verifications v
             JOIN users u ON v.user_id = u.id

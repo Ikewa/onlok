@@ -26,12 +26,36 @@ import { OnlokBadge, resolveVendorBadgeTier } from '../components/OnlokBadge';
 import { QRCode } from 'react-qr-code';
 
 export default function DashboardPage() {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const navigate = useNavigate();
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [isPaying, setIsPaying] = useState(false);
+
+  useEffect(() => {
+    getDashboard()
+      .then((res) => {
+        setData(res);
+        if (res.user && res.user.status && res.user.status !== user?.status) {
+          updateUser({ status: res.user.status });
+        }
+        setLoading(false);
+      })
+      .catch(() => {
+        setError('Failed to load dashboard. Please refresh.');
+        setLoading(false);
+      });
+  }, []);
+
+  if (user && user.status !== 'verified') {
+    return <Navigate to="/dashboard/verification" replace />;
+  }
+
+  if (data && data.verification && data.verification.status !== 'approved') {
+    return <Navigate to="/dashboard/verification" replace />;
+  }
+
   const getCountryFromVendorId = (vendorId?: string | null) => {
     if (!vendorId) return null;
     const match = vendorId.match(/^OL-([A-Z]{2})-/i);

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Box, Typography, CircularProgress, Button } from '@mui/material';
+import { Box, Typography, CircularProgress, Button, Stack } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import VerifiedUserOutlinedIcon from '@mui/icons-material/VerifiedUserOutlined';
 import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined';
@@ -8,6 +8,8 @@ import AccessTimeOutlinedIcon from '@mui/icons-material/AccessTimeOutlined';
 import ErrorOutlineOutlinedIcon from '@mui/icons-material/ErrorOutlineOutlined';
 import HourglassEmptyOutlinedIcon from '@mui/icons-material/HourglassEmptyOutlined';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import EditIcon from '@mui/icons-material/Edit';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import { Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import { useAuth } from '../context/AuthContext';
@@ -26,23 +28,71 @@ const fmt = (dateStr: string | null | undefined) => {
   });
 };
 
-/** Derive timeline steps from the real verification record */
+/** Derive dynamic timeline steps from the real verification record */
 function buildTimeline(record: VerificationRecord) {
   const submittedAt = record.submitted_at;
   const reviewedAt = record.reviewed_at;
   const status = record.status;
+  const hasNotes = !!record.admin_notes;
+
+  let step2Title = 'Document Review';
+  let step2StatusTag: string | null = null;
+  let step2BadgeColor = '#854D0E';
+  let step2BadgeBg = '#FEF9C3';
+  let step3Status = 'Awaiting';
+  let step4Status = 'Awaiting';
+
+  if (status === 'approved') {
+    step2Title = 'Document Review Passed';
+    step2StatusTag = 'APPROVED';
+    step2BadgeColor = '#166534';
+    step2BadgeBg = '#DCFCE7';
+    step3Status = fmt(reviewedAt);
+    step4Status = fmt(reviewedAt);
+  } else if (status === 'rejected') {
+    step2Title = 'Verification Rejected';
+    step2StatusTag = 'REJECTED';
+    step2BadgeColor = '#991B1B';
+    step2BadgeBg = '#FEE2E2';
+    step3Status = 'Cancelled';
+    step4Status = 'Cancelled';
+  } else if (status === 'flagged') {
+    step2Title = 'Account Flagged & Suspended';
+    step2StatusTag = 'SUSPENDED';
+    step2BadgeColor = '#9A3412';
+    step2BadgeBg = '#FFEDD5';
+    step3Status = 'Blocked';
+    step4Status = 'Blocked';
+  } else if (status === 'pending' && hasNotes) {
+    step2Title = 'Information Requested';
+    step2StatusTag = 'ACTION REQUIRED';
+    step2BadgeColor = '#854D0E';
+    step2BadgeBg = '#FEF9C3';
+  } else if (status === 'tier_assigned') {
+    step2Title = 'Pre-Approved (Tier Assigned)';
+    step2StatusTag = 'PRE-APPROVED';
+    step2BadgeColor = '#1E40AF';
+    step2BadgeBg = '#DBEAFE';
+    step3Status = 'Payment Required';
+  } else if (status === 'payment_received') {
+    step2Title = 'Documents Approved';
+    step2StatusTag = 'PAYMENT RECEIVED';
+    step2BadgeColor = '#166534';
+    step2BadgeBg = '#DCFCE7';
+    step3Status = 'Received';
+  }
 
   const rawSteps = [
-    { title: 'Identity Submitted',   date: fmt(submittedAt),                                        done: true },
-    { title: 'Document Review',      date: reviewedAt ? fmt(reviewedAt) : 'In progress…',            done: !!reviewedAt },
-    { title: 'Subscription Payment', date: ['payment_received', 'approved'].includes(status) ? fmt(reviewedAt) : 'Awaiting', done: ['payment_received', 'approved'].includes(status) },
-    { title: 'Final Approval',       date: status === 'approved' ? fmt(reviewedAt) : 'Awaiting',    done: status === 'approved' },
+    { title: 'Identity Submitted', date: fmt(submittedAt), done: true, tag: null, badgeColor: '', badgeBg: '' },
+    { title: step2Title, date: reviewedAt ? fmt(reviewedAt) : 'In progress…', done: ['approved', 'tier_assigned', 'payment_received'].includes(status), tag: step2StatusTag, badgeColor: step2BadgeColor, badgeBg: step2BadgeBg },
+    { title: 'Subscription Payment', date: step3Status, done: ['payment_received', 'approved'].includes(status), tag: status === 'tier_assigned' ? 'PAYMENT REQUIRED' : null, badgeColor: '#1E40AF', badgeBg: '#DBEAFE' },
+    { title: 'Final Approval', date: step4Status, done: status === 'approved', tag: status === 'approved' ? 'COMPLETED' : status === 'rejected' ? 'REJECTED' : status === 'flagged' ? 'SUSPENDED' : null, badgeColor: status === 'approved' ? '#166534' : '#991B1B', badgeBg: status === 'approved' ? '#DCFCE7' : '#FEE2E2' },
   ];
 
-  // Mark the first incomplete step as the active (current) step
   let markedActive = false;
   return rawSteps.map((s) => {
-    const active = !s.done && !markedActive;
+    const isFailedOrSuspended = ['rejected', 'flagged'].includes(status);
+    const active = !isFailedOrSuspended && !s.done && !markedActive;
     if (active) markedActive = true;
     return { ...s, active };
   });
@@ -305,7 +355,7 @@ export default function VerificationPage() {
               </Box>
             )}
 
-            {/* Status Banner – Pending */}
+            {/* Status Banner – Pending / Info Requested */}
             {isPending && user?.status !== 'verified' && (
               <Box sx={{
                 border: '1px solid #FDE047', bgcolor: '#FEFCE8', borderRadius: 3, p: 3,
@@ -319,18 +369,40 @@ export default function VerificationPage() {
                 </Box>
                 <Box sx={{ flexGrow: 1 }}>
                   <Typography sx={{ fontWeight: 700, fontSize: '1.1rem', color: '#854D0E', mb: 0.5 }}>
-                    {record.admin_notes ? 'More Information Requested' : 'Verification Pending Review'}
+                    {record.admin_notes ? 'Action Required: More Information Requested' : 'Verification Pending Review'}
                   </Typography>
-                  <Typography sx={{ color: '#A16207', fontSize: '0.9rem', maxWidth: 600, mb: record.admin_notes ? 2 : 0 }}>
+                  <Typography sx={{ color: '#A16207', fontSize: '0.9rem', maxWidth: 650, mb: 2 }}>
                     {record.admin_notes 
-                      ? `An admin has reviewed your submission on ${fmt(record.reviewed_at)} and requested more details before approving your account.`
+                      ? `An admin reviewed your submission on ${fmt(record.reviewed_at)} and requested more details. Please review the admin message below and update your documents or business info immediately.`
                       : `Your documents have been submitted on ${fmt(record.submitted_at)} and are currently being reviewed by our team. This process typically takes 24–48 hours. The Dashboard will be unlocked once approved.`}
                   </Typography>
+                  
                   {record.admin_notes && (
-                    <Box sx={{ bgcolor: '#FEF9C3', p: 2, borderRadius: 2, border: '1px solid #FDE047' }}>
-                      <Typography sx={{ fontWeight: 700, color: '#854D0E', fontSize: '0.85rem', mb: 0.5 }}>Admin Notes:</Typography>
-                      <Typography sx={{ color: '#A16207', fontSize: '0.9rem' }}>{record.admin_notes}</Typography>
+                    <Box sx={{ bgcolor: '#FEF9C3', p: 2, borderRadius: 2, border: '1px solid #FDE047', mb: 2.5 }}>
+                      <Typography sx={{ fontWeight: 700, color: '#854D0E', fontSize: '0.85rem', mb: 0.5 }}>Admin Message:</Typography>
+                      <Typography sx={{ color: '#A16207', fontSize: '0.92rem', fontWeight: 600 }}>{record.admin_notes}</Typography>
                     </Box>
+                  )}
+
+                  {record.admin_notes && (
+                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                      <Button
+                        variant="contained"
+                        startIcon={<CloudUploadIcon />}
+                        onClick={() => navigate('/dashboard/update/docs')}
+                        sx={{ bgcolor: '#CA8A04', '&:hover': { bgcolor: '#A16207' }, textTransform: 'none', borderRadius: 2, fontWeight: 700 }}
+                      >
+                        Re-upload Requested Documents
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        startIcon={<EditIcon />}
+                        onClick={() => navigate('/dashboard/update/bio')}
+                        sx={{ borderColor: '#CA8A04', color: '#854D0E', '&:hover': { borderColor: '#A16207', bgcolor: '#FEF08A' }, textTransform: 'none', borderRadius: 2, fontWeight: 700 }}
+                      >
+                        Update Business Profile Info
+                      </Button>
+                    </Stack>
                   )}
                 </Box>
               </Box>
@@ -459,45 +531,77 @@ export default function VerificationPage() {
                   {/* Connecting line */}
                   <Box sx={{ position: 'absolute', left: 15, top: 20, bottom: 20, width: 2, bgcolor: '#E2E8F0', zIndex: 0 }} />
 
-                  {timeline.map((step, index) => (
-                    <Box key={index} sx={{ display: 'flex', alignItems: 'flex-start', gap: 2, mb: 3, position: 'relative', zIndex: 1 }}>
-                      {/* Step dot */}
-                      <Box sx={{
-                        width: 32, height: 32, borderRadius: '50%', bgcolor: '#fff', flexShrink: 0,
-                        border: step.done
-                          ? '2px solid #DCFCE7'
-                          : step.active
-                          ? '2px solid #FDE047'
-                          : '2px solid #E2E8F0',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        boxShadow: step.active ? '0 0 0 4px #FEF9C3' : 'none',
-                      }}>
-                        {step.done
-                          ? <CheckCircleIcon sx={{ color: '#22C55E', fontSize: 18 }} />
-                          : step.active
-                          ? <AccessTimeOutlinedIcon sx={{ color: '#CA8A04', fontSize: 16 }} />
-                          : <AccessTimeOutlinedIcon sx={{ color: '#CBD5E1', fontSize: 16 }} />
-                        }
-                      </Box>
-                      <Box sx={{ pt: 0.5 }}>
-                        <Typography sx={{
-                          fontWeight: 600, fontSize: '0.95rem',
-                          color: step.done ? '#0F172A' : step.active ? '#854D0E' : '#94A3B8',
+                  {timeline.map((step, index) => {
+                    const isRejectedStep = step.tag === 'REJECTED';
+                    const isSuspendedStep = step.tag === 'SUSPENDED';
+
+                    const dotBorder = isRejectedStep
+                      ? '2px solid #FCA5A5'
+                      : isSuspendedStep
+                      ? '2px solid #FDBA74'
+                      : step.done
+                      ? '2px solid #DCFCE7'
+                      : step.active
+                      ? '2px solid #FDE047'
+                      : '2px solid #E2E8F0';
+
+                    const dotBg = isRejectedStep
+                      ? '#FEF2F2'
+                      : isSuspendedStep
+                      ? '#FFF7ED'
+                      : '#fff';
+
+                    return (
+                      <Box key={index} sx={{ display: 'flex', alignItems: 'flex-start', gap: 2, mb: 3, position: 'relative', zIndex: 1 }}>
+                        {/* Step dot */}
+                        <Box sx={{
+                          width: 32, height: 32, borderRadius: '50%', bgcolor: dotBg, flexShrink: 0,
+                          border: dotBorder,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          boxShadow: step.active ? '0 0 0 4px #FEF9C3' : 'none',
                         }}>
-                          {step.title}
-                          {step.active && (
-                            <Box component="span" sx={{
-                              ml: 1, fontSize: '0.7rem', fontWeight: 700, color: '#CA8A04',
-                              bgcolor: '#FEF9C3', px: 0.8, py: 0.2, borderRadius: 2, verticalAlign: 'middle',
-                            }}>ACTIVE</Box>
+                          {isRejectedStep ? (
+                            <ErrorOutlineOutlinedIcon sx={{ color: '#DC2626', fontSize: 18 }} />
+                          ) : isSuspendedStep ? (
+                            <WarningAmberIcon sx={{ color: '#EA580C', fontSize: 18 }} />
+                          ) : step.done ? (
+                            <CheckCircleIcon sx={{ color: '#22C55E', fontSize: 18 }} />
+                          ) : step.active ? (
+                            <AccessTimeOutlinedIcon sx={{ color: '#CA8A04', fontSize: 16 }} />
+                          ) : (
+                            <AccessTimeOutlinedIcon sx={{ color: '#CBD5E1', fontSize: 16 }} />
                           )}
-                        </Typography>
-                        <Typography sx={{ color: step.active ? '#A16207' : '#94A3B8', fontSize: '0.8rem' }}>
-                          {step.date}
-                        </Typography>
+                        </Box>
+                        <Box sx={{ pt: 0.5 }}>
+                          <Typography sx={{
+                            fontWeight: 600, fontSize: '0.95rem',
+                            color: isRejectedStep ? '#991B1B' : isSuspendedStep ? '#9A3412' : step.done ? '#0F172A' : step.active ? '#854D0E' : '#94A3B8',
+                          }}>
+                            {step.title}
+                            {step.tag && (
+                              <Box component="span" sx={{
+                                ml: 1, fontSize: '0.7rem', fontWeight: 700, color: step.badgeColor || '#CA8A04',
+                                bgcolor: step.badgeBg || '#FEF9C3', px: 0.8, py: 0.2, borderRadius: 2, verticalAlign: 'middle',
+                              }}>
+                                {step.tag}
+                              </Box>
+                            )}
+                            {step.active && !step.tag && (
+                              <Box component="span" sx={{
+                                ml: 1, fontSize: '0.7rem', fontWeight: 700, color: '#CA8A04',
+                                bgcolor: '#FEF9C3', px: 0.8, py: 0.2, borderRadius: 2, verticalAlign: 'middle',
+                              }}>
+                                ACTIVE
+                              </Box>
+                            )}
+                          </Typography>
+                          <Typography sx={{ color: isRejectedStep ? '#B91C1C' : isSuspendedStep ? '#C2410C' : step.active ? '#A16207' : '#94A3B8', fontSize: '0.8rem' }}>
+                            {step.date}
+                          </Typography>
+                        </Box>
                       </Box>
-                    </Box>
-                  ))}
+                    );
+                  })}
                 </Box>
               </Box>
 

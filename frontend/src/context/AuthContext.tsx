@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo, useEffect } from 'react';
 import type { User } from '../types';
 import { getMe } from '../api/auth';
 
@@ -64,6 +64,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // silently ignore — user remains logged in with stale data
     }
+  }, []);
+
+  useEffect(() => {
+    if (user?.token) {
+      refreshUser();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const value = useMemo<AuthContextValue>(

@@ -103,8 +103,8 @@ export default function ProfileDocUploadPage() {
   const [uploadProgress, setUploadProgress] = useState<number>(0);
 
   const handleSubmit = async () => {
-    if (!govId || !cacDoc || !video) {
-      toast.error('Please upload all three required files');
+    if (!govId && !cacDoc && !video) {
+      toast.error('Please upload at least one document to submit');
       return;
     }
     setLoading(true);

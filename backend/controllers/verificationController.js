@@ -41,28 +41,74 @@ const upload = multer({
 // @access  Private (Vendor only)
 const submitVerification = async (req, res) => {
     try {
-        if (!req.files || !req.files['gov_id'] || !req.files['business_video']) {
-            return res.status(400).json({ message: 'Government ID and Business Video are required.' });
-        }
+        const userId = req.user.id;
+        const hasGovId = req.files && req.files['gov_id'];
+        const hasCac = req.files && req.files['cac_document'];
+        const hasVideo = req.files && req.files['business_video'];
 
-        const govIdUrl = `/uploads/${req.files['gov_id'][0].filename}`;
-        const cacUrl = req.files['cac_document'] ? `/uploads/${req.files['cac_document'][0].filename}` : null;
-        const videoUrl = `/uploads/${req.files['business_video'][0].filename}`;
+        const govIdUrl = hasGovId ? `/uploads/${req.files['gov_id'][0].filename}` : null;
+        const cacUrl = hasCac ? `/uploads/${req.files['cac_document'][0].filename}` : null;
+        const videoUrl = hasVideo ? `/uploads/${req.files['business_video'][0].filename}` : null;
 
-        // Ensure user hasn't already submitted a pending one
-        const [existing] = await pool.query('SELECT * FROM verifications WHERE user_id = ? AND status = "pending"', [req.user.id]);
-        
+        // Check if a verification record already exists for this user
+        const [existing] = await pool.query(
+            'SELECT id, gov_id_url, cac_url, video_url FROM verifications WHERE user_id = ? ORDER BY submitted_at DESC LIMIT 1',
+            [userId]
+        );
+
+        let verificationId = null;
+
         if (existing.length > 0) {
-            return res.status(400).json({ message: 'You already have a verification request pending.' });
+            // Update existing record in-place
+            const currentRec = existing[0];
+            verificationId = currentRec.id;
+
+            const finalGovIdUrl = govIdUrl || currentRec.gov_id_url;
+            const finalCacUrl = cacUrl || currentRec.cac_url;
+            const finalVideoUrl = videoUrl || currentRec.video_url;
+
+            if (!finalGovIdUrl || !finalVideoUrl) {
+                return res.status(400).json({ message: 'Government ID and Business Video are required for initial verification.' });
+            }
+
+            const updateQuery = `
+                UPDATE verifications 
+                SET status = 'pending',
+                    admin_notes = NULL,
+                    gov_id_url = ?,
+                    gov_id_status = IF(?, 'pending', gov_id_status),
+                    gov_id_notes = IF(?, NULL, gov_id_notes),
+                    cac_url = ?,
+                    cac_status = IF(?, 'pending', cac_status),
+                    cac_notes = IF(?, NULL, cac_notes),
+                    video_url = ?,
+                    video_status = IF(?, 'pending', video_status),
+                    video_notes = IF(?, NULL, video_notes),
+                    submitted_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            `;
+            await pool.query(updateQuery, [
+                finalGovIdUrl, hasGovId ? 1 : 0, hasGovId ? 1 : 0,
+                finalCacUrl, hasCac ? 1 : 0, hasCac ? 1 : 0,
+                finalVideoUrl, hasVideo ? 1 : 0, hasVideo ? 1 : 0,
+                verificationId
+            ]);
+        } else {
+            // Create initial verification record
+            if (!govIdUrl || !videoUrl) {
+                return res.status(400).json({ message: 'Government ID and Business Video are required for verification.' });
+            }
+            const insertQuery = `INSERT INTO verifications (user_id, gov_id_url, cac_url, video_url, status) VALUES (?, ?, ?, ?, 'pending')`;
+            const [result] = await pool.query(insertQuery, [userId, govIdUrl, cacUrl, videoUrl]);
+            verificationId = result.insertId;
         }
 
-        // Insert into verification table
-        const query = `INSERT INTO verifications (user_id, gov_id_url, cac_url, video_url) VALUES (?, ?, ?, ?)`;
-        const [result] = await pool.query(query, [req.user.id, govIdUrl, cacUrl, videoUrl]);
+        // Reset user table status to pending
+        await pool.query('UPDATE users SET status = "pending" WHERE id = ?', [userId]);
 
-        res.status(201).json({
+        res.status(200).json({
             message: 'Verification documents submitted successfully',
-            verification_id: result.insertId
+            verification_id: verificationId
         });
 
     } catch (error) {
