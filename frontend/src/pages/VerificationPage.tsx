@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Box, Typography, CircularProgress, Button } from '@mui/material';
+import { Box, Typography, CircularProgress, Button, Stack } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import VerifiedUserOutlinedIcon from '@mui/icons-material/VerifiedUserOutlined';
 import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined';
@@ -8,8 +8,12 @@ import AccessTimeOutlinedIcon from '@mui/icons-material/AccessTimeOutlined';
 import ErrorOutlineOutlinedIcon from '@mui/icons-material/ErrorOutlineOutlined';
 import HourglassEmptyOutlinedIcon from '@mui/icons-material/HourglassEmptyOutlined';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import EditIcon from '@mui/icons-material/Edit';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import { Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import { useAuth } from '../context/AuthContext';
-import { getMyVerification } from '../api/verifications';
+import { getMyVerification, resubmitVerificationDocuments } from '../api/verifications';
 import type { VerificationRecord } from '../api/verifications';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { initializePayment } from '../api/payment';
@@ -24,50 +28,115 @@ const fmt = (dateStr: string | null | undefined) => {
   });
 };
 
-/** Derive timeline steps from the real verification record */
+/** Derive dynamic timeline steps from the real verification record */
 function buildTimeline(record: VerificationRecord) {
   const submittedAt = record.submitted_at;
   const reviewedAt = record.reviewed_at;
   const status = record.status;
+  const hasNotes = !!record.admin_notes;
+
+  let step2Title = 'Document Review';
+  let step2StatusTag: string | null = null;
+  let step2BadgeColor = '#854D0E';
+  let step2BadgeBg = '#FEF9C3';
+  let step3Status = 'Awaiting';
+  let step4Status = 'Awaiting';
+
+  if (status === 'approved') {
+    step2Title = 'Document Review Passed';
+    step2StatusTag = 'APPROVED';
+    step2BadgeColor = '#166534';
+    step2BadgeBg = '#DCFCE7';
+    step3Status = fmt(reviewedAt);
+    step4Status = fmt(reviewedAt);
+  } else if (status === 'rejected') {
+    step2Title = 'Verification Rejected';
+    step2StatusTag = 'REJECTED';
+    step2BadgeColor = '#991B1B';
+    step2BadgeBg = '#FEE2E2';
+    step3Status = 'Cancelled';
+    step4Status = 'Cancelled';
+  } else if (status === 'flagged') {
+    step2Title = 'Account Flagged & Suspended';
+    step2StatusTag = 'SUSPENDED';
+    step2BadgeColor = '#9A3412';
+    step2BadgeBg = '#FFEDD5';
+    step3Status = 'Blocked';
+    step4Status = 'Blocked';
+  } else if (status === 'pending' && hasNotes) {
+    step2Title = 'Information Requested';
+    step2StatusTag = 'ACTION REQUIRED';
+    step2BadgeColor = '#854D0E';
+    step2BadgeBg = '#FEF9C3';
+  } else if (status === 'tier_assigned') {
+    step2Title = 'Pre-Approved (Tier Assigned)';
+    step2StatusTag = 'PRE-APPROVED';
+    step2BadgeColor = '#1E40AF';
+    step2BadgeBg = '#DBEAFE';
+    step3Status = 'Payment Required';
+  } else if (status === 'payment_received') {
+    step2Title = 'Documents Approved';
+    step2StatusTag = 'PAYMENT RECEIVED';
+    step2BadgeColor = '#166534';
+    step2BadgeBg = '#DCFCE7';
+    step3Status = 'Received';
+  }
 
   const rawSteps = [
-    { title: 'Identity Submitted',   date: fmt(submittedAt),                                        done: true },
-    { title: 'Document Review',      date: reviewedAt ? fmt(reviewedAt) : 'In progress…',            done: !!reviewedAt },
-    { title: 'Subscription Payment', date: ['payment_received', 'approved'].includes(status) ? fmt(reviewedAt) : 'Awaiting', done: ['payment_received', 'approved'].includes(status) },
-    { title: 'Final Approval',       date: status === 'approved' ? fmt(reviewedAt) : 'Awaiting',    done: status === 'approved' },
+    { title: 'Identity Submitted', date: fmt(submittedAt), done: true, tag: null, badgeColor: '', badgeBg: '' },
+    { title: step2Title, date: reviewedAt ? fmt(reviewedAt) : 'In progress…', done: ['approved', 'tier_assigned', 'payment_received'].includes(status), tag: step2StatusTag, badgeColor: step2BadgeColor, badgeBg: step2BadgeBg },
+    { title: 'Subscription Payment', date: step3Status, done: ['payment_received', 'approved'].includes(status), tag: status === 'tier_assigned' ? 'PAYMENT REQUIRED' : null, badgeColor: '#1E40AF', badgeBg: '#DBEAFE' },
+    { title: 'Final Approval', date: step4Status, done: status === 'approved', tag: status === 'approved' ? 'COMPLETED' : status === 'rejected' ? 'REJECTED' : status === 'flagged' ? 'SUSPENDED' : null, badgeColor: status === 'approved' ? '#166534' : '#991B1B', badgeBg: status === 'approved' ? '#DCFCE7' : '#FEE2E2' },
   ];
 
-  // Mark the first incomplete step as the active (current) step
   let markedActive = false;
   return rawSteps.map((s) => {
-    const active = !s.done && !markedActive;
+    const isFailedOrSuspended = ['rejected', 'flagged'].includes(status);
+    const active = !isFailedOrSuspended && !s.done && !markedActive;
     if (active) markedActive = true;
     return { ...s, active };
   });
 }
 
-/** Derive document list from real URLs */
+/** Derive document list from real URLs and granular statuses */
 function buildDocuments(record: VerificationRecord) {
-  const docStatus = record.status === 'approved' ? 'Verified' : record.status === 'rejected' ? 'Rejected' : 'Under Review';
-  const docColor = record.status === 'approved' ? '#166534' : record.status === 'rejected' ? '#991B1B' : '#92400E';
-  const docBg = record.status === 'approved' ? '#DCFCE7' : record.status === 'rejected' ? '#FEE2E2' : '#FEF3C7';
+  const getDocMeta = (url?: string, docStatus?: string, docNotes?: string | null) => {
+    const s = docStatus || record.status;
+    let label = 'Under Review';
+    let color = '#92400E';
+    let bg = '#FEF3C7';
+
+    if (s === 'approved') { label = 'Verified'; color = '#166534'; bg = '#DCFCE7'; }
+    else if (s === 'rejected') { label = 'Rejected'; color = '#991B1B'; bg = '#FEE2E2'; }
+
+    return { statusLabel: label, statusColor: color, statusBg: bg, notes: docNotes, hasUrl: !!url };
+  };
+
+  const govMeta = getDocMeta(record.gov_id_url, record.gov_id_status, record.gov_id_notes);
+  const cacMeta = getDocMeta(record.cac_url, record.cac_status, record.cac_notes);
+  const vidMeta = getDocMeta(record.video_url, record.video_status, record.video_notes);
 
   return [
     {
+      key: 'gov_id',
       title: 'Government ID',
       meta: `Identity • Submitted ${fmt(record.submitted_at)}`,
       icon: <BadgeOutlinedIcon sx={{ color: '#64748B' }} />,
-      statusLabel: docStatus,
-      statusColor: docColor,
-      statusBg: docBg,
+      ...govMeta,
     },
+    ...(record.cac_url || record.cac_status ? [{
+      key: 'cac',
+      title: 'CAC Registration Document',
+      meta: `Business Registration • Submitted ${fmt(record.submitted_at)}`,
+      icon: <InfoOutlinedIcon sx={{ color: '#64748B' }} />,
+      ...cacMeta,
+    }] : []),
     {
-      title: 'Business Video',
+      key: 'video',
+      title: 'Business Video Verification',
       meta: `Face Match • Submitted ${fmt(record.submitted_at)}`,
       icon: <CameraAltOutlinedIcon sx={{ color: '#64748B' }} />,
-      statusLabel: docStatus,
-      statusColor: docColor,
-      statusBg: docBg,
+      ...vidMeta,
     },
   ];
 }
@@ -83,6 +152,37 @@ export default function VerificationPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isPaying, setIsPaying] = useState(false);
+
+  // Targeted document resubmission state
+  const [resubmitModalOpen, setResubmitModalOpen] = useState(false);
+  const [activeDocKey, setActiveDocKey] = useState<'govId' | 'cac' | 'video'>('govId');
+  const [activeDocTitle, setActiveDocTitle] = useState<string>('Government ID');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isResubmitting, setIsResubmitting] = useState(false);
+
+  const openResubmitModal = (key: 'gov_id' | 'cac' | 'video', title: string) => {
+    const mapped = key === 'gov_id' ? 'govId' : key === 'cac' ? 'cac' : 'video';
+    setActiveDocKey(mapped);
+    setActiveDocTitle(title);
+    setSelectedFile(null);
+    setResubmitModalOpen(true);
+  };
+
+  const handleResubmit = async () => {
+    if (!selectedFile) return toast.error('Please select a file to upload');
+    setIsResubmitting(true);
+    try {
+      await resubmitVerificationDocuments({ [activeDocKey]: selectedFile });
+      toast.success(`${activeDocTitle} resubmitted! Account is now under pending review.`);
+      setResubmitModalOpen(false);
+      const updatedRec = await getMyVerification();
+      setRecord(updatedRec);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to resubmit document.');
+    } finally {
+      setIsResubmitting(false);
+    }
+  };
 
   const handlePay = async () => {
     if (!record || !user) return;
@@ -123,7 +223,7 @@ export default function VerificationPage() {
         user_id: user?.id || 1,
         status: mockStatus as any,
         gov_id_url: '',
-        cac_document_url: '',
+        cac_url: '',
         business_video_url: '',
         submitted_at: new Date().toISOString(),
         reviewed_at: ['approved', 'rejected', 'flagged'].includes(mockStatus) ? new Date().toISOString() : null,
@@ -255,7 +355,7 @@ export default function VerificationPage() {
               </Box>
             )}
 
-            {/* Status Banner – Pending */}
+            {/* Status Banner – Pending / Info Requested */}
             {isPending && user?.status !== 'verified' && (
               <Box sx={{
                 border: '1px solid #FDE047', bgcolor: '#FEFCE8', borderRadius: 3, p: 3,
@@ -269,18 +369,40 @@ export default function VerificationPage() {
                 </Box>
                 <Box sx={{ flexGrow: 1 }}>
                   <Typography sx={{ fontWeight: 700, fontSize: '1.1rem', color: '#854D0E', mb: 0.5 }}>
-                    {record.admin_notes ? 'More Information Requested' : 'Verification Pending Review'}
+                    {record.admin_notes ? 'Action Required: More Information Requested' : 'Verification Pending Review'}
                   </Typography>
-                  <Typography sx={{ color: '#A16207', fontSize: '0.9rem', maxWidth: 600, mb: record.admin_notes ? 2 : 0 }}>
+                  <Typography sx={{ color: '#A16207', fontSize: '0.9rem', maxWidth: 650, mb: 2 }}>
                     {record.admin_notes 
-                      ? `An admin has reviewed your submission on ${fmt(record.reviewed_at)} and requested more details before approving your account.`
+                      ? `An admin reviewed your submission on ${fmt(record.reviewed_at)} and requested more details. Please review the admin message below and update your documents or business info immediately.`
                       : `Your documents have been submitted on ${fmt(record.submitted_at)} and are currently being reviewed by our team. This process typically takes 24–48 hours. The Dashboard will be unlocked once approved.`}
                   </Typography>
+                  
                   {record.admin_notes && (
-                    <Box sx={{ bgcolor: '#FEF9C3', p: 2, borderRadius: 2, border: '1px solid #FDE047' }}>
-                      <Typography sx={{ fontWeight: 700, color: '#854D0E', fontSize: '0.85rem', mb: 0.5 }}>Admin Notes:</Typography>
-                      <Typography sx={{ color: '#A16207', fontSize: '0.9rem' }}>{record.admin_notes}</Typography>
+                    <Box sx={{ bgcolor: '#FEF9C3', p: 2, borderRadius: 2, border: '1px solid #FDE047', mb: 2.5 }}>
+                      <Typography sx={{ fontWeight: 700, color: '#854D0E', fontSize: '0.85rem', mb: 0.5 }}>Admin Message:</Typography>
+                      <Typography sx={{ color: '#A16207', fontSize: '0.92rem', fontWeight: 600 }}>{record.admin_notes}</Typography>
                     </Box>
+                  )}
+
+                  {record.admin_notes && (
+                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                      <Button
+                        variant="contained"
+                        startIcon={<CloudUploadIcon />}
+                        onClick={() => navigate('/dashboard/update/docs')}
+                        sx={{ bgcolor: '#CA8A04', '&:hover': { bgcolor: '#A16207' }, textTransform: 'none', borderRadius: 2, fontWeight: 700 }}
+                      >
+                        Re-upload Requested Documents
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        startIcon={<EditIcon />}
+                        onClick={() => navigate('/dashboard/update/bio')}
+                        sx={{ borderColor: '#CA8A04', color: '#854D0E', '&:hover': { borderColor: '#A16207', bgcolor: '#FEF08A' }, textTransform: 'none', borderRadius: 2, fontWeight: 700 }}
+                      >
+                        Update Business Profile Info
+                      </Button>
+                    </Stack>
                   )}
                 </Box>
               </Box>
@@ -409,45 +531,77 @@ export default function VerificationPage() {
                   {/* Connecting line */}
                   <Box sx={{ position: 'absolute', left: 15, top: 20, bottom: 20, width: 2, bgcolor: '#E2E8F0', zIndex: 0 }} />
 
-                  {timeline.map((step, index) => (
-                    <Box key={index} sx={{ display: 'flex', alignItems: 'flex-start', gap: 2, mb: 3, position: 'relative', zIndex: 1 }}>
-                      {/* Step dot */}
-                      <Box sx={{
-                        width: 32, height: 32, borderRadius: '50%', bgcolor: '#fff', flexShrink: 0,
-                        border: step.done
-                          ? '2px solid #DCFCE7'
-                          : step.active
-                          ? '2px solid #FDE047'
-                          : '2px solid #E2E8F0',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        boxShadow: step.active ? '0 0 0 4px #FEF9C3' : 'none',
-                      }}>
-                        {step.done
-                          ? <CheckCircleIcon sx={{ color: '#22C55E', fontSize: 18 }} />
-                          : step.active
-                          ? <AccessTimeOutlinedIcon sx={{ color: '#CA8A04', fontSize: 16 }} />
-                          : <AccessTimeOutlinedIcon sx={{ color: '#CBD5E1', fontSize: 16 }} />
-                        }
-                      </Box>
-                      <Box sx={{ pt: 0.5 }}>
-                        <Typography sx={{
-                          fontWeight: 600, fontSize: '0.95rem',
-                          color: step.done ? '#0F172A' : step.active ? '#854D0E' : '#94A3B8',
+                  {timeline.map((step, index) => {
+                    const isRejectedStep = step.tag === 'REJECTED';
+                    const isSuspendedStep = step.tag === 'SUSPENDED';
+
+                    const dotBorder = isRejectedStep
+                      ? '2px solid #FCA5A5'
+                      : isSuspendedStep
+                      ? '2px solid #FDBA74'
+                      : step.done
+                      ? '2px solid #DCFCE7'
+                      : step.active
+                      ? '2px solid #FDE047'
+                      : '2px solid #E2E8F0';
+
+                    const dotBg = isRejectedStep
+                      ? '#FEF2F2'
+                      : isSuspendedStep
+                      ? '#FFF7ED'
+                      : '#fff';
+
+                    return (
+                      <Box key={index} sx={{ display: 'flex', alignItems: 'flex-start', gap: 2, mb: 3, position: 'relative', zIndex: 1 }}>
+                        {/* Step dot */}
+                        <Box sx={{
+                          width: 32, height: 32, borderRadius: '50%', bgcolor: dotBg, flexShrink: 0,
+                          border: dotBorder,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          boxShadow: step.active ? '0 0 0 4px #FEF9C3' : 'none',
                         }}>
-                          {step.title}
-                          {step.active && (
-                            <Box component="span" sx={{
-                              ml: 1, fontSize: '0.7rem', fontWeight: 700, color: '#CA8A04',
-                              bgcolor: '#FEF9C3', px: 0.8, py: 0.2, borderRadius: 2, verticalAlign: 'middle',
-                            }}>ACTIVE</Box>
+                          {isRejectedStep ? (
+                            <ErrorOutlineOutlinedIcon sx={{ color: '#DC2626', fontSize: 18 }} />
+                          ) : isSuspendedStep ? (
+                            <WarningAmberIcon sx={{ color: '#EA580C', fontSize: 18 }} />
+                          ) : step.done ? (
+                            <CheckCircleIcon sx={{ color: '#22C55E', fontSize: 18 }} />
+                          ) : step.active ? (
+                            <AccessTimeOutlinedIcon sx={{ color: '#CA8A04', fontSize: 16 }} />
+                          ) : (
+                            <AccessTimeOutlinedIcon sx={{ color: '#CBD5E1', fontSize: 16 }} />
                           )}
-                        </Typography>
-                        <Typography sx={{ color: step.active ? '#A16207' : '#94A3B8', fontSize: '0.8rem' }}>
-                          {step.date}
-                        </Typography>
+                        </Box>
+                        <Box sx={{ pt: 0.5 }}>
+                          <Typography sx={{
+                            fontWeight: 600, fontSize: '0.95rem',
+                            color: isRejectedStep ? '#991B1B' : isSuspendedStep ? '#9A3412' : step.done ? '#0F172A' : step.active ? '#854D0E' : '#94A3B8',
+                          }}>
+                            {step.title}
+                            {step.tag && (
+                              <Box component="span" sx={{
+                                ml: 1, fontSize: '0.7rem', fontWeight: 700, color: step.badgeColor || '#CA8A04',
+                                bgcolor: step.badgeBg || '#FEF9C3', px: 0.8, py: 0.2, borderRadius: 2, verticalAlign: 'middle',
+                              }}>
+                                {step.tag}
+                              </Box>
+                            )}
+                            {step.active && !step.tag && (
+                              <Box component="span" sx={{
+                                ml: 1, fontSize: '0.7rem', fontWeight: 700, color: '#CA8A04',
+                                bgcolor: '#FEF9C3', px: 0.8, py: 0.2, borderRadius: 2, verticalAlign: 'middle',
+                              }}>
+                                ACTIVE
+                              </Box>
+                            )}
+                          </Typography>
+                          <Typography sx={{ color: isRejectedStep ? '#B91C1C' : isSuspendedStep ? '#C2410C' : step.active ? '#A16207' : '#94A3B8', fontSize: '0.8rem' }}>
+                            {step.date}
+                          </Typography>
+                        </Box>
                       </Box>
-                    </Box>
-                  ))}
+                    );
+                  })}
                 </Box>
               </Box>
 
@@ -459,24 +613,47 @@ export default function VerificationPage() {
                 <Box sx={{ border: '1px solid #E2E8F0', borderRadius: 4, p: { xs: 2, md: 3 }, display: 'flex', flexDirection: 'column', gap: 2 }}>
                   {documents.map((doc, index) => (
                     <Box key={index} sx={{
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                       bgcolor: '#F8FAFC', borderRadius: 3, p: 2, border: '1px solid #E2E8F0',
+                      display: 'flex', flexDirection: 'column', gap: 1.5
                     }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                        <Box sx={{
-                          width: 40, height: 40, borderRadius: 2, bgcolor: '#fff', border: '1px solid #E2E8F0',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        }}>
-                          {doc.icon}
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                          <Box sx={{
+                            width: 40, height: 40, borderRadius: 2, bgcolor: '#fff', border: '1px solid #E2E8F0',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          }}>
+                            {doc.icon}
+                          </Box>
+                          <Box>
+                            <Typography sx={{ fontWeight: 600, fontSize: '0.95rem', color: '#0F172A' }}>{doc.title}</Typography>
+                            <Typography sx={{ color: '#64748B', fontSize: '0.75rem' }}>{doc.meta}</Typography>
+                          </Box>
                         </Box>
-                        <Box>
-                          <Typography sx={{ fontWeight: 600, fontSize: '0.95rem', color: '#0F172A' }}>{doc.title}</Typography>
-                          <Typography sx={{ color: '#64748B', fontSize: '0.75rem' }}>{doc.meta}</Typography>
+                        
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Box sx={{ bgcolor: doc.statusBg, px: 1.5, py: 0.5, borderRadius: 5 }}>
+                            <Typography sx={{ color: doc.statusColor, fontWeight: 700, fontSize: '0.75rem' }}>{doc.statusLabel}</Typography>
+                          </Box>
+                          {doc.statusLabel !== 'Verified' && (
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              onClick={() => openResubmitModal(doc.key as any, doc.title)}
+                              sx={{ textTransform: 'none', borderRadius: 2, fontSize: '0.75rem', fontWeight: 600, borderColor: '#CBD5E1', color: '#334155' }}
+                            >
+                              Re-upload
+                            </Button>
+                          )}
                         </Box>
                       </Box>
-                      <Box sx={{ bgcolor: doc.statusBg, px: 1.5, py: 0.5, borderRadius: 5 }}>
-                        <Typography sx={{ color: doc.statusColor, fontWeight: 700, fontSize: '0.75rem' }}>{doc.statusLabel}</Typography>
-                      </Box>
+
+                      {/* Display Admin Notes for this document if provided */}
+                      {doc.notes && (
+                        <Box sx={{ bgcolor: '#FEF2F2', p: 1.5, borderRadius: 2, border: '1px solid #FCA5A5' }}>
+                          <Typography sx={{ fontWeight: 700, color: '#991B1B', fontSize: '0.78rem', mb: 0.25 }}>Admin Feedback:</Typography>
+                          <Typography sx={{ color: '#B91C1C', fontSize: '0.85rem' }}>{doc.notes}</Typography>
+                        </Box>
+                      )}
                     </Box>
                   ))}
                 </Box>
@@ -486,6 +663,50 @@ export default function VerificationPage() {
           </>
         );
       })()}
+
+      {/* Targeted Document Resubmission Dialog */}
+      <Dialog open={resubmitModalOpen} onClose={() => setResubmitModalOpen(false)} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: 3, p: 1 } }}>
+        <DialogTitle sx={{ fontWeight: 800, color: '#0F172A', pb: 1 }}>
+          Re-upload {activeDocTitle}
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="#64748B" mb={2.5}>
+            Select a new file to replace your current <strong>{activeDocTitle}</strong>. Your account status will update to pending review once uploaded.
+          </Typography>
+          <Button
+            component="label"
+            variant="outlined"
+            fullWidth
+            startIcon={<CloudUploadIcon />}
+            sx={{ py: 3, borderStyle: 'dashed', borderRadius: 2, textTransform: 'none', fontWeight: 600, color: '#2563EB', borderColor: '#93C5FD' }}
+          >
+            {selectedFile ? selectedFile.name : `Choose new file (${activeDocKey === 'video' ? 'MP4/MOV' : 'JPG/PNG/PDF'})`}
+            <input
+              type="file"
+              hidden
+              accept={activeDocKey === 'video' ? 'video/*' : 'image/*,application/pdf'}
+              onChange={(e) => {
+                if (e.target.files && e.target.files[0]) {
+                  setSelectedFile(e.target.files[0]);
+                }
+              }}
+            />
+          </Button>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setResubmitModalOpen(false)} sx={{ textTransform: 'none', color: '#64748B', fontWeight: 600 }}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            disabled={!selectedFile || isResubmitting}
+            onClick={handleResubmit}
+            sx={{ bgcolor: '#2563EB', color: '#fff', borderRadius: 2, px: 3, fontWeight: 700, textTransform: 'none', '&:hover': { bgcolor: '#1D4ED8' } }}
+          >
+            {isResubmitting ? <CircularProgress size={20} color="inherit" /> : 'Upload & Submit'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
     </Box>
   );

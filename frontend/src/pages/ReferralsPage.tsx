@@ -1,4 +1,26 @@
-import { Box, Typography, Button, Paper, Divider, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip, Modal, TextField, CircularProgress } from '@mui/material';
+import {
+  Box,
+  Typography,
+  Button,
+  Paper,
+  Divider,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Chip,
+  Modal,
+  TextField,
+  CircularProgress,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  FormHelperText,
+  Alert,
+} from '@mui/material';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import GroupOutlinedIcon from '@mui/icons-material/GroupOutlined';
 import ShareIcon from '@mui/icons-material/Share';
@@ -7,7 +29,9 @@ import AccountBalanceWalletOutlinedIcon from '@mui/icons-material/AccountBalance
 import SavingsOutlinedIcon from '@mui/icons-material/SavingsOutlined';
 import PriceCheckOutlinedIcon from '@mui/icons-material/PriceCheckOutlined';
 import MoneyOffCsredOutlinedIcon from '@mui/icons-material/MoneyOffCsredOutlined';
+import VerifiedIcon from '@mui/icons-material/Verified';
 import { useAuth } from '../context/AuthContext';
+import { Navigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useState, useEffect } from 'react';
 import axiosInstance from '../api/axiosInstance';
@@ -15,12 +39,24 @@ import axiosInstance from '../api/axiosInstance';
 export default function ReferralsPage() {
   const { user } = useAuth();
   
+  if (user && user.role !== 'admin') {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [withdrawModalOpen, setWithdrawModalOpen] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('');
   const [withdrawing, setWithdrawing] = useState(false);
+
+  // Bank & Account Details
+  const [banks, setBanks] = useState<any[]>([]);
+  const [selectedBankCode, setSelectedBankCode] = useState<string>('');
+  const [selectedBankName, setSelectedBankName] = useState<string>('');
+  const [accountNumber, setAccountNumber] = useState<string>('');
+  const [resolvedAccountName, setResolvedAccountName] = useState<string>('');
+  const [verifyingAccount, setVerifyingAccount] = useState<boolean>(false);
+  const [accountError, setAccountError] = useState<string>('');
 
   const fetchReferrals = () => {
     setLoading(true);
@@ -36,7 +72,70 @@ export default function ReferralsPage() {
   useEffect(() => {
     fetchReferrals();
   }, []);
-  
+
+  // Fetch banks when withdrawal modal is opened
+  useEffect(() => {
+    if (withdrawModalOpen && banks.length === 0) {
+      axiosInstance.get('/withdrawals/banks')
+        .then(res => {
+          if (res.data?.data && Array.isArray(res.data.data)) {
+            setBanks(res.data.data);
+          }
+        })
+        .catch(err => {
+          console.error('Failed to fetch banks:', err);
+        });
+    }
+  }, [withdrawModalOpen, banks.length]);
+
+  // Pre-fill saved bank details when withdrawal modal opens
+  useEffect(() => {
+    if (withdrawModalOpen && data?.bankDetails) {
+      if (data.bankDetails.bank_code && !selectedBankCode) {
+        setSelectedBankCode(data.bankDetails.bank_code);
+      }
+      if (data.bankDetails.bank_name && !selectedBankName) {
+        setSelectedBankName(data.bankDetails.bank_name);
+      }
+      if (data.bankDetails.account_number && !accountNumber) {
+        setAccountNumber(data.bankDetails.account_number);
+      }
+      if (data.bankDetails.account_name && !resolvedAccountName) {
+        setResolvedAccountName(data.bankDetails.account_name);
+      }
+    }
+  }, [withdrawModalOpen, data?.bankDetails]);
+
+  // Automatically resolve bank account name when 10-digit account number and bank code are set
+  useEffect(() => {
+    if (accountNumber.length === 10 && selectedBankCode) {
+      setVerifyingAccount(true);
+      setAccountError('');
+      setResolvedAccountName('');
+
+      axiosInstance.post('/withdrawals/verify-account', {
+        account_number: accountNumber,
+        bank_code: selectedBankCode,
+      })
+        .then(res => {
+          if (res.data?.data?.account_name) {
+            setResolvedAccountName(res.data.data.account_name);
+            setAccountError('');
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          const msg = err.response?.data?.message || 'Could not verify account. Please check account number.';
+          setAccountError(msg);
+          setResolvedAccountName('');
+        })
+        .finally(() => setVerifyingAccount(false));
+    } else {
+      setResolvedAccountName('');
+      setAccountError('');
+    }
+  }, [accountNumber, selectedBankCode]);
+
   const referralLink = `https://onlok.net/register?ref=${user?.vendor_id ?? user?.id}`;
 
   const copyToClipboard = () => {
@@ -71,16 +170,24 @@ export default function ReferralsPage() {
       return;
     }
 
+    if (!selectedBankCode || !accountNumber) {
+      toast.error('Please select a bank and enter a valid account number');
+      return;
+    }
+
     try {
       setWithdrawing(true);
       await axiosInstance.post('/withdrawals/request', {
         amount: Number(withdrawAmount),
-        payment_method: paymentMethod
+        bank_code: selectedBankCode,
+        bank_name: selectedBankName,
+        account_number: accountNumber,
+        account_name: resolvedAccountName,
+        payment_method: 'Bank Transfer'
       });
       toast.success('Withdrawal request submitted successfully');
       setWithdrawModalOpen(false);
       setWithdrawAmount('');
-      setPaymentMethod('');
       fetchReferrals();
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to submit withdrawal request');
@@ -119,9 +226,9 @@ export default function ReferralsPage() {
           </Box>
           <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
             <Button 
-              onClick={copyToClipboard}
+              onClick={copyToClipboard} 
               variant="outlined" 
-              startIcon={<ContentCopyIcon sx={{ fontSize: 18 }} />} 
+              startIcon={<ContentCopyIcon sx={{ fontSize: 18 }} />}
               sx={{ borderColor: '#3B82F6', color: '#3B82F6', borderRadius: 2, textTransform: 'none', fontWeight: 600, px: 3, py: 1, bgcolor: '#fff', '&:hover': { bgcolor: '#F8FAFC' } }}
             >
               Copy Link
@@ -129,7 +236,7 @@ export default function ReferralsPage() {
             <Button 
               variant="contained" 
               onClick={handleShare}
-              startIcon={<ShareIcon />} 
+              startIcon={<ShareIcon />}
               sx={{ bgcolor: '#1A1FE8', color: '#fff', borderRadius: 2, textTransform: 'none', fontWeight: 600, px: 3, py: 1, boxShadow: 'none', '&:hover': { bgcolor: '#0F14B0' } }}
             >
               Share Referral Link
@@ -138,7 +245,7 @@ export default function ReferralsPage() {
         </Box>
       </Box>
 
-      {/* Stats Cards */}
+      {/* Stat Grid */}
       <Box sx={{ display: 'flex', gap: 2, mb: 5, flexWrap: 'wrap' }}>
         <StatCard title="Total Referrals" value={data?.stats?.totalReferrals ?? 0} icon={<GroupOutlinedIcon sx={{ color: '#3B82F6' }} />} />
         <StatCard title="Successful Referrals" value={data?.stats?.successfulReferrals ?? 0} icon={<CheckCircleOutlineIcon sx={{ color: '#22C55E' }} />} />
@@ -255,11 +362,11 @@ export default function ReferralsPage() {
 
       {/* Withdrawal Modal */}
       <Modal open={withdrawModalOpen} onClose={() => !withdrawing && setWithdrawModalOpen(false)}>
-        <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: { xs: '90%', sm: 400 }, bgcolor: 'background.paper', borderRadius: 3, boxShadow: 24, p: 4 }}>
+        <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: { xs: '90%', sm: 440 }, bgcolor: 'background.paper', borderRadius: 3, boxShadow: 24, p: 4 }}>
           <Typography sx={{ fontWeight: 700, fontSize: '1.2rem', mb: 2 }}>Request Withdrawal</Typography>
           <Divider sx={{ mb: 3 }} />
           <form onSubmit={handleWithdrawSubmit}>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
               <TextField 
                 label="Amount (₦)" 
                 variant="outlined" 
@@ -271,19 +378,65 @@ export default function ReferralsPage() {
                 helperText={`Minimum: ₦5,000 | Available: ${formatCurrency(data?.stats?.currentWalletBalance ?? 0)}`}
                 InputProps={{ inputProps: { min: 5000, max: data?.stats?.currentWalletBalance ?? 0 } }}
               />
+
+              <FormControl fullWidth required>
+                <InputLabel id="bank-select-label">Select Destination Bank</InputLabel>
+                <Select
+                  labelId="bank-select-label"
+                  label="Select Destination Bank"
+                  value={selectedBankCode}
+                  onChange={(e) => {
+                    const bCode = e.target.value;
+                    setSelectedBankCode(bCode);
+                    const bObj = banks.find((b) => b.code === bCode);
+                    if (bObj) {
+                      setSelectedBankName(bObj.name);
+                    }
+                  }}
+                >
+                  {banks.map((b: any) => (
+                    <MenuItem key={b.code} value={b.code}>
+                      {b.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
               <TextField 
-                label="Payment Method Details (Bank, Acct No)" 
+                label="10-Digit Account Number" 
                 variant="outlined" 
                 fullWidth 
-                multiline
-                rows={2}
                 required
-                value={paymentMethod}
-                onChange={(e) => setPaymentMethod(e.target.value)}
+                value={accountNumber}
+                onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                InputProps={{ inputProps: { maxLength: 10 } }}
               />
+
+              {verifyingAccount && (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <CircularProgress size={18} sx={{ color: '#1A1FE8' }} />
+                  <Typography sx={{ fontSize: '0.85rem', color: '#64748B' }}>
+                    Verifying account details with Paystack...
+                  </Typography>
+                </Box>
+              )}
+
+              {resolvedAccountName && (
+                <Alert severity="success" icon={<VerifiedIcon fontSize="inherit" />} sx={{ borderRadius: 2 }}>
+                  <Typography sx={{ fontWeight: 700, fontSize: '0.88rem' }}>{resolvedAccountName}</Typography>
+                  <Typography sx={{ fontSize: '0.78rem' }}>Account Name Verified</Typography>
+                </Alert>
+              )}
+
+              {accountError && (
+                <Alert severity="error" sx={{ borderRadius: 2 }}>
+                  {accountError}
+                </Alert>
+              )}
+
               <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', mt: 1 }}>
                 <Button variant="outlined" onClick={() => setWithdrawModalOpen(false)} disabled={withdrawing}>Cancel</Button>
-                <Button variant="contained" type="submit" disabled={withdrawing} sx={{ bgcolor: '#1A1FE8' }}>
+                <Button variant="contained" type="submit" disabled={withdrawing || (accountNumber.length === 10 && !resolvedAccountName && verifyingAccount)} sx={{ bgcolor: '#1A1FE8' }}>
                   {withdrawing ? 'Processing...' : 'Submit Request'}
                 </Button>
               </Box>
@@ -307,7 +460,7 @@ const StatCard = ({ title, value, icon }: any) => (
 const StatusChip = ({ status, size = "medium" }: { status: string, size?: "small" | "medium" }) => {
   let color: "warning" | "success" | "info" | "error" | "default" = "default";
   
-  switch(status.toLowerCase()) {
+  switch((status || '').toLowerCase()) {
     case 'pending':
     case 'processing':
       color = 'warning';

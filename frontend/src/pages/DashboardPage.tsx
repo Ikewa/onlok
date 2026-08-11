@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   Box, Typography, Button, Paper, Avatar, Divider, Chip,
-  Container, Alert, Collapse, useTheme, useMediaQuery, IconButton
+  Container, Alert, Collapse, useTheme, useMediaQuery, IconButton, Stack, CircularProgress
 } from '@mui/material';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import VerifiedIcon from '@mui/icons-material/Verified';
@@ -9,9 +9,13 @@ import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
 import ShareIcon from '@mui/icons-material/Share';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import WhatsAppIcon from '@mui/icons-material/WhatsApp';
 import InstagramIcon from '@mui/icons-material/Instagram';
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
+import TwitterIcon from '@mui/icons-material/Twitter';
+import FacebookIcon from '@mui/icons-material/Facebook';
+import StarIcon from '@mui/icons-material/Star';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
 import { useNavigate, Navigate, Link as RouterLink } from 'react-router-dom';
@@ -20,17 +24,79 @@ import { getDashboard } from '../api/dashboard';
 import { initializePayment } from '../api/payment';
 import type { DashboardData } from '../types';
 import toast from 'react-hot-toast';
-import { OnlokBadge } from '../components/OnlokBadge';
+import { OnlokBadge, resolveVendorBadgeTier } from '../components/OnlokBadge';
 import { QRCode } from 'react-qr-code';
 
+const getSocialUrl = (platform: 'twitter' | 'instagram' | 'facebook' | 'tiktok' | 'whatsapp', val?: string | null) => {
+  if (!val || !val.trim()) return null;
+  const cleanVal = val.trim();
+  if (cleanVal.startsWith('http')) return cleanVal;
+
+  switch (platform) {
+    case 'whatsapp': {
+      const cleanPhone = cleanVal.replace(/\D/g, '');
+      return cleanPhone ? `https://wa.me/${cleanPhone}` : null;
+    }
+    case 'twitter': {
+      const handle = cleanVal.replace(/^@/, '');
+      return `https://x.com/${handle}`;
+    }
+    case 'instagram': {
+      const handle = cleanVal.replace(/^@/, '');
+      return `https://instagram.com/${handle}`;
+    }
+    case 'facebook': {
+      return `https://facebook.com/${cleanVal}`;
+    }
+    case 'tiktok': {
+      const handle = cleanVal.replace(/^@/, '');
+      return `https://tiktok.com/@${handle}`;
+    }
+    default:
+      return cleanVal;
+  }
+};
+
 export default function DashboardPage() {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const navigate = useNavigate();
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [isPaying, setIsPaying] = useState(false);
-  const [locationStr, setLocationStr] = useState('Fetching location...');
+
+  useEffect(() => {
+    getDashboard()
+      .then((res) => {
+        setData(res);
+        if (res.user && res.user.status && res.user.status !== user?.status) {
+          updateUser({ status: res.user.status });
+        }
+        setLoading(false);
+      })
+      .catch(() => {
+        setError('Failed to load dashboard. Please refresh.');
+        setLoading(false);
+      });
+  }, []);
+
+  if (user && user.status !== 'verified') {
+    return <Navigate to="/dashboard/verification" replace />;
+  }
+
+  if (data && data.verification && data.verification.status !== 'approved') {
+    return <Navigate to="/dashboard/verification" replace />;
+  }
+
+  const getCountryFromVendorId = (vendorId?: string | null) => {
+    if (!vendorId) return null;
+    const match = vendorId.match(/^OL-([A-Z]{2})-/i);
+    if (!match) return null;
+    const map: Record<string, string> = {
+      NG: 'Nigeria', GH: 'Ghana', KE: 'Kenya', ZA: 'South Africa', US: 'USA', GB: 'UK'
+    };
+    return map[match[1].toUpperCase()] || null;
+  };
 
   const handlePay = async () => {
     if (!data?.verification || !user) return;
@@ -74,18 +140,6 @@ export default function DashboardPage() {
         setError('Failed to load dashboard. Please refresh.');
         setLoading(false);
       });
-
-    // Fetch current location
-    fetch('https://ipapi.co/json/')
-      .then(res => res.json())
-      .then(data => {
-        if (data.city && data.country_name) {
-          setLocationStr(`${data.city}, ${data.country_name}`);
-        } else {
-          setLocationStr('Unknown Location');
-        }
-      })
-      .catch(() => setLocationStr('Location Unavailable'));
   }, []);
 
   const copyToClipboard = (text: string) => {
@@ -115,6 +169,13 @@ export default function DashboardPage() {
   const vendorId = dashUser?.vendor_id ?? 'ONL-7829-KX';
   const profileLink = `https://onlok.net/profile?id=${vendorId}`;
 
+  const badgeTier = resolveVendorBadgeTier({
+    badges: data?.badges,
+    assigned_tier: data?.verification?.assigned_tier,
+    badge_type: (dashUser as any)?.badge_type,
+    status: dashUser?.status,
+  });
+
   const cardStyle = { p: 2.5, borderRadius: 3, border: '1px solid #E2E8F0', boxShadow: 'none', bgcolor: '#F8FAFC', mb: 2.5 };
 
   return (
@@ -128,6 +189,59 @@ export default function DashboardPage() {
           <ArrowBackIosNewIcon sx={{ fontSize: 16, color: '#0F172A', fontWeight: 900 }} />
           <Typography sx={{ fontWeight: 800, fontSize: '0.9rem', color: '#0F172A' }}>Back To Search</Typography>
         </Box>
+
+        {/* Admin Information Requested Alert Card */}
+        {data?.verification?.admin_notes && (data?.verification?.status === 'pending' || user?.status === 'pending') && (
+          <Paper
+            elevation={0}
+            sx={{
+              p: 3,
+              mb: 4,
+              borderRadius: 3,
+              bgcolor: '#FEFCE8',
+              border: '1px solid #FDE047',
+              boxShadow: '0 4px 20px rgba(234, 179, 8, 0.1)',
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
+              <Box sx={{ width: 44, height: 44, borderRadius: '50%', bgcolor: '#FEF08A', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <InfoOutlinedIcon sx={{ color: '#CA8A04', fontSize: 24 }} />
+              </Box>
+              <Box sx={{ flexGrow: 1 }}>
+                <Typography sx={{ fontWeight: 800, fontSize: '1.1rem', color: '#854D0E', mb: 0.5 }}>
+                  Action Required: Information Requested by Admin
+                </Typography>
+                <Typography sx={{ fontSize: '0.88rem', color: '#A16207', mb: 2 }}>
+                  An admin reviewed your submission and requested additional details before approving your account.
+                </Typography>
+                <Box sx={{ bgcolor: '#FEF9C3', p: 2, borderRadius: 2, border: '1px solid #FDE047', mb: 2.5 }}>
+                  <Typography sx={{ fontWeight: 700, color: '#854D0E', fontSize: '0.82rem', mb: 0.5 }}>
+                    ADMIN MESSAGE:
+                  </Typography>
+                  <Typography sx={{ color: '#A16207', fontSize: '0.92rem', fontWeight: 600 }}>
+                    {data.verification.admin_notes}
+                  </Typography>
+                </Box>
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                  <Button
+                    variant="contained"
+                    onClick={() => navigate('/dashboard/verification')}
+                    sx={{ bgcolor: '#CA8A04', color: '#fff', fontWeight: 700, textTransform: 'none', borderRadius: 2, '&:hover': { bgcolor: '#A16207' } }}
+                  >
+                    Resubmit Requested Documents
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    onClick={() => navigate('/dashboard/update/bio')}
+                    sx={{ borderColor: '#CA8A04', color: '#854D0E', fontWeight: 700, textTransform: 'none', borderRadius: 2, '&:hover': { borderColor: '#A16207', bgcolor: '#FEF08A' } }}
+                  >
+                    Update Profile Details
+                  </Button>
+                </Stack>
+              </Box>
+            </Box>
+          </Paper>
+        )}
 
         {/* Tier Assignment Notification */}
         {data?.verification?.status === 'tier_assigned' && (
@@ -186,7 +300,7 @@ export default function DashboardPage() {
             <Paper sx={{ ...cardStyle, bgcolor: '#F4F7FB' }}>
               <Box sx={{ display: 'flex', flexDirection: 'row', gap: 2, mb: 3 }}>
                 <Box sx={{ width: '40%', display: 'flex', justifyContent: 'center', pt: 1 }}>
-                  <OnlokBadge tier="gold" size={130} vendorId={vendorId} tooltip={false} />
+                  <OnlokBadge tier={badgeTier} size={130} vendorId={vendorId} businessName={dashUser?.business_name} tooltip={false} />
                 </Box>
                 <Box sx={{ width: '60%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
@@ -205,7 +319,7 @@ export default function DashboardPage() {
                 </Box>
               </Box>
               <Box sx={{ display: 'flex', gap: 2 }}>
-                <Button variant="contained" fullWidth sx={{ borderRadius: '24px', textTransform: 'none', bgcolor: '#1A1FE8', py: 1, boxShadow: 'none' }}>
+                <Button variant="contained" fullWidth onClick={() => navigate('/dashboard/badge')} sx={{ borderRadius: '24px', textTransform: 'none', bgcolor: '#1A1FE8', py: 1, boxShadow: 'none' }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <FileDownloadOutlinedIcon sx={{ fontSize: 20 }} />
                     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1.2 }}>
@@ -214,7 +328,7 @@ export default function DashboardPage() {
                     </Box>
                   </Box>
                 </Button>
-                <Button variant="outlined" fullWidth sx={{ borderRadius: '24px', textTransform: 'none', fontWeight: 800, fontSize: '1rem', color: '#0F172A', borderColor: '#CBD5E1', py: 1, bgcolor: '#FFFFFF' }}>
+                <Button variant="outlined" fullWidth onClick={() => navigate('/dashboard/badge')} sx={{ borderRadius: '24px', textTransform: 'none', fontWeight: 800, fontSize: '1rem', color: '#0F172A', borderColor: '#CBD5E1', py: 1, bgcolor: '#FFFFFF' }}>
                   View Badge
                 </Button>
               </Box>
@@ -224,68 +338,199 @@ export default function DashboardPage() {
             <Paper sx={{ ...cardStyle }}>
               <Typography sx={{ fontWeight: 800, fontSize: '1.1rem', color: '#475569', mb: 0.5 }}>Contact And Order</Typography>
               <Typography sx={{ fontSize: '0.75rem', color: '#64748B', mb: 3, lineHeight: 1.4 }}>
-                Reach Out To Us On Our Verified Channels To Place Order And Make Enquiey
+                Reach Out To Us On Our Verified Channels To Place Order And Make Enquiry
               </Typography>
               <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
                 <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                    <Box sx={{ 
-                      width: 50, height: 50, borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      background: 'linear-gradient(135deg, #e6f5eb 0%, #c1ebd0 100%)',
-                      boxShadow: '4px 4px 10px rgba(0,0,0,0.1), -4px -4px 10px rgba(255,255,255,0.8), inset 2px 2px 5px rgba(255,255,255,0.5), inset -2px -2px 5px rgba(0,0,0,0.05)',
-                      transform: 'perspective(500px) rotateX(5deg) rotateY(-5deg)'
-                    }}>
-                      <WhatsAppIcon sx={{ color: '#25D366', fontSize: 32, filter: 'drop-shadow(2px 2px 2px rgba(37,211,102,0.4))' }} />
-                    </Box>
-                    <Box>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                        <Typography sx={{ fontWeight: 800, fontSize: '1rem', color: '#0F172A' }}>WhatsApp</Typography>
-                        <VerifiedIcon sx={{ color: '#84CC16', fontSize: 16 }} />
+                  
+                  {/* WhatsApp */}
+                  {(() => {
+                    const waUrl = getSocialUrl('whatsapp', dashUser?.phone_number);
+                    return (
+                      <Box
+                        component={waUrl ? 'a' : 'div'}
+                        href={waUrl || undefined}
+                        target={waUrl ? '_blank' : undefined}
+                        rel={waUrl ? 'noopener noreferrer' : undefined}
+                        sx={{
+                          display: 'flex', alignItems: 'center', gap: 1.5, textDecoration: 'none',
+                          opacity: waUrl ? 1 : 0.5, cursor: waUrl ? 'pointer' : 'default',
+                          '&:hover': waUrl ? { opacity: 0.85 } : {}
+                        }}
+                      >
+                        <Box sx={{ 
+                          width: 46, height: 46, borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                          background: 'linear-gradient(135deg, #e6f5eb 0%, #c1ebd0 100%)',
+                          boxShadow: '4px 4px 10px rgba(0,0,0,0.1), -4px -4px 10px rgba(255,255,255,0.8)'
+                        }}>
+                          <WhatsAppIcon sx={{ color: '#25D366', fontSize: 28 }} />
+                        </Box>
+                        <Box sx={{ minWidth: 0 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                            <Typography sx={{ fontWeight: 800, fontSize: '0.95rem', color: '#0F172A' }}>WhatsApp</Typography>
+                            {waUrl && <VerifiedIcon sx={{ color: '#84CC16', fontSize: 16 }} />}
+                          </Box>
+                          <Typography sx={{ fontSize: '0.75rem', color: '#64748B' }} noWrap>
+                            {dashUser?.phone_number || 'Not provided — Chat To Order'}
+                          </Typography>
+                        </Box>
                       </Box>
-                      <Typography sx={{ fontSize: '0.75rem', color: '#64748B' }}>Chat To Order</Typography>
-                    </Box>
-                  </Box>
+                    );
+                  })()}
+
                   <Divider sx={{ borderColor: '#E2E8F0' }} />
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                    <Box sx={{ 
-                      width: 50, height: 50, borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      background: 'linear-gradient(135deg, #fce4ec 0%, #f8bbd0 100%)',
-                      boxShadow: '4px 4px 10px rgba(0,0,0,0.1), -4px -4px 10px rgba(255,255,255,0.8), inset 2px 2px 5px rgba(255,255,255,0.5), inset -2px -2px 5px rgba(0,0,0,0.05)',
-                      transform: 'perspective(500px) rotateX(5deg) rotateY(-5deg)'
-                    }}>
-                      <InstagramIcon sx={{ color: '#E1306C', fontSize: 32, filter: 'drop-shadow(2px 2px 2px rgba(225,48,108,0.4))' }} />
-                    </Box>
-                    <Box>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                        <Typography sx={{ fontWeight: 800, fontSize: '1rem', color: '#0F172A' }}>Instagram</Typography>
-                        <VerifiedIcon sx={{ color: '#84CC16', fontSize: 16 }} />
+
+                  {/* Instagram */}
+                  {(() => {
+                    const igUrl = getSocialUrl('instagram', dashUser?.instagram_handle);
+                    return (
+                      <Box
+                        component={igUrl ? 'a' : 'div'}
+                        href={igUrl || undefined}
+                        target={igUrl ? '_blank' : undefined}
+                        rel={igUrl ? 'noopener noreferrer' : undefined}
+                        sx={{
+                          display: 'flex', alignItems: 'center', gap: 1.5, textDecoration: 'none',
+                          opacity: igUrl ? 1 : 0.5, cursor: igUrl ? 'pointer' : 'default',
+                          '&:hover': igUrl ? { opacity: 0.85 } : {}
+                        }}
+                      >
+                        <Box sx={{ 
+                          width: 46, height: 46, borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                          background: 'linear-gradient(135deg, #fce4ec 0%, #f8bbd0 100%)',
+                          boxShadow: '4px 4px 10px rgba(0,0,0,0.1), -4px -4px 10px rgba(255,255,255,0.8)'
+                        }}>
+                          <InstagramIcon sx={{ color: '#E1306C', fontSize: 28 }} />
+                        </Box>
+                        <Box sx={{ minWidth: 0 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                            <Typography sx={{ fontWeight: 800, fontSize: '0.95rem', color: '#0F172A' }}>Instagram</Typography>
+                            {igUrl && <VerifiedIcon sx={{ color: '#84CC16', fontSize: 16 }} />}
+                          </Box>
+                          <Typography sx={{ fontSize: '0.75rem', color: '#64748B' }} noWrap>
+                            {dashUser?.instagram_handle ? `@${dashUser.instagram_handle.replace(/^@/, '')}` : 'Not set — View And DM Us'}
+                          </Typography>
+                        </Box>
                       </Box>
-                      <Typography sx={{ fontSize: '0.75rem', color: '#64748B' }}>View And DM Us</Typography>
-                    </Box>
-                  </Box>
+                    );
+                  })()}
+
                   <Divider sx={{ borderColor: '#E2E8F0' }} />
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                    <Box sx={{ 
-                      width: 50, height: 50, borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      background: 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)',
-                      boxShadow: '4px 4px 10px rgba(0,0,0,0.1), -4px -4px 10px rgba(255,255,255,0.8), inset 2px 2px 5px rgba(255,255,255,0.5), inset -2px -2px 5px rgba(0,0,0,0.05)',
-                      transform: 'perspective(500px) rotateX(5deg) rotateY(-5deg)'
-                    }}>
-                      <MusicNoteIcon sx={{ color: '#000', fontSize: 32, filter: 'drop-shadow(2px 2px 2px rgba(0,0,0,0.4))' }} />
-                    </Box>
-                    <Box>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                        <Typography sx={{ fontWeight: 800, fontSize: '1rem', color: '#0F172A' }}>TikTok</Typography>
-                        <VerifiedIcon sx={{ color: '#84CC16', fontSize: 16 }} />
+
+                  {/* TikTok */}
+                  {(() => {
+                    const ttUrl = getSocialUrl('tiktok', dashUser?.tiktok_handle);
+                    return (
+                      <Box
+                        component={ttUrl ? 'a' : 'div'}
+                        href={ttUrl || undefined}
+                        target={ttUrl ? '_blank' : undefined}
+                        rel={ttUrl ? 'noopener noreferrer' : undefined}
+                        sx={{
+                          display: 'flex', alignItems: 'center', gap: 1.5, textDecoration: 'none',
+                          opacity: ttUrl ? 1 : 0.5, cursor: ttUrl ? 'pointer' : 'default',
+                          '&:hover': ttUrl ? { opacity: 0.85 } : {}
+                        }}
+                      >
+                        <Box sx={{ 
+                          width: 46, height: 46, borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                          background: 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)',
+                          boxShadow: '4px 4px 10px rgba(0,0,0,0.1), -4px -4px 10px rgba(255,255,255,0.8)'
+                        }}>
+                          <MusicNoteIcon sx={{ color: '#000', fontSize: 28 }} />
+                        </Box>
+                        <Box sx={{ minWidth: 0 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                            <Typography sx={{ fontWeight: 800, fontSize: '0.95rem', color: '#0F172A' }}>TikTok</Typography>
+                            {ttUrl && <VerifiedIcon sx={{ color: '#84CC16', fontSize: 16 }} />}
+                          </Box>
+                          <Typography sx={{ fontSize: '0.75rem', color: '#64748B' }} noWrap>
+                            {dashUser?.tiktok_handle ? `@${dashUser.tiktok_handle.replace(/^@/, '')}` : 'Not set — See Our Latest'}
+                          </Typography>
+                        </Box>
                       </Box>
-                      <Typography sx={{ fontSize: '0.75rem', color: '#64748B' }}>See Our Latest And DM</Typography>
-                    </Box>
-                  </Box>
+                    );
+                  })()}
+
+                  <Divider sx={{ borderColor: '#E2E8F0' }} />
+
+                  {/* Twitter / X */}
+                  {(() => {
+                    const twUrl = getSocialUrl('twitter', dashUser?.twitter_handle);
+                    return (
+                      <Box
+                        component={twUrl ? 'a' : 'div'}
+                        href={twUrl || undefined}
+                        target={twUrl ? '_blank' : undefined}
+                        rel={twUrl ? 'noopener noreferrer' : undefined}
+                        sx={{
+                          display: 'flex', alignItems: 'center', gap: 1.5, textDecoration: 'none',
+                          opacity: twUrl ? 1 : 0.5, cursor: twUrl ? 'pointer' : 'default',
+                          '&:hover': twUrl ? { opacity: 0.85 } : {}
+                        }}
+                      >
+                        <Box sx={{ 
+                          width: 46, height: 46, borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                          background: 'linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%)',
+                          boxShadow: '4px 4px 10px rgba(0,0,0,0.1), -4px -4px 10px rgba(255,255,255,0.8)'
+                        }}>
+                          <TwitterIcon sx={{ color: '#1DA1F2', fontSize: 28 }} />
+                        </Box>
+                        <Box sx={{ minWidth: 0 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                            <Typography sx={{ fontWeight: 800, fontSize: '0.95rem', color: '#0F172A' }}>Twitter / X</Typography>
+                            {twUrl && <VerifiedIcon sx={{ color: '#84CC16', fontSize: 16 }} />}
+                          </Box>
+                          <Typography sx={{ fontSize: '0.75rem', color: '#64748B' }} noWrap>
+                            {dashUser?.twitter_handle ? `@${dashUser.twitter_handle.replace(/^@/, '')}` : 'Not set — Follow And DM Us'}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    );
+                  })()}
+
+                  <Divider sx={{ borderColor: '#E2E8F0' }} />
+
+                  {/* Facebook */}
+                  {(() => {
+                    const fbUrl = getSocialUrl('facebook', dashUser?.facebook_handle);
+                    return (
+                      <Box
+                        component={fbUrl ? 'a' : 'div'}
+                        href={fbUrl || undefined}
+                        target={fbUrl ? '_blank' : undefined}
+                        rel={fbUrl ? 'noopener noreferrer' : undefined}
+                        sx={{
+                          display: 'flex', alignItems: 'center', gap: 1.5, textDecoration: 'none',
+                          opacity: fbUrl ? 1 : 0.5, cursor: fbUrl ? 'pointer' : 'default',
+                          '&:hover': fbUrl ? { opacity: 0.85 } : {}
+                        }}
+                      >
+                        <Box sx={{ 
+                          width: 46, height: 46, borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                          background: 'linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)',
+                          boxShadow: '4px 4px 10px rgba(0,0,0,0.1), -4px -4px 10px rgba(255,255,255,0.8)'
+                        }}>
+                          <FacebookIcon sx={{ color: '#1877F2', fontSize: 28 }} />
+                        </Box>
+                        <Box sx={{ minWidth: 0 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                            <Typography sx={{ fontWeight: 800, fontSize: '0.95rem', color: '#0F172A' }}>Facebook</Typography>
+                            {fbUrl && <VerifiedIcon sx={{ color: '#84CC16', fontSize: 16 }} />}
+                          </Box>
+                          <Typography sx={{ fontSize: '0.75rem', color: '#64748B' }} noWrap>
+                            {dashUser?.facebook_handle || 'Not set — Connect With Us'}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    );
+                  })()}
+
                 </Box>
-                <Box sx={{ width: 140, bgcolor: '#F8FAFC', borderRadius: 3, p: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', border: '1px solid #E2E8F0' }}>
-                  <WhatsAppIcon sx={{ color: '#25D366', fontSize: 32, mb: 1 }} />
-                  <Typography sx={{ fontSize: '0.65rem', color: '#64748B', textAlign: 'center', lineHeight: 1.2, mb: 1 }}>Typically Responds In</Typography>
-                  <Typography sx={{ fontWeight: 900, fontSize: '1rem', color: '#1A1FE8' }}>{'< 10 Mins'}</Typography>
+                <Box sx={{ width: 140, bgcolor: '#F8FAFC', borderRadius: 3, p: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: '1px solid #E2E8F0' }}>
+                  <StarIcon sx={{ color: '#F59E0B', fontSize: 32, mb: 0.5 }} />
+                  <Typography sx={{ fontSize: '0.75rem', color: '#64748B', textAlign: 'center', fontWeight: 600, mb: 0.5 }}>Reviews</Typography>
+                  <Typography sx={{ fontWeight: 800, fontSize: '0.85rem', color: '#1A1FE8', textAlign: 'center', lineHeight: 1.2 }}>Coming Soon</Typography>
                 </Box>
               </Box>
             </Paper>
@@ -394,8 +639,8 @@ export default function DashboardPage() {
                   {[
                     { label: 'Business Name', value: dashUser?.business_name ?? 'N/A' },
                     { label: 'Business Mail', value: dashUser?.email ?? 'N/A' },
-                    { label: 'Business Phone Number', value: dashUser?.phone_number ?? '+234 800 000 0000' },
-                    { label: 'Business Address', value: locationStr },
+                    { label: 'Business Phone Number', value: dashUser?.phone_number || 'Not Provided' },
+                    { label: 'Business Address', value: dashUser?.business_address || dashUser?.country || getCountryFromVendorId(dashUser?.vendor_id) || 'Not Provided' },
                   ].map((item, i) => (
                     <Box key={i} sx={{ mb: i === 3 ? 0 : 2.5 }}>
                       <Typography sx={{ fontSize: '0.75rem', color: '#64748B', mb: 0.3 }}>{item.label}</Typography>

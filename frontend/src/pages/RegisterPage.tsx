@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import {
   Box, Container, Typography, TextField, Button, CircularProgress, Paper, MenuItem, Select, FormControl, Stack, Chip, IconButton, InputAdornment, Switch, FormControlLabel
 } from '@mui/material';
@@ -28,6 +28,7 @@ interface FormData {
   phone_number: string;
   country_code: string;
   business_name: string;
+  business_address: string;
   twitter_handle: string;
   instagram_handle: string;
   facebook_handle: string;
@@ -44,7 +45,7 @@ interface FormData {
 
 const initialData: FormData = {
   first_name: '', last_name: '', email: '', phone_number: '',
-  country_code: 'NG', business_name: '',
+  country_code: 'NG', business_name: '', business_address: '',
   twitter_handle: '', instagram_handle: '', facebook_handle: '', tiktok_handle: '',
   password: '', confirm_password: '',
   gov_id_file: null, business_video_file: null, cac_file: null,
@@ -127,6 +128,7 @@ export default function RegisterPage() {
             first_name: form.first_name,
             last_name: form.last_name,
             business_name: form.business_name,
+            business_address: form.business_address,
             email: form.email,
             password: form.password,
             phone_number: form.phone_number,
@@ -149,12 +151,10 @@ export default function RegisterPage() {
         let msg = err?.response?.data?.message;
         
         // Handle NGINX / server limits (e.g. 413 Payload Too Large)
-        if (err?.message) {
-          msg = err.message;
-        } else if (err?.response?.status === 413) {
+        if (err?.response?.status === 413) {
           msg = 'Your video file is too large. Please upload a smaller video (max 100MB).';
         } else if (!msg) {
-          msg = 'Registration failed or file is too large. Please check your connection and try again.';
+          msg = err?.message || 'Registration failed or file is too large. Please check your connection and try again.';
         }
         
         toast.error(msg);
@@ -295,7 +295,10 @@ export default function RegisterPage() {
       <Typography variant="body2" color="#64748B" mb={4}>Tell us about what you do so we can display it on your public profile.</Typography>
       
       <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} display="block">Business Name or Professional Role</Typography>
-      <TextField fullWidth value={form.business_name} onChange={(e) => set('business_name', e.target.value)} placeholder="e.g., Chen Design Studio OR UX Designer" sx={{ mb: 4 }} InputProps={{ sx: { borderRadius: 2 } }} />
+      <TextField fullWidth value={form.business_name} onChange={(e) => set('business_name', e.target.value)} placeholder="e.g., Chen Design Studio OR UX Designer" sx={{ mb: 3 }} InputProps={{ sx: { borderRadius: 2 } }} />
+      
+      <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} display="block">Business Address / Location</Typography>
+      <TextField fullWidth value={form.business_address} onChange={(e) => set('business_address', e.target.value)} placeholder="e.g., 12 Marina Boulevard, Marina Bay, Singapore" sx={{ mb: 4 }} InputProps={{ sx: { borderRadius: 2 } }} />
       
       <Typography variant="h6" fontWeight={800} color="#0F172A" mb={0.5}>social media presence</Typography>
       <Typography variant="body2" color="#64748B" mb={3}>used to understand your digital footprint abd brand presence</Typography>
@@ -355,8 +358,8 @@ export default function RegisterPage() {
         onChange={(f: File) => set('business_video_file', f)} 
         onRemove={() => set('business_video_file', null)}
         title="2 minute shot video"
-        labels={['Video']}
-        accept=".mp4"
+        labels={['Video (MP4, MOV)']}
+        accept="video/mp4,video/quicktime,video/mov,video/x-m4v,video/*,.mp4,.mov"
         maxSize="100mb"
         icon={<PlayCircleOutlinedIcon />}
       />
@@ -409,6 +412,7 @@ export default function RegisterPage() {
           <Typography variant="caption" fontWeight={700} color="#1A1FE8" sx={{ cursor: 'pointer' }} onClick={() => setActiveStep(1)}>Edit</Typography>
         </Box>
         <GridRow label="Name/Role" value={form.business_name || '-'} />
+        <GridRow label="Address" value={form.business_address || '-'} />
       </Paper>
 
       <Box sx={{ p: 2.5, borderRadius: 3, bgcolor: '#E0F2FE', mb: 4, display: 'flex', alignItems: 'flex-start', gap: 2 }}>
@@ -557,6 +561,8 @@ const FileReviewRow = ({ label, file }: { label: string; file: File | null }) =>
 };
 
 const FileUploadDropzone = ({ file, onChange, onRemove, title, labels, accept, maxSize, icon }: any) => {
+  const inputRef = useRef<HTMLInputElement>(null);
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (!selectedFile) return;
@@ -606,24 +612,38 @@ const FileUploadDropzone = ({ file, onChange, onRemove, title, labels, accept, m
     );
   }
 
+  const isVideoInput = accept.includes('video');
+  const formatLabel = isVideoInput ? 'MP4, MOV, QuickTime' : accept.toUpperCase().replace(/\./g, '');
+
   return (
-    <Box sx={{ position: 'relative', p: 4, borderRadius: 3, border: '1px dashed #CBD5E1', textAlign: 'center', mb: 3, '&:hover': { borderColor: '#94A3B8', bgcolor: '#F8FAFC' } }}>
+    <Box 
+      onClick={() => inputRef.current?.click()}
+      sx={{ 
+        position: 'relative', 
+        p: 4, 
+        borderRadius: 3, 
+        border: '1px dashed #CBD5E1', 
+        textAlign: 'center', 
+        mb: 3, 
+        cursor: 'pointer',
+        '&:hover': { borderColor: '#94A3B8', bgcolor: '#F8FAFC' } 
+      }}
+    >
       <Box sx={{ width: 40, height: 40, borderRadius: '50%', bgcolor: '#F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748B', mx: 'auto', mb: 2 }}>
         <FileUploadOutlinedIcon fontSize="small" />
       </Box>
       <Typography variant="subtitle2" sx={{ fontWeight: 800, color: '#0F172A', mb: 0.5 }}>
-        Click To Upload {icon.type === PlayCircleOutlinedIcon ? 'Video' : 'Document'}
+        Click To Upload {isVideoInput ? 'Video' : 'Document'}
       </Typography>
       <Typography variant="caption" sx={{ color: '#64748B', mb: 2, display: 'block' }}>
-        {accept.toUpperCase().replace(/\./g, '')} (max. {maxSize})
+        {formatLabel} (max. {maxSize})
       </Typography>
       <Stack direction="row" spacing={1} sx={{ justifyContent: 'center' }}>
         {labels.map((l: string) => (
           <Chip key={l} label={l} size="small" variant="outlined" sx={{ borderRadius: 1, color: '#64748B', borderColor: '#E2E8F0' }} />
         ))}
       </Stack>
-      <input type="file" accept={accept} hidden onChange={handleFileChange} style={{ display: 'none' }} id={`upload-${title}`} />
-      <label htmlFor={`upload-${title}`} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, cursor: 'pointer' }} />
+      <input ref={inputRef} type="file" accept={accept} hidden onChange={handleFileChange} style={{ display: 'none' }} id={`upload-${title}`} />
     </Box>
   );
 };

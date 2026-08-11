@@ -1,25 +1,38 @@
-import { Box, Typography, Avatar, Button, IconButton } from '@mui/material';
+import { useState } from 'react';
+import { Box, Typography, Avatar, Button, IconButton, Menu, MenuItem, Divider } from '@mui/material';
 import { Link as RouterLink, Outlet, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import NotificationsNoneIcon from '@mui/icons-material/NotificationsNone';
 import PersonOutlinedIcon from '@mui/icons-material/PersonOutlined';
 import VerifiedUserOutlinedIcon from '@mui/icons-material/VerifiedUserOutlined';
 import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined';
 import CardGiftcardOutlinedIcon from '@mui/icons-material/CardGiftcardOutlined';
+import CreditCardOutlinedIcon from '@mui/icons-material/CreditCardOutlined';
 import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
+import CameraAltIcon from '@mui/icons-material/CameraAlt';
+import EditIcon from '@mui/icons-material/Edit';
+import DashboardIcon from '@mui/icons-material/Dashboard';
 import { useAuth } from '../context/AuthContext';
+import QuickAvatarUploadModal from '../components/QuickAvatarUploadModal';
 
 export default function DashboardLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
+  const [profileMenuAnchor, setProfileMenuAnchor] = useState<null | HTMLElement>(null);
+  const [avatarModalOpen, setAvatarModalOpen] = useState(false);
+
+  const handleProfileMenuOpen = (e: React.MouseEvent<HTMLElement>) => setProfileMenuAnchor(e.currentTarget);
+  const handleProfileMenuClose = () => setProfileMenuAnchor(null);
+
   const handleLogout = () => {
+    handleProfileMenuClose();
     logout();
     navigate('/login');
   };
 
-  const fullName = `${user?.first_name ?? ''} ${user?.last_name ?? ''}`.trim();
-  const initials = `${user?.first_name?.[0] ?? ''}${user?.last_name?.[0] ?? ''}`.toUpperCase();
+  const fullName = `${user?.first_name ?? ''} ${user?.last_name ?? ''}`.trim() || 'Vendor Profile';
+  const initials = `${user?.first_name?.[0] ?? ''}${user?.last_name?.[0] ?? ''}`.toUpperCase() || 'ON';
   const API_BASE = import.meta.env.PROD ? '' : (import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000');
   const avatarSrc = user?.profile_picture_url ? `${API_BASE}${user.profile_picture_url}` : undefined;
 
@@ -80,19 +93,18 @@ export default function DashboardLayout() {
           <IconButton sx={{ color: '#0F172A' }}>
             <NotificationsNoneIcon />
           </IconButton>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, cursor: 'pointer' }} onClick={handleProfileMenuOpen}>
             <Avatar
               src={avatarSrc}
               sx={{
-                width: 36,
-                height: 36,
+                width: 38,
+                height: 38,
                 fontSize: '0.85rem',
                 fontWeight: 800,
                 bgcolor: '#334155',
                 border: '2px solid #E2E8F0',
-                cursor: 'pointer',
-                transition: 'border-color 0.2s',
-                '&:hover': { borderColor: '#1A1FE8' },
+                transition: 'all 0.2s',
+                '&:hover': { borderColor: '#1A1FE8', transform: 'scale(1.05)' },
               }}
             >
               {initials}
@@ -104,6 +116,95 @@ export default function DashboardLayout() {
         </Box>
       </Box>
 
+      {/* Profile Popover Menu */}
+      <Menu
+        open={Boolean(profileMenuAnchor)}
+        anchorEl={profileMenuAnchor}
+        onClose={handleProfileMenuClose}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+        PaperProps={{
+          sx: {
+            width: 280,
+            borderRadius: 3,
+            p: 1.5,
+            boxShadow: '0 10px 30px rgba(0,0,0,0.12)',
+            mt: 1.5
+          }
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, p: 1.5, mb: 1, bgcolor: '#F8FAFC', borderRadius: 2 }}>
+          <Avatar src={avatarSrc} sx={{ width: 44, height: 44, bgcolor: '#1E293B', fontWeight: 800 }}>
+            {initials}
+          </Avatar>
+          <Box sx={{ minWidth: 0, flex: 1 }}>
+            <Typography variant="subtitle2" fontWeight={800} color="#0F172A" noWrap>
+              {fullName}
+            </Typography>
+            <Typography variant="caption" color="#64748B" noWrap display="block">
+              {user?.vendor_id ? `ID: ${user.vendor_id}` : user?.email}
+            </Typography>
+          </Box>
+        </Box>
+
+        <Divider sx={{ my: 1 }} />
+
+        <MenuItem
+          onClick={() => {
+            handleProfileMenuClose();
+            setAvatarModalOpen(true);
+          }}
+          sx={{ py: 1.2, borderRadius: 1.5, gap: 1.5 }}
+        >
+          <CameraAltIcon sx={{ fontSize: 20, color: '#1A1FE8' }} />
+          <Typography variant="body2" fontWeight={700} color="#0F172A">
+            Change Profile Picture
+          </Typography>
+        </MenuItem>
+
+        <MenuItem
+          component={RouterLink}
+          to="/dashboard"
+          onClick={handleProfileMenuClose}
+          sx={{ py: 1.2, borderRadius: 1.5, gap: 1.5 }}
+        >
+          <DashboardIcon sx={{ fontSize: 20, color: '#64748B' }} />
+          <Typography variant="body2" fontWeight={600} color="#0F172A">
+            My Dashboard
+          </Typography>
+        </MenuItem>
+
+        <MenuItem
+          component={RouterLink}
+          to="/dashboard/update/bio"
+          onClick={handleProfileMenuClose}
+          sx={{ py: 1.2, borderRadius: 1.5, gap: 1.5 }}
+        >
+          <EditIcon sx={{ fontSize: 20, color: '#64748B' }} />
+          <Typography variant="body2" fontWeight={600} color="#0F172A">
+            Edit Business Info
+          </Typography>
+        </MenuItem>
+
+        <Divider sx={{ my: 1 }} />
+
+        <MenuItem
+          onClick={handleLogout}
+          sx={{ py: 1.2, borderRadius: 1.5, gap: 1.5, color: '#EF4444' }}
+        >
+          <LogoutOutlinedIcon sx={{ fontSize: 20 }} />
+          <Typography variant="body2" fontWeight={700}>
+            Sign Out
+          </Typography>
+        </MenuItem>
+      </Menu>
+
+      {/* Quick Avatar Modal */}
+      <QuickAvatarUploadModal
+        open={avatarModalOpen}
+        onClose={() => setAvatarModalOpen(false)}
+      />
+
       <Box sx={{ display: 'flex', flex: 1, minWidth: 0 }}>
         {/* Sidebar (Desktop only) */}
         <Box sx={{ 
@@ -114,11 +215,14 @@ export default function DashboardLayout() {
             {navItem('/dashboard', 'My Profile', <PersonOutlinedIcon />)}
             {navItem('/dashboard/verification', 'Verification', <VerifiedUserOutlinedIcon />)}
             {navItem('/dashboard/badge', 'My Badge', <BadgeOutlinedIcon />)}
+            {navItem('/dashboard/subscription', 'My Subscription', <CreditCardOutlinedIcon />)}
             
-            <Box sx={{ position: 'relative', mt: 3, mb: 1 }}>
-              <Box sx={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', width: 6, height: 6, bgcolor: '#EAB308', borderRadius: '50%' }} />
-              {navItem('/dashboard/referrals', 'Referrals / Earn Rewards', <CardGiftcardOutlinedIcon />, true)}
-            </Box>
+            {user?.role === 'admin' && (
+              <Box sx={{ position: 'relative', mt: 3, mb: 1 }}>
+                <Box sx={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', width: 6, height: 6, bgcolor: '#EAB308', borderRadius: '50%' }} />
+                {navItem('/dashboard/referrals', 'Referrals / Earn Rewards', <CardGiftcardOutlinedIcon />, true)}
+              </Box>
+            )}
           </Box>
           <Box sx={{ p: 2, pb: 4 }}>
             <Button onClick={handleLogout} startIcon={<LogoutOutlinedIcon />} sx={{ justifyContent: 'flex-start', color: '#CBD5E1', width: '100%', px: 2.5, py: 1.2, borderRadius: 2, textTransform: 'none', fontWeight: 500, '&:hover': { color: '#fff', bgcolor: 'rgba(255,255,255,0.05)' } }}>

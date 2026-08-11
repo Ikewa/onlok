@@ -48,6 +48,7 @@ export default function SubscriptionPage() {
         email: user.email,
         amount: amount,
         plan: tier,
+        billingCycle: billingCycle === 'annual' ? 'annually' : 'monthly',
       });
       
       if (res && res.data && res.data.authorization_url) {
@@ -177,7 +178,7 @@ export default function SubscriptionPage() {
             </Typography>
             <Box sx={{ display: 'flex', justifyContent: 'center', my: 2 }}>
               <Box sx={{ transform: 'scale(0.8)', transformOrigin: 'center', height: 80, display: 'flex', alignItems: 'center' }}>
-                <OnlokBadge tier="bronze" size={100} tooltip={false} vendorId="EXAMPLE-ID" />
+                <OnlokBadge tier="bronze" size={100} tooltip={false} vendorId={user?.vendor_id || "OL-NG-0000"} businessName={user?.business_name || "VERIFIED VENDOR"} />
               </Box>
             </Box>
             <Typography sx={{ fontSize: '0.9rem', color: '#4B5563', lineHeight: 1.5, mb: 4, flexGrow: 1 }}>
@@ -234,7 +235,7 @@ export default function SubscriptionPage() {
             </Typography>
             <Box sx={{ display: 'flex', justifyContent: 'center', my: 2 }}>
               <Box sx={{ transform: 'scale(0.8)', transformOrigin: 'center', height: 80, display: 'flex', alignItems: 'center' }}>
-                <OnlokBadge tier="silver" size={100} tooltip={false} vendorId="EXAMPLE-ID" />
+                <OnlokBadge tier="silver" size={100} tooltip={false} vendorId={user?.vendor_id || "OL-NG-0000"} businessName={user?.business_name || "PROFESSIONAL"} />
               </Box>
             </Box>
             <Typography sx={{ fontSize: '0.9rem', color: '#4B5563', lineHeight: 1.5, mb: 4, flexGrow: 1 }}>
@@ -279,7 +280,7 @@ export default function SubscriptionPage() {
             </Typography>
             <Box sx={{ display: 'flex', justifyContent: 'center', my: 2 }}>
               <Box sx={{ transform: 'scale(0.8)', transformOrigin: 'center', height: 80, display: 'flex', alignItems: 'center' }}>
-                <OnlokBadge tier="gold" size={100} tooltip={false} vendorId="EXAMPLE-ID" />
+                <OnlokBadge tier="gold" size={100} tooltip={false} vendorId={user?.vendor_id || "OL-NG-0000"} businessName={user?.business_name || "PREMIUM VENDOR"} />
               </Box>
             </Box>
             <Typography sx={{ fontSize: '0.9rem', color: '#4B5563', lineHeight: 1.5, mb: 4, flexGrow: 1 }}>
@@ -293,14 +294,15 @@ export default function SubscriptionPage() {
             </Box>
             <Button 
               variant="outlined" 
-              onClick={() => navigate('/register')}
+              onClick={() => handleSubscribe('Premium Category', 25000)}
+              disabled={loadingTier === 'Premium Category'}
               sx={{ 
                 borderRadius: 1.5, py: 1.2, fontWeight: 700, textTransform: 'none', 
                 borderColor: '#0029FF', color: '#0029FF', 
                 '&:hover': { bgcolor: '#F0F4FF', borderColor: '#0029FF' } 
               }}
             >
-              Get Verified
+              {loadingTier === 'Premium Category' ? <CircularProgress size={24} /> : (user ? 'Subscribe Now' : 'Get Verified')}
             </Button>
           </Box>
 

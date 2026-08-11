@@ -27,7 +27,14 @@ app.use(cors({
     },
     credentials: true,
 }));
-app.use(express.json());
+// Capture raw body for Paystack webhook HMAC verification.
+// express.json()'s verify callback runs before the body is parsed,
+// giving us the original bytes that Paystack signed.
+app.use(express.json({
+    verify: (req, res, buf) => {
+        req.rawBody = buf;
+    }
+}));
 app.use(morgan('dev'));
 
 // Website hit tracking middleware
@@ -59,6 +66,7 @@ const withdrawalRoutes = require('./routes/withdrawalRoute');
 const premblyRoutes = require('./routes/premblyRoute');
 const paymentRoutes = require('./routes/paymentRoute');
 const identityRoutes = require('./routes/identityRoute');
+const subscriptionRoutes = require('./routes/subscriptionRoute');
 
 app.use('/api/users', userRoutes);
 app.use('/api/verifications', verificationRoutes);
@@ -69,6 +77,7 @@ app.use('/api/withdrawals', withdrawalRoutes);
 app.use('/api/admin/prembly', premblyRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/identities', identityRoutes);
+app.use('/api/subscriptions', subscriptionRoutes);
 
 // Test Route
 app.get('/api/health', (req, res) => {
@@ -76,14 +85,45 @@ app.get('/api/health', (req, res) => {
 });
 
 // Serve Frontend in Production (Express Wrapper Strategy)
-const frontendDistPath = path.join(__dirname, '../frontend/dist');
-app.use(express.static(frontendDistPath));
+const frontendDistPath = path.join(__dirname, 'client-dist');
+const landingDistPath = path.join(__dirname, 'landing-dist');
+
+const serveApp = express.static(frontendDistPath);
+const serveLanding = express.static(landingDistPath);
+
+app.use((req, res, next) => {
+    // Route app.* to the React web app, otherwise default to the landing page
+    if (req.hostname.startsWith('app.') || req.hostname === 'localhost') {
+        serveApp(req, res, next);
+    } else {
+        serveLanding(req, res, next);
+    }
+});
 
 // ==========================================
 // THE FIX: Using native RegExp /.*/ instead of '*' string
 // ==========================================
 app.get(/.*/, (req, res) => {
-    res.sendFile(path.join(frontendDistPath, 'index.html'));
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.setHeader('Surrogate-Control', 'no-store');
+    
+    if (req.hostname.startsWith('app.') || req.hostname === 'localhost') {
+        res.sendFile('index.html', { root: frontendDistPath }, (err) => {
+            if (err) {
+                console.error('Error sending app index.html:', err);
+                res.status(500).send('Frontend not found on server. Did you build client-dist?');
+            }
+        });
+    } else {
+        res.sendFile('index.html', { root: landingDistPath }, (err) => {
+            if (err) {
+                console.error('Error sending landing index.html:', err);
+                res.status(500).send('Landing page not found on server. Did you build landing-dist?');
+            }
+        });
+    }
 });
 
 // Auto-migrate: create tables, add missing columns, seed admin

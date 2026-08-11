@@ -1,15 +1,24 @@
 import { useState, useEffect } from 'react';
-import { Box, Typography, Button, Paper, Grid, TextField, CircularProgress, Divider } from '@mui/material';
+import { Box, Typography, Button, Paper, Grid, TextField, CircularProgress, Divider, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
 import HighlightOffIcon from '@mui/icons-material/HighlightOff';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import FlagOutlinedIcon from '@mui/icons-material/FlagOutlined';
+import PhoneIcon from '@mui/icons-material/Phone';
+import LocationOnIcon from '@mui/icons-material/LocationOn';
+import PublicIcon from '@mui/icons-material/Public';
+import BusinessIcon from '@mui/icons-material/Business';
+import TwitterIcon from '@mui/icons-material/Twitter';
+import InstagramIcon from '@mui/icons-material/Instagram';
+import FacebookIcon from '@mui/icons-material/Facebook';
+import MusicNoteIcon from '@mui/icons-material/MusicNote';
+import AccessTimeOutlinedIcon from '@mui/icons-material/AccessTimeOutlined';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getVerificationDetails, updateVerificationStatus, type AdminVerification } from '../../api/admin';
 import { MenuItem, Select } from '@mui/material';
 import toast from 'react-hot-toast';
-import axios from 'axios';
+import api from '../../api/axiosInstance';
 
 export default function AdminVerificationReview() {
   const navigate = useNavigate();
@@ -20,9 +29,26 @@ export default function AdminVerificationReview() {
   const [selectedTier, setSelectedTier] = useState('Silver');
   const [actionLoading, setActionLoading] = useState(false);
 
+  // Document level statuses & feedback
+  const [govIdStatus, setGovIdStatus] = useState<string>('pending');
+  const [govIdNotes, setGovIdNotes] = useState<string>('');
+  const [cacStatus, setCacStatus] = useState<string>('pending');
+  const [cacNotes, setCacNotes] = useState<string>('');
+  const [videoStatus, setVideoStatus] = useState<string>('pending');
+  const [videoNotes, setVideoNotes] = useState<string>('');
+
+  // Request Information Modal State
+  const [requestModalOpen, setRequestModalOpen] = useState(false);
+  const [requestMessage, setRequestMessage] = useState('');
+
   // Prembly Search State
   const [searchType, setSearchType] = useState('nin');
   const [searchValue, setSearchValue] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [dob, setDob] = useState('');
+  const [passportNin, setPassportNin] = useState('');
+  
   const [isSearching, setIsSearching] = useState(false);
   const [searchResult, setSearchResult] = useState<any>(null);
 
@@ -32,6 +58,12 @@ export default function AdminVerificationReview() {
         const data = await getVerificationDetails(Number(id));
         setDetails(data);
         if (data.admin_notes) setNotes(data.admin_notes);
+        if (data.gov_id_status) setGovIdStatus(data.gov_id_status);
+        if (data.gov_id_notes) setGovIdNotes(data.gov_id_notes);
+        if (data.cac_status) setCacStatus(data.cac_status);
+        if (data.cac_notes) setCacNotes(data.cac_notes);
+        if (data.video_status) setVideoStatus(data.video_status);
+        if (data.video_notes) setVideoNotes(data.video_notes);
       } catch (err) {
         toast.error('Failed to load details');
         navigate('/admin/verifications');
@@ -42,10 +74,24 @@ export default function AdminVerificationReview() {
     if (id) fetchDetails();
   }, [id, navigate]);
 
-  const handleAction = async (status: string) => {
+  const handleAction = async (status: string, customNotes?: string) => {
     setActionLoading(true);
     try {
-      await updateVerificationStatus(Number(id), status, notes, status === 'tier_assigned' ? selectedTier : undefined);
+      const finalNotes = customNotes !== undefined ? customNotes : notes;
+      await updateVerificationStatus(
+        Number(id), 
+        status, 
+        finalNotes, 
+        status === 'tier_assigned' ? selectedTier : undefined,
+        {
+          gov_id_status: govIdStatus,
+          gov_id_notes: govIdNotes,
+          cac_status: cacStatus,
+          cac_notes: cacNotes,
+          video_status: videoStatus,
+          video_notes: videoNotes
+        }
+      );
       toast.success(`Verification ${status} successfully`);
       navigate('/admin/verifications');
     } catch (err) {
@@ -56,18 +102,24 @@ export default function AdminVerificationReview() {
   };
 
   const handlePremblySearch = async () => {
-    if (!searchValue.trim()) return toast.error('Please enter a value to search');
-    
+    if (!searchValue.trim()) return;
+
+    let payload: any = {};
+    payload[searchType] = searchValue;
+
+    if (searchType === 'drivers_license') {
+      payload.first_name = firstName;
+      payload.last_name = lastName;
+    } else if (searchType === 'passport') {
+      payload.dob = dob;
+      payload.nin = passportNin;
+    }
+
     setIsSearching(true);
     setSearchResult(null);
     try {
-      const token = localStorage.getItem('token');
-      const res = await axios.post(
-        `/api/admin/prembly/${searchType}`,
-        { [searchType]: searchValue },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      setSearchResult(res.data);
+      const { data } = await api.post(`/admin/prembly/${searchType}`, payload);
+      setSearchResult(data);
       toast.success('Search successful');
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Search failed');
@@ -154,18 +206,122 @@ export default function AdminVerificationReview() {
             </Box>
           </Paper>
 
+          {/* Business Information, Contact & Social Links */}
+          <Paper elevation={0} sx={{ p: 3, borderRadius: '12px', border: '1px solid #E5E7EB', mb: 3, bgcolor: '#FFFFFF' }}>
+            <Typography variant="subtitle1" fontWeight={600} color="#111827" mb={2.5} sx={{ fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: 1 }}>
+              <BusinessIcon sx={{ color: '#5B5FEC', fontSize: 20 }} />
+              Business Information, Contact & Social Links
+            </Typography>
+
+            <Grid container spacing={2.5}>
+              <Grid item xs={12} sm={6}>
+                <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
+                  <PhoneIcon sx={{ color: '#6B7280', fontSize: 18, mt: 0.3 }} />
+                  <Box>
+                    <Typography variant="caption" color="#6B7280" display="block" sx={{ fontSize: '0.78rem' }}>Phone Number</Typography>
+                    <Typography variant="body2" fontWeight={600} color="#111827" sx={{ fontSize: '0.88rem' }}>
+                      {details.phone_number || 'N/A'}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
+                  <PublicIcon sx={{ color: '#6B7280', fontSize: 18, mt: 0.3 }} />
+                  <Box>
+                    <Typography variant="caption" color="#6B7280" display="block" sx={{ fontSize: '0.78rem' }}>Country</Typography>
+                    <Typography variant="body2" fontWeight={600} color="#111827" sx={{ fontSize: '0.88rem' }}>
+                      {details.country || 'Nigeria'}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Grid>
+
+              <Grid item xs={12}>
+                <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
+                  <LocationOnIcon sx={{ color: '#6B7280', fontSize: 18, mt: 0.3 }} />
+                  <Box>
+                    <Typography variant="caption" color="#6B7280" display="block" sx={{ fontSize: '0.78rem' }}>Business Address</Typography>
+                    <Typography variant="body2" fontWeight={600} color="#111827" sx={{ fontSize: '0.88rem' }}>
+                      {details.business_address || 'Not provided'}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Grid>
+            </Grid>
+
+            <Divider sx={{ my: 2.5, borderColor: '#F3F4F6' }} />
+
+            <Typography variant="caption" fontWeight={700} color="#6B7280" display="block" mb={1.5} sx={{ fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              Social Media Handles
+            </Typography>
+
+            <Grid container spacing={2}>
+              <Grid item xs={6} sm={3}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 1.2, bgcolor: '#F9FAFB', borderRadius: '8px', border: '1px solid #E5E7EB' }}>
+                  <TwitterIcon sx={{ color: '#1DA1F2', fontSize: 18 }} />
+                  <Box sx={{ overflow: 'hidden' }}>
+                    <Typography variant="caption" color="#9CA3AF" display="block" sx={{ fontSize: '0.7rem' }}>Twitter / X</Typography>
+                    <Typography variant="body2" fontWeight={600} color="#111827" sx={{ fontSize: '0.8rem' }} noWrap>
+                      {details.twitter_handle ? `@${details.twitter_handle.replace(/^@/, '')}` : 'N/A'}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Grid>
+
+              <Grid item xs={6} sm={3}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 1.2, bgcolor: '#F9FAFB', borderRadius: '8px', border: '1px solid #E5E7EB' }}>
+                  <InstagramIcon sx={{ color: '#E4405F', fontSize: 18 }} />
+                  <Box sx={{ overflow: 'hidden' }}>
+                    <Typography variant="caption" color="#9CA3AF" display="block" sx={{ fontSize: '0.7rem' }}>Instagram</Typography>
+                    <Typography variant="body2" fontWeight={600} color="#111827" sx={{ fontSize: '0.8rem' }} noWrap>
+                      {details.instagram_handle ? `@${details.instagram_handle.replace(/^@/, '')}` : 'N/A'}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Grid>
+
+              <Grid item xs={6} sm={3}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 1.2, bgcolor: '#F9FAFB', borderRadius: '8px', border: '1px solid #E5E7EB' }}>
+                  <FacebookIcon sx={{ color: '#1877F2', fontSize: 18 }} />
+                  <Box sx={{ overflow: 'hidden' }}>
+                    <Typography variant="caption" color="#9CA3AF" display="block" sx={{ fontSize: '0.7rem' }}>Facebook</Typography>
+                    <Typography variant="body2" fontWeight={600} color="#111827" sx={{ fontSize: '0.8rem' }} noWrap>
+                      {details.facebook_handle || 'N/A'}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Grid>
+
+              <Grid item xs={6} sm={3}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 1.2, bgcolor: '#F9FAFB', borderRadius: '8px', border: '1px solid #E5E7EB' }}>
+                  <MusicNoteIcon sx={{ color: '#000000', fontSize: 18 }} />
+                  <Box sx={{ overflow: 'hidden' }}>
+                    <Typography variant="caption" color="#9CA3AF" display="block" sx={{ fontSize: '0.7rem' }}>TikTok</Typography>
+                    <Typography variant="body2" fontWeight={600} color="#111827" sx={{ fontSize: '0.8rem' }} noWrap>
+                      {details.tiktok_handle ? `@${details.tiktok_handle.replace(/^@/, '')}` : 'N/A'}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Grid>
+            </Grid>
+          </Paper>
+
           {/* Uploaded Documents */}
           <Paper elevation={0} sx={{ p: 3, borderRadius: '12px', border: '1px solid #E5E7EB', mb: 3, bgcolor: '#FFFFFF' }}>
             <Typography variant="subtitle1" fontWeight={600} color="#111827" mb={2.5} sx={{ fontSize: '1.05rem' }}>
-              Uploaded Documents
+              Uploaded Documents & Granular Verification
             </Typography>
             <Grid container spacing={2.5}>
+
+              {/* ID Document */}
               <Grid item xs={12} sm={4}>
-                <Typography variant="caption" color="#6B7280" display="block" mb={1} sx={{ fontSize: '0.78rem' }}>ID Document</Typography>
+                <Typography variant="caption" color="#6B7280" display="block" mb={1} sx={{ fontSize: '0.78rem', fontWeight: 600 }}>ID Document</Typography>
                 <Box 
                   sx={{ 
-                    width: '100%', height: 180, bgcolor: '#F9FAFB', borderRadius: '8px', overflow: 'hidden', 
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #E5E7EB' 
+                    width: '100%', height: 160, bgcolor: '#F9FAFB', borderRadius: '8px', overflow: 'hidden', 
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #E5E7EB', mb: 1.5 
                   }}
                 >
                   {details.gov_id_url ? (
@@ -174,14 +330,49 @@ export default function AdminVerificationReview() {
                     : <Box component="img" src={getMediaUrl(details.gov_id_url)} sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   ) : <Typography variant="caption" color="#9CA3AF">No ID uploaded</Typography>}
                 </Box>
+                <Select
+                  fullWidth
+                  size="small"
+                  value={govIdStatus}
+                  onChange={(e) => setGovIdStatus(e.target.value)}
+                  sx={{ mb: 1, bgcolor: '#F8FAFC', fontSize: '0.82rem' }}
+                >
+                  <MenuItem value="pending">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <AccessTimeOutlinedIcon sx={{ fontSize: 16, color: '#CA8A04' }} />
+                      <span>Pending Review</span>
+                    </Box>
+                  </MenuItem>
+                  <MenuItem value="approved">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <CheckCircleOutlinedIcon sx={{ fontSize: 16, color: '#16A34A' }} />
+                      <span>Approved</span>
+                    </Box>
+                  </MenuItem>
+                  <MenuItem value="rejected">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <HighlightOffIcon sx={{ fontSize: 16, color: '#DC2626' }} />
+                      <span>Rejected</span>
+                    </Box>
+                  </MenuItem>
+                </Select>
+                <TextField
+                  fullWidth
+                  size="small"
+                  placeholder="ID Feedback / Reason..."
+                  value={govIdNotes}
+                  onChange={(e) => setGovIdNotes(e.target.value)}
+                  inputProps={{ style: { fontSize: '0.8rem' } }}
+                />
               </Grid>
               
+              {/* CAC Document */}
               <Grid item xs={12} sm={4}>
-                <Typography variant="caption" color="#6B7280" display="block" mb={1} sx={{ fontSize: '0.78rem' }}>CAC Document</Typography>
+                <Typography variant="caption" color="#6B7280" display="block" mb={1} sx={{ fontSize: '0.78rem', fontWeight: 600 }}>CAC Document</Typography>
                 <Box 
                   sx={{ 
-                    width: '100%', height: 180, bgcolor: '#F9FAFB', borderRadius: '8px', overflow: 'hidden', 
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #E5E7EB' 
+                    width: '100%', height: 160, bgcolor: '#F9FAFB', borderRadius: '8px', overflow: 'hidden', 
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #E5E7EB', mb: 1.5 
                   }}
                 >
                   {details.cac_url ? (
@@ -190,21 +381,91 @@ export default function AdminVerificationReview() {
                     : <Box component="img" src={getMediaUrl(details.cac_url)} sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   ) : <Typography variant="caption" color="#9CA3AF">No CAC uploaded</Typography>}
                 </Box>
+                <Select
+                  fullWidth
+                  size="small"
+                  value={cacStatus}
+                  onChange={(e) => setCacStatus(e.target.value)}
+                  sx={{ mb: 1, bgcolor: '#F8FAFC', fontSize: '0.82rem' }}
+                >
+                  <MenuItem value="pending">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <AccessTimeOutlinedIcon sx={{ fontSize: 16, color: '#CA8A04' }} />
+                      <span>Pending Review</span>
+                    </Box>
+                  </MenuItem>
+                  <MenuItem value="approved">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <CheckCircleOutlinedIcon sx={{ fontSize: 16, color: '#16A34A' }} />
+                      <span>Approved</span>
+                    </Box>
+                  </MenuItem>
+                  <MenuItem value="rejected">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <HighlightOffIcon sx={{ fontSize: 16, color: '#DC2626' }} />
+                      <span>Rejected</span>
+                    </Box>
+                  </MenuItem>
+                </Select>
+                <TextField
+                  fullWidth
+                  size="small"
+                  placeholder="CAC Feedback / Reason..."
+                  value={cacNotes}
+                  onChange={(e) => setCacNotes(e.target.value)}
+                  inputProps={{ style: { fontSize: '0.8rem' } }}
+                />
               </Grid>
 
+              {/* Business Video */}
               <Grid item xs={12} sm={4}>
-                <Typography variant="caption" color="#6B7280" display="block" mb={1} sx={{ fontSize: '0.78rem' }}>Business Video</Typography>
+                <Typography variant="caption" color="#6B7280" display="block" mb={1} sx={{ fontSize: '0.78rem', fontWeight: 600 }}>Business Video</Typography>
                 <Box 
                   sx={{ 
-                    width: '100%', height: 180, bgcolor: '#111827', borderRadius: '8px', overflow: 'hidden', 
-                    display: 'flex', alignItems: 'center', justifyContent: 'center' 
+                    width: '100%', height: 160, bgcolor: '#111827', borderRadius: '8px', overflow: 'hidden', 
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1.5 
                   }}
                 >
                   {details.video_url ? (
                     <video controls src={getMediaUrl(details.video_url)} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                   ) : <Typography variant="caption" color="#9CA3AF">No video uploaded</Typography>}
                 </Box>
+                <Select
+                  fullWidth
+                  size="small"
+                  value={videoStatus}
+                  onChange={(e) => setVideoStatus(e.target.value)}
+                  sx={{ mb: 1, bgcolor: '#F8FAFC', fontSize: '0.82rem' }}
+                >
+                  <MenuItem value="pending">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <AccessTimeOutlinedIcon sx={{ fontSize: 16, color: '#CA8A04' }} />
+                      <span>Pending Review</span>
+                    </Box>
+                  </MenuItem>
+                  <MenuItem value="approved">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <CheckCircleOutlinedIcon sx={{ fontSize: 16, color: '#16A34A' }} />
+                      <span>Approved</span>
+                    </Box>
+                  </MenuItem>
+                  <MenuItem value="rejected">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <HighlightOffIcon sx={{ fontSize: 16, color: '#DC2626' }} />
+                      <span>Rejected</span>
+                    </Box>
+                  </MenuItem>
+                </Select>
+                <TextField
+                  fullWidth
+                  size="small"
+                  placeholder="Video Feedback / Reason..."
+                  value={videoNotes}
+                  onChange={(e) => setVideoNotes(e.target.value)}
+                  inputProps={{ style: { fontSize: '0.8rem' } }}
+                />
               </Grid>
+
             </Grid>
           </Paper>
 
@@ -262,14 +523,72 @@ export default function AdminVerificationReview() {
                 <MenuItem value="nin">NIN</MenuItem>
                 <MenuItem value="vnin">VNIN</MenuItem>
                 <MenuItem value="cac">CAC</MenuItem>
+                <MenuItem value="drivers_license">Driver's License</MenuItem>
+                <MenuItem value="passport">Passport</MenuItem>
               </TextField>
-              <TextField
-                size="small"
-                fullWidth
-                placeholder={`Enter ${searchType.toUpperCase()}`}
-                value={searchValue}
-                onChange={(e) => setSearchValue(e.target.value)}
-              />
+              <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <TextField
+                  size="small"
+                  fullWidth
+                  placeholder={
+                    searchType === 'nin' ? "Enter NIN (e.g. 12345678901)" :
+                    searchType === 'vnin' ? "Enter VNIN" : 
+                    searchType === 'cac' ? "Enter RC Number (e.g. 123456)" :
+                    searchType === 'drivers_license' ? "Enter License Number" :
+                    "Enter Passport Number"
+                  }
+                  value={searchValue}
+                  onChange={(e) => setSearchValue(e.target.value)}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 6,
+                      backgroundColor: '#FFFFFF',
+                    }
+                  }}
+                />
+                
+                {searchType === 'drivers_license' && (
+                  <Box sx={{ display: 'flex', gap: 2 }}>
+                    <TextField
+                      size="small"
+                      fullWidth
+                      placeholder="First Name"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 6, backgroundColor: '#FFFFFF' } }}
+                    />
+                    <TextField
+                      size="small"
+                      fullWidth
+                      placeholder="Last Name"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 6, backgroundColor: '#FFFFFF' } }}
+                    />
+                  </Box>
+                )}
+
+                {searchType === 'passport' && (
+                  <Box sx={{ display: 'flex', gap: 2 }}>
+                    <TextField
+                      size="small"
+                      fullWidth
+                      placeholder="NIN (11 digits)"
+                      value={passportNin}
+                      onChange={(e) => setPassportNin(e.target.value)}
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 6, backgroundColor: '#FFFFFF' } }}
+                    />
+                    <TextField
+                      size="small"
+                      fullWidth
+                      type="date"
+                      value={dob}
+                      onChange={(e) => setDob(e.target.value)}
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 6, backgroundColor: '#FFFFFF' } }}
+                    />
+                  </Box>
+                )}
+              </Box>
               <Button 
                 variant="contained" 
                 onClick={handlePremblySearch}
@@ -281,13 +600,139 @@ export default function AdminVerificationReview() {
             </Box>
 
             {searchResult && (
-              <Box sx={{ p: 2, bgcolor: '#F9FAFB', borderRadius: '8px', border: '1px solid #E5E7EB', overflowX: 'auto' }}>
-                <Typography variant="caption" fontWeight={600} color="#6B7280" display="block" mb={1}>
-                  Search Results
-                </Typography>
-                <pre style={{ fontSize: '0.8rem', color: '#374151', margin: 0 }}>
-                  {JSON.stringify(searchResult, null, 2)}
-                </pre>
+              <Box sx={{ mt: 3 }}>
+                {searchResult.error || searchResult.status === false ? (
+                  <Box sx={{ p: 3, bgcolor: '#FEF2F2', borderRadius: '12px', border: '1px solid #FEE2E2', display: 'flex', alignItems: 'flex-start', gap: 2 }}>
+                    <HighlightOffIcon sx={{ color: '#DC2626', mt: 0.5 }} />
+                    <Box>
+                      <Typography variant="subtitle2" color="#B91C1C" fontWeight={700} mb={0.5}>
+                        Verification Failed
+                      </Typography>
+                      <Typography variant="body2" color="#991B1B">
+                        {searchResult.error?.message || searchResult.message || 'Unknown error occurred'}
+                      </Typography>
+                      {(searchResult.errors || searchResult.error?.errors) && (
+                        <Box sx={{ mt: 2, p: 1.5, bgcolor: '#FFFFFF', borderRadius: '8px', border: '1px solid #FECACA' }}>
+                          <pre style={{ fontSize: '0.75rem', color: '#7F1D1D', margin: 0, whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}>
+                            {JSON.stringify(searchResult.errors || searchResult.error?.errors, null, 2)}
+                          </pre>
+                        </Box>
+                      )}
+                    </Box>
+                  </Box>
+                ) : (
+                  <Box sx={{ bgcolor: '#FFFFFF', borderRadius: '16px', border: '1px solid #E5E7EB', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
+                    {/* Header */}
+                    <Box sx={{ p: 2.5, bgcolor: '#F8FAFC', borderBottom: '1px solid #E5E7EB', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <CheckCircleOutlinedIcon sx={{ color: '#16A34A', fontSize: 28 }} />
+                        <Typography variant="h6" fontWeight={700} color="#0F172A">
+                          Identity Verified
+                        </Typography>
+                      </Box>
+                      {searchResult.message?.includes('sandbox') && (
+                        <Box sx={{ bgcolor: '#FEF3C7', color: '#B45309', px: 1.5, py: 0.5, borderRadius: 'full', fontSize: '0.75rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          <InfoOutlinedIcon sx={{ fontSize: 14 }} /> SANDBOX MODE
+                        </Box>
+                      )}
+                    </Box>
+                    
+                    {/* Body */}
+                    {searchResult.data && (() => {
+                      const displayData = Array.isArray(searchResult.data) ? searchResult.data[0] : searchResult.data;
+                      return (
+                      <Box sx={{ p: 3 }}>
+                        <Grid container spacing={4}>
+                          {displayData.photo && (
+                            <Grid item xs={12} sm={4} md={3} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                              <Box sx={{ 
+                                width: 140, height: 140, borderRadius: '50%', overflow: 'hidden', 
+                                border: '4px solid #FFFFFF', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)', mb: 2
+                              }}>
+                                <Box 
+                                  component="img" 
+                                  src={displayData.photo.startsWith('data:') ? displayData.photo : `data:image/jpeg;base64,${displayData.photo}`}
+                                  sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                />
+                              </Box>
+                              <Typography variant="caption" color="#94A3B8" fontWeight={600} sx={{ letterSpacing: 1 }}>
+                                FACIAL MATCH
+                              </Typography>
+                            </Grid>
+                          )}
+                          <Grid item xs={12} sm={displayData.photo ? 8 : 12} md={displayData.photo ? 9 : 12}>
+                            
+                            {/* Primary Info Highlights */}
+                            <Box sx={{ mb: 4 }}>
+                              <Typography variant="h4" fontWeight={800} color="#0F172A" sx={{ mb: 0.5, textTransform: 'uppercase', letterSpacing: '-0.5px' }}>
+                                {displayData.firstname} {displayData.middlename} {displayData.surname}
+                                {!displayData.firstname && (displayData.company_name || displayData.companyName)}
+                              </Typography>
+                              <Typography variant="subtitle1" color="#64748B" fontWeight={500} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                {displayData.nin && `NIN: ${displayData.nin}`}
+                                {displayData.vnin && `VNIN: ${displayData.vnin}`}
+                                {(displayData.rc_number || displayData.rcNumber) && `RC Number: ${displayData.rc_number || displayData.rcNumber}`}
+                              </Typography>
+                            </Box>
+
+                            {/* Detailed Grid */}
+                            <Grid container spacing={3}>
+                              {Object.entries(displayData).map(([key, value]) => {
+                                if (key === 'photo' || value === null || value === undefined || value === '' || ['firstname', 'surname', 'middlename', 'nin', 'vnin', 'company_name', 'companyName', 'rc_number', 'rcNumber'].includes(key)) return null;
+                                
+                                const isObject = typeof value === 'object';
+                                const isArray = Array.isArray(value);
+
+                                return (
+                                  <Grid item xs={12} sm={isObject ? 12 : 4} key={key}>
+                                    <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                                      <Typography variant="caption" color="#64748B" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.5, mb: 1 }}>
+                                        {key.replace(/_/g, ' ')}
+                                      </Typography>
+                                      
+                                      {isArray ? (
+                                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                                          {value.map((item: any, i: number) => (
+                                            <Box key={i} sx={{ p: 2, bgcolor: '#F8FAFC', borderRadius: 3, border: '1px solid #E2E8F0', display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+                                              {typeof item === 'object' && item !== null ? 
+                                                Object.entries(item).filter(([_, v]) => v !== null && v !== '').map(([k, v]) => (
+                                                  <Box key={k} sx={{ minWidth: 120 }}>
+                                                    <Typography variant="caption" color="#94A3B8" sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>{k.replace(/_/g, ' ')}</Typography>
+                                                    <Typography variant="body2" fontWeight={600} color="#334155">{String(v)}</Typography>
+                                                  </Box>
+                                                )) 
+                                                : <Typography variant="body2">{String(item)}</Typography>
+                                              }
+                                            </Box>
+                                          ))}
+                                        </Box>
+                                      ) : isObject ? (
+                                        <Box sx={{ p: 2, bgcolor: '#F8FAFC', borderRadius: 3, border: '1px solid #E2E8F0', display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+                                          {Object.entries(value).filter(([_, v]) => v !== null && v !== '').map(([k, v]) => (
+                                            <Box key={k} sx={{ minWidth: 120 }}>
+                                              <Typography variant="caption" color="#94A3B8" sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>{k.replace(/_/g, ' ')}</Typography>
+                                              <Typography variant="body2" fontWeight={600} color="#334155">{String(v)}</Typography>
+                                            </Box>
+                                          ))}
+                                        </Box>
+                                      ) : (
+                                        <Typography variant="body2" fontWeight={700} color="#1E293B" sx={{ wordBreak: 'break-word', fontSize: '0.9rem' }}>
+                                          {String(value)}
+                                        </Typography>
+                                      )}
+                                    </Box>
+                                  </Grid>
+                                );
+                              })}
+                            </Grid>
+                            
+                          </Grid>
+                        </Grid>
+                      </Box>
+                      );
+                    })()}
+                  </Box>
+                )}
               </Box>
             )}
           </Paper>
@@ -354,9 +799,19 @@ export default function AdminVerificationReview() {
                   startIcon={<CheckCircleOutlinedIcon />}
                   onClick={() => handleAction('tier_assigned')}
                   disabled={actionLoading}
-                  sx={{ bgcolor: '#0029FF', '&:hover': { bgcolor: '#0022D1' }, py: 1.25, borderRadius: '8px', textTransform: 'none', fontWeight: 600, fontSize: '0.88rem' }}
+                  sx={{ bgcolor: '#0029FF', '&:hover': { bgcolor: '#0022D1' }, py: 1.25, borderRadius: '8px', textTransform: 'none', fontWeight: 600, fontSize: '0.88rem', mb: 1 }}
                 >
-                  Assign Tier & Approve
+                  Assign Tier & Request Payment
+                </Button>
+                <Button
+                  variant="outlined"
+                  fullWidth
+                  startIcon={<CheckCircleOutlinedIcon />}
+                  onClick={() => handleAction('approved')}
+                  disabled={actionLoading}
+                  sx={{ borderColor: '#16A34A', color: '#16A34A', '&:hover': { bgcolor: '#F0FDF4' }, py: 1.25, borderRadius: '8px', textTransform: 'none', fontWeight: 600, fontSize: '0.88rem' }}
+                >
+                  Promo: Assign Tier & Skip Payment (Approve)
                 </Button>
               </Box>
             )}
@@ -365,7 +820,17 @@ export default function AdminVerificationReview() {
             {isTierAssigned && (
               <Box sx={{ bgcolor: '#FFFBEB', p: 2, borderRadius: 2, border: '1px solid #FEF3C7', mb: 1 }}>
                 <Typography variant="body2" color="#B45309" fontWeight={600} mb={1}>Awaiting Payment</Typography>
-                <Typography variant="caption" color="#92400E">User was assigned {details.assigned_tier} tier. Waiting for them to complete payment.</Typography>
+                <Typography variant="caption" color="#92400E" display="block" mb={1.5}>User was assigned {details.assigned_tier} tier. Waiting for them to complete payment.</Typography>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  fullWidth
+                  onClick={() => handleAction('approved')}
+                  disabled={actionLoading}
+                  sx={{ borderColor: '#B45309', color: '#B45309', textTransform: 'none', fontWeight: 600, '&:hover': { bgcolor: '#FEF3C7' } }}
+                >
+                  Override: Mark as Paid & Approve
+                </Button>
               </Box>
             )}
 
@@ -412,7 +877,7 @@ export default function AdminVerificationReview() {
               variant="contained"
               fullWidth
               startIcon={<InfoOutlinedIcon />}
-              onClick={() => handleAction('pending')}
+              onClick={() => setRequestModalOpen(true)}
               disabled={actionLoading || isPending}
               sx={{ bgcolor: '#D97706', '&:hover': { bgcolor: '#B45309' }, py: 1.25, borderRadius: '8px', textTransform: 'none', fontWeight: 600, fontSize: '0.88rem' }}
             >
@@ -432,6 +897,45 @@ export default function AdminVerificationReview() {
 
         </Grid>
       </Grid>
+
+      {/* Request Information Dialog */}
+      <Dialog open={requestModalOpen} onClose={() => setRequestModalOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 3, p: 1 } }}>
+        <DialogTitle sx={{ fontWeight: 800, color: '#0F172A', pb: 1 }}>
+          Request Information from Vendor
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="#64748B" mb={2}>
+            Please enter a clear message detailing what information or documents are requested from <strong>{details.first_name} {details.last_name}</strong>. This message will be sent via email and displayed on their vendor dashboard.
+          </Typography>
+          <TextField
+            multiline
+            rows={4}
+            fullWidth
+            placeholder="e.g., Please upload a clearer copy of your Government ID front & back, or update your Business Address."
+            value={requestMessage}
+            onChange={(e) => setRequestMessage(e.target.value)}
+            sx={{
+              '& .MuiOutlinedInput-root': { borderRadius: 2, fontSize: '0.9rem' }
+            }}
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setRequestModalOpen(false)} sx={{ textTransform: 'none', color: '#64748B', fontWeight: 600 }}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            disabled={!requestMessage.trim() || actionLoading}
+            onClick={() => {
+              setRequestModalOpen(false);
+              handleAction('pending', requestMessage.trim());
+            }}
+            sx={{ bgcolor: '#D97706', color: '#fff', borderRadius: 2, px: 3, fontWeight: 700, textTransform: 'none', '&:hover': { bgcolor: '#B45309' } }}
+          >
+            {actionLoading ? 'Sending...' : 'Send Request'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

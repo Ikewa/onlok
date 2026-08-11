@@ -33,3 +33,8 @@ export const resetPassword = async (token: string, password: string): Promise<{ 
   const { data } = await api.put<{ message: string }>(`/users/reset-password/${token}`, { password });
   return data;
 };
+
+export const updateUserProfile = async (id: number, payload: Partial<User>): Promise<{ message: string }> => {
+  const { data } = await api.put<{ message: string }>(`/users/${id}`, payload);
+  return data;
+};

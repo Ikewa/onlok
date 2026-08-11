@@ -1,6 +1,12 @@
 import api from './axiosInstance';
 
-export const initializePayment = async (payload: { email: string, amount: number, plan?: string, referrerId?: number }): Promise<any> => {
+export const initializePayment = async (payload: {
+  email: string;
+  amount?: number;
+  plan?: string;
+  billingCycle?: 'monthly' | 'annually' | string;
+  referrerId?: number;
+}): Promise<any> => {
   const { data } = await api.post('/payments/initialize', payload);
   return data;
 };
