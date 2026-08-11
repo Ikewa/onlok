@@ -129,6 +129,10 @@ app.get(/.*/, (req, res) => {
 // Auto-migrate: create tables, add missing columns, seed admin
 runMigrations();
 
+// Start cron jobs
+const { startCronJobs } = require('./utils/cronJobs');
+startCronJobs();
+
 // Start the server
 const port = process.env.PORT || 5000;
 app.listen(port, '0.0.0.0', () => {

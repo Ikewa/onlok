@@ -358,8 +358,8 @@ export default function RegisterPage() {
         onChange={(f: File) => set('business_video_file', f)} 
         onRemove={() => set('business_video_file', null)}
         title="2 minute shot video"
-        labels={['Video (MP4, MOV)']}
-        accept="video/mp4,video/quicktime,video/mov,video/x-m4v,video/*,.mp4,.mov"
+        labels={['Video (MP4, MOV, MKV)']}
+        accept=".mp4,.mkv,.mov,video/mp4,video/quicktime,video/x-matroska,video/*"
         maxSize="100mb"
         icon={<PlayCircleOutlinedIcon />}
       />

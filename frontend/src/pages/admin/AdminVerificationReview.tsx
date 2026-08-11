@@ -489,14 +489,14 @@ export default function AdminVerificationReview() {
                 <Box>
                   <Typography variant="body2" color="#374151" sx={{ fontSize: '0.88rem' }}>Referral Link</Typography>
                   <Typography variant="caption" color="#6B7280" display="block" sx={{ fontSize: '0.78rem' }}>
-                    https://onlok.net/register?ref={details.vendor_id}
+                    https://app.onlok.net/register?ref={details.vendor_id}
                   </Typography>
                 </Box>
                 <Button 
                   size="small" 
                   variant="outlined" 
                   onClick={() => {
-                    navigator.clipboard.writeText(`https://onlok.net/register?ref=${details.vendor_id}`);
+                    navigator.clipboard.writeText(`https://app.onlok.net/register?ref=${details.vendor_id}`);
                     toast.success('Referral link copied');
                   }}
                   sx={{ textTransform: 'none', borderRadius: '8px', color: '#5B5FEC', borderColor: '#D1D5DB' }}
@@ -505,6 +505,39 @@ export default function AdminVerificationReview() {
                 </Button>
               </Box>
             </Box>
+          </Paper>
+
+          {/* Social Links */}
+          <Paper elevation={0} sx={{ p: 3, borderRadius: '12px', border: '1px solid #E5E7EB', bgcolor: '#FFFFFF', mt: 3 }}>
+            <Typography variant="subtitle1" fontWeight={600} color="#111827" mb={2.5} sx={{ fontSize: '1.05rem' }}>
+              Social Links
+            </Typography>
+            <Grid container spacing={2}>
+              <Grid item xs={6}>
+                <Typography variant="caption" color="#6B7280" display="block" sx={{ fontSize: '0.78rem' }}>Twitter</Typography>
+                <Typography variant="body2" fontWeight={600} color="#111827" sx={{ fontSize: '0.88rem' }}>
+                  {details.twitter_handle ? <a href={`https://twitter.com/${details.twitter_handle}`} target="_blank" rel="noopener noreferrer">@{details.twitter_handle}</a> : 'N/A'}
+                </Typography>
+              </Grid>
+              <Grid item xs={6}>
+                <Typography variant="caption" color="#6B7280" display="block" sx={{ fontSize: '0.78rem' }}>Instagram</Typography>
+                <Typography variant="body2" fontWeight={600} color="#111827" sx={{ fontSize: '0.88rem' }}>
+                  {details.instagram_handle ? <a href={`https://instagram.com/${details.instagram_handle}`} target="_blank" rel="noopener noreferrer">@{details.instagram_handle}</a> : 'N/A'}
+                </Typography>
+              </Grid>
+              <Grid item xs={6}>
+                <Typography variant="caption" color="#6B7280" display="block" sx={{ fontSize: '0.78rem' }}>Facebook</Typography>
+                <Typography variant="body2" fontWeight={600} color="#111827" sx={{ fontSize: '0.88rem' }}>
+                  {details.facebook_handle ? <a href={`https://facebook.com/${details.facebook_handle}`} target="_blank" rel="noopener noreferrer">{details.facebook_handle}</a> : 'N/A'}
+                </Typography>
+              </Grid>
+              <Grid item xs={6}>
+                <Typography variant="caption" color="#6B7280" display="block" sx={{ fontSize: '0.78rem' }}>TikTok</Typography>
+                <Typography variant="body2" fontWeight={600} color="#111827" sx={{ fontSize: '0.88rem' }}>
+                  {details.tiktok_handle ? <a href={`https://tiktok.com/@${details.tiktok_handle}`} target="_blank" rel="noopener noreferrer">@{details.tiktok_handle}</a> : 'N/A'}
+                </Typography>
+              </Grid>
+            </Grid>
           </Paper>
 
           {/* Prembly Search Section */}

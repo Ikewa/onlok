@@ -26,6 +26,7 @@ import type { DashboardData } from '../types';
 import toast from 'react-hot-toast';
 import { OnlokBadge, resolveVendorBadgeTier } from '../components/OnlokBadge';
 import { QRCode } from 'react-qr-code';
+import TutorialModal from '../components/TutorialModal';
 
 const getSocialUrl = (platform: 'twitter' | 'instagram' | 'facebook' | 'tiktok' | 'whatsapp', val?: string | null) => {
   if (!val || !val.trim()) return null;
@@ -131,6 +132,14 @@ export default function DashboardPage() {
   const showContent = !isMobile || isExpanded;
 
   useEffect(() => {
+    if (user?.subscription_expires_at) {
+      const expiresAt = new Date(user.subscription_expires_at);
+      if (expiresAt < new Date()) {
+        navigate('/vendor-subscription');
+        return;
+      }
+    }
+
     getDashboard()
       .then((res) => {
         setData(res);
@@ -140,7 +149,18 @@ export default function DashboardPage() {
         setError('Failed to load dashboard. Please refresh.');
         setLoading(false);
       });
-  }, []);
+    // Fetch current location
+    fetch('https://ipapi.co/json/')
+      .then(res => res.json())
+      .then(data => {
+        if (data.city && data.country_name) {
+          setLocationStr(`${data.city}, ${data.country_name}`);
+        } else {
+          setLocationStr('Unknown Location');
+        }
+      })
+      .catch(() => setLocationStr('Location Unavailable'));
+  }, [user, navigate]);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -180,6 +200,7 @@ export default function DashboardPage() {
 
   return (
     <Box sx={{ flexGrow: 1, bgcolor: '#FFFFFF', minHeight: '100vh', pb: 10, boxSizing: 'border-box', overflowX: 'hidden' }}>
+      <TutorialModal />
       <Container maxWidth="xl" sx={{ pt: { xs: 2, md: 4 }, px: { xs: 2, md: 4 } }}>
         
         {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}

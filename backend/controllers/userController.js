@@ -69,17 +69,6 @@ const registerUser = async (req, res) => {
             `, [referrerId, newUserId]);
         }
 
-        // Send Welcome/Application Received Email
-        const welcomeHtml = `
-            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
-                <h2 style="color: #0F172A;">Welcome to Onlok, ${first_name}!</h2>
-                <p>Your vendor application has been received successfully.</p>
-                <p>Our administrative team will review your application and get back to you shortly.</p>
-                <br/>
-                <p>Best regards,<br/><strong>The Onlok Team</strong></p>
-            </div>
-        `;
-        await sendEmail(email, 'Application Received - Onlok', welcomeHtml);
 
         res.status(201).json({
             id: newUserId,

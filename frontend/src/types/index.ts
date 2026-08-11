@@ -14,6 +14,7 @@ export interface User {
   status: 'pending' | 'verified' | 'rejected' | 'suspended';
   badge_type?: string | null;
   profile_picture_url?: string | null;
+  subscription_expires_at?: string | null;
   token: string;
 }
 

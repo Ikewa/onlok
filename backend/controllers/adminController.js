@@ -189,7 +189,7 @@ const updateVerificationStatus = async (req, res) => {
 
         // Check if verification exists
         const [verifications] = await pool.query(`
-            SELECT v.user_id, v.status, u.email, u.first_name 
+            SELECT v.user_id, v.status, v.assigned_tier, u.email, u.first_name 
             FROM verifications v 
             JOIN users u ON v.user_id = u.id 
             WHERE v.id = ?
@@ -199,6 +199,7 @@ const updateVerificationStatus = async (req, res) => {
         }
         
         const verification = verifications[0];
+        const finalTier = assigned_tier || verification.assigned_tier || '';
         
         // Update verifications table (including per-document feedback)
         const updateQuery = `
@@ -345,7 +346,7 @@ const updateVerificationStatus = async (req, res) => {
                 <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
                     <h2 style="color: #0029FF;">Verification Pre-Approved!</h2>
                     <p>Hi ${verification.first_name},</p>
-                    <p>Your documents have been reviewed and you have been approved for the <strong>${assigned_tier}</strong> tier.</p>
+                    <p>Your documents have been reviewed and you have been approved for the <strong>${finalTier}</strong> tier.</p>
                     ${renderDocBreakdown()}
                     <p>Please log in to your dashboard to complete your subscription payment and finalize your verification.</p>
                     <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/dashboard" style="padding: 10px 15px; background: #0029FF; color: #fff; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 0;">Go to Dashboard</a>

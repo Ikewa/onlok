@@ -19,11 +19,8 @@ const fileFilter = (req, file, cb) => {
             return cb(new Error('Please upload an image or PDF for ID/CAC'));
         }
     } else if (file.fieldname === "business_video") {
-        const isVideoMime = file.mimetype.startsWith('video/') || file.mimetype.match(/(mp4|mkv|avi|quicktime|mov|x-m4v|3gpp|qt)$/i);
-        const ext = path.extname(file.originalname).toLowerCase();
-        const isVideoExt = ['.mp4', '.mov', '.qt', '.m4v', '.avi', '.mkv', '.webm', '.3gp'].includes(ext);
-        if (!isVideoMime && !isVideoExt) {
-            return cb(new Error('Please upload a valid video format (MP4, MOV, etc.)'));
+        if (!file.originalname.match(/\.(mp4|mkv|avi|mov)$/i) && !file.mimetype.match(/(mp4|mkv|avi|quicktime)$/)) {
+            return cb(new Error('Please upload a valid video format (.mp4, .mkv, .mov)'));
         }
     }
     cb(null, true);
@@ -44,6 +41,23 @@ const submitVerification = async (req, res) => {
         const hasGovId = req.files && req.files['gov_id'];
         const hasCac = req.files && req.files['cac_document'];
         const hasVideo = req.files && req.files['business_video'];
+        const { sendEmail } = require('../utils/emailService');
+        
+        if (!hasGovId && !hasVideo) {
+            const html = `
+                <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+                    <h2 style="color: #D97706;">Registration Incomplete</h2>
+                    <p>Hi there,</p>
+                    <p>We noticed some required files (like your Government ID or Business Video) were missing when you submitted your verification.</p>
+                    <p>Please log back in to your dashboard and re-upload the missing documents to complete your registration.</p>
+                    <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/login" style="padding: 10px 15px; background: #0029FF; color: #fff; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 0;">Log In</a>
+                    <br/><br/>
+                    <p>Best regards,<br/><strong>The Onlok Team</strong></p>
+                </div>
+            `;
+            await sendEmail(req.user.email, 'Action Required: Missing Documents - Onlok', html);
+            return res.status(400).json({ message: 'Government ID and Business Video are required.' });
+        }
 
         const govIdUrl = hasGovId ? `/uploads/${req.files['gov_id'][0].filename}` : null;
         const cacUrl = hasCac ? `/uploads/${req.files['cac_document'][0].filename}` : null;
@@ -105,6 +119,19 @@ const submitVerification = async (req, res) => {
         // Reset user table status to pending
         await pool.query('UPDATE users SET status = "pending" WHERE id = ?', [userId]);
 
+        // Send Welcome/Application Received Email
+        const welcomeHtml = `
+            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+                <h2 style="color: #0F172A;">Welcome to Onlok!</h2>
+                <p>Your vendor application and documents have been received successfully.</p>
+                <p>Your dashboard is now ready. Our administrative team will review your application and get back to you shortly.</p>
+                <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/dashboard" style="padding: 10px 15px; background: #0029FF; color: #fff; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 0;">Go to Dashboard</a>
+                <br/><br/>
+                <p>Best regards,<br/><strong>The Onlok Team</strong></p>
+            </div>
+        `;
+        await sendEmail(req.user.email, 'Application Received - Dashboard Ready', welcomeHtml);
+
         res.status(200).json({
             message: 'Verification documents submitted successfully',
             verification_id: verificationId
@@ -122,7 +149,7 @@ const submitVerification = async (req, res) => {
 const getMyVerification = async (req, res) => {
     try {
         const [rows] = await pool.query(
-            `SELECT id, gov_id_url, cac_url, video_url, status, admin_notes,
+            `SELECT id, gov_id_url, cac_url, video_url, status, admin_notes, assigned_tier, payment_status,
                     gov_id_status, gov_id_notes,
                     cac_status, cac_notes,
                     video_status, video_notes,

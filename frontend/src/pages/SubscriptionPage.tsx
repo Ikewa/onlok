@@ -4,8 +4,10 @@ import { useState } from 'react';
 import { OnlokBadge } from '../components/OnlokBadge';
 import { useAuth } from '../context/AuthContext';
 import { initializePayment } from '../api/payment';
+import { getMyVerification } from '../api/verifications';
 import toast from 'react-hot-toast';
 import { CircularProgress } from '@mui/material';
+import { useEffect } from 'react';
 
 function OnlokLogo() {
   return (
@@ -25,6 +27,28 @@ export default function SubscriptionPage() {
   const { user } = useAuth();
   const [billingCycle, setBillingCycle] = useState<'annual' | 'monthly'>('annual');
   const [loadingTier, setLoadingTier] = useState<string | null>(null);
+  const [assignedTier, setAssignedTier] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (user) {
+      getMyVerification().then(res => {
+        if (res && res.assigned_tier) {
+          setAssignedTier(res.assigned_tier.toLowerCase());
+        }
+      }).catch(console.error);
+    }
+  }, [user]);
+
+  const isTierDisabled = (tierName: string) => {
+    if (!assignedTier) return false;
+    if (assignedTier === 'gold') {
+      return tierName !== 'Premium Category';
+    }
+    if (assignedTier === 'silver') {
+      return tierName === 'Verified Vendor'; // disable bronze
+    }
+    return false; // bronze can upgrade to silver or gold
+  };
 
   const getPrice = (annualPrice: number) => {
     if (billingCycle === 'annual') return `₦${annualPrice.toLocaleString()}`;
@@ -190,18 +214,19 @@ export default function SubscriptionPage() {
               </Typography>
               <Typography sx={{ fontSize: '1rem', color: '#6B7280', fontWeight: 600 }}>{cycleLabel}</Typography>
             </Box>
-            <Button 
-              variant="outlined" 
-              onClick={() => handleSubscribe('Verified Vendor', 10000)}
-              disabled={loadingTier === 'Verified Vendor'}
-              sx={{ 
-                borderRadius: 1.5, py: 1.2, fontWeight: 700, textTransform: 'none', 
-                borderColor: '#0029FF', color: '#0029FF', 
-                '&:hover': { bgcolor: '#F0F4FF', borderColor: '#0029FF' } 
-              }}
-            >
-              {loadingTier === 'Verified Vendor' ? <CircularProgress size={24} /> : (user ? 'Subscribe Now' : 'Get Verified')}
-            </Button>
+              <Button 
+                variant="outlined" 
+                onClick={() => handleSubscribe('Verified Vendor', 10000)}
+                disabled={loadingTier === 'Verified Vendor' || isTierDisabled('Verified Vendor')}
+                sx={{ 
+                  borderRadius: 1.5, py: 1.2, fontWeight: 700, textTransform: 'none', 
+                  borderColor: '#0029FF', color: '#0029FF', 
+                  '&:hover': { bgcolor: '#F0F4FF', borderColor: '#0029FF' },
+                  ...(isTierDisabled('Verified Vendor') && { opacity: 0.5, pointerEvents: 'none' })
+                }}
+              >
+                {loadingTier === 'Verified Vendor' ? <CircularProgress size={24} /> : (user ? 'Subscribe Now' : 'Get Verified')}
+              </Button>
           </Box>
 
           {/* TIER TWO (POPULAR) */}
@@ -247,18 +272,19 @@ export default function SubscriptionPage() {
               </Typography>
               <Typography sx={{ fontSize: '1rem', color: '#6B7280', fontWeight: 600 }}>{cycleLabel}</Typography>
             </Box>
-            <Button 
-              variant="contained" 
-              onClick={() => handleSubscribe('Verified Professional', 15000)}
-              disabled={loadingTier === 'Verified Professional'}
-              sx={{ 
-                borderRadius: 1.5, py: 1.2, fontWeight: 700, textTransform: 'none', 
-                bgcolor: '#0029FF', color: '#fff', boxShadow: 'none',
-                '&:hover': { bgcolor: '#001ECC' } 
-              }}
-            >
-              {loadingTier === 'Verified Professional' ? <CircularProgress size={24} color="inherit" /> : (user ? 'Subscribe Now' : 'Get Verified')}
-            </Button>
+              <Button 
+                variant="contained" 
+                onClick={() => handleSubscribe('Verified Professional', 15000)}
+                disabled={loadingTier === 'Verified Professional' || isTierDisabled('Verified Professional')}
+                sx={{ 
+                  borderRadius: 1.5, py: 1.2, fontWeight: 700, textTransform: 'none', 
+                  bgcolor: '#0029FF', color: '#fff', boxShadow: 'none',
+                  '&:hover': { bgcolor: '#001ECC' },
+                  ...(isTierDisabled('Verified Professional') && { opacity: 0.5, pointerEvents: 'none', bgcolor: '#ccc' })
+                }}
+              >
+                {loadingTier === 'Verified Professional' ? <CircularProgress size={24} color="inherit" /> : (user ? 'Subscribe Now' : 'Get Verified')}
+              </Button>
           </Box>
 
           {/* TIER THREE */}
@@ -292,18 +318,19 @@ export default function SubscriptionPage() {
               </Typography>
               <Typography sx={{ fontSize: '1rem', color: '#6B7280', fontWeight: 600 }}>{cycleLabel}</Typography>
             </Box>
-            <Button 
-              variant="outlined" 
-              onClick={() => handleSubscribe('Premium Category', 25000)}
-              disabled={loadingTier === 'Premium Category'}
-              sx={{ 
-                borderRadius: 1.5, py: 1.2, fontWeight: 700, textTransform: 'none', 
-                borderColor: '#0029FF', color: '#0029FF', 
-                '&:hover': { bgcolor: '#F0F4FF', borderColor: '#0029FF' } 
-              }}
-            >
-              {loadingTier === 'Premium Category' ? <CircularProgress size={24} /> : (user ? 'Subscribe Now' : 'Get Verified')}
-            </Button>
+              <Button 
+                variant="outlined" 
+                onClick={() => handleSubscribe('Premium Category', 25000)}
+                disabled={loadingTier === 'Premium Category' || isTierDisabled('Premium Category')}
+                sx={{ 
+                  borderRadius: 1.5, py: 1.2, fontWeight: 700, textTransform: 'none', 
+                  borderColor: '#0029FF', color: '#0029FF', 
+                  '&:hover': { bgcolor: '#F0F4FF', borderColor: '#0029FF' },
+                  ...(isTierDisabled('Premium Category') && { opacity: 0.5, pointerEvents: 'none' })
+                }}
+              >
+                {loadingTier === 'Premium Category' ? <CircularProgress size={24} /> : (user ? 'Subscribe Now' : 'Get Verified')}
+              </Button>
           </Box>
 
         </Box>
