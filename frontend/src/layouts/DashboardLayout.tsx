@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Box, Typography, Avatar, Button, IconButton, Popover, MenuItem, Divider } from '@mui/material';
+import { Box, Typography, Avatar, Button, IconButton, Menu, MenuItem, Divider } from '@mui/material';
 import { Link as RouterLink, Outlet, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import NotificationsNoneIcon from '@mui/icons-material/NotificationsNone';
 import PersonOutlinedIcon from '@mui/icons-material/PersonOutlined';
@@ -117,7 +117,7 @@ export default function DashboardLayout() {
       </Box>
 
       {/* Profile Popover Menu */}
-      <Popover
+      <Menu
         open={Boolean(profileMenuAnchor)}
         anchorEl={profileMenuAnchor}
         onClose={handleProfileMenuClose}
@@ -197,7 +197,7 @@ export default function DashboardLayout() {
             Sign Out
           </Typography>
         </MenuItem>
-      </Popover>
+      </Menu>
 
       {/* Quick Avatar Modal */}
       <QuickAvatarUploadModal

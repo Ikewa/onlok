@@ -216,7 +216,7 @@ export default function Navbar() {
       </AppBar>
 
       {/* User Profile Popover Menu */}
-      <Popover
+      <Menu
         open={Boolean(profileMenuAnchor)}
         anchorEl={profileMenuAnchor}
         onClose={handleProfileMenuClose}
@@ -298,7 +298,7 @@ export default function Navbar() {
             Sign Out
           </Typography>
         </MenuItem>
-      </Popover>
+      </Menu>
 
       {/* Quick Avatar Upload Modal */}
       <QuickAvatarUploadModal

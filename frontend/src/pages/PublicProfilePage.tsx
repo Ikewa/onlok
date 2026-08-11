@@ -31,7 +31,8 @@ import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import CloseIcon from '@mui/icons-material/Close';
 import HighlightOffIcon from '@mui/icons-material/HighlightOff';
-import ErrorOutlinedIcon from '@mui/icons-material/ErrorOutlined';
+// import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutlined';
 import BlockIcon from '@mui/icons-material/Block';
 import GppMaybeIcon from '@mui/icons-material/GppMaybe';
 import { Link as RouterLink, useSearchParams } from 'react-router-dom';
@@ -223,7 +224,7 @@ export default function PublicProfilePage() {
       bannerTitleColor: '#EA580C',
       bannerHeaderPill: 'Under Review',
       bannerBody: 'This Profile Has Receive Multiple Verified Reports, Exercse Caution Before Proceeding',
-      bannerSubIcon: <ErrorOutlinedIcon sx={{ color: '#EA580C', fontSize: 18 }} />,
+      bannerSubIcon: <ErrorOutlineIcon sx={{ color: '#EA580C', fontSize: 18 }} />,
       bannerSubText: 'Onlok Recommends Verifying Additional Information Before Making Payment Or Sharing Sensitive Information',
       trustLevel: 2,
       trustText: 'Under review. Multiple verified reports received.',
@@ -244,7 +245,7 @@ export default function PublicProfilePage() {
       bannerTitleColor: '#DC2626',
       bannerHeaderPill: null,
       bannerBody: 'The Verification Has Been Revoked Because The Submitted Information Could Be Verified',
-      bannerSubIcon: <ErrorOutlinedIcon sx={{ color: '#EF4444', fontSize: 18 }} />,
+      bannerSubIcon: <ErrorOutlineIcon sx={{ color: '#EF4444', fontSize: 18 }} />,
       bannerSubText: 'Onlok Does Not Recommend Relying On This Profile Fir Trust Or Identify Verification',
       trustLevel: 1,
       trustText: 'Revoked. Verification documents failed identity criteria.',
@@ -265,7 +266,7 @@ export default function PublicProfilePage() {
       bannerTitleColor: '#D97706',
       bannerHeaderPill: 'In Queue',
       bannerBody: 'This profile is currently undergoing verification review by Onlok administrators.',
-      bannerSubIcon: <ErrorOutlinedIcon sx={{ color: '#D97706', fontSize: 18 }} />,
+      bannerSubIcon: <ErrorOutlineIcon sx={{ color: '#D97706', fontSize: 18 }} />,
       bannerSubText: 'Onlok Recommends Verifying Additional Information Before Making Payment Or Sharing Sensitive Information',
       trustLevel: 2,
       trustText: 'Under review. Verification screening in progress.',
