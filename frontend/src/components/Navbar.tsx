@@ -1,4 +1,4 @@
-import { AppBar, Toolbar, Box, Button, Typography, Container, IconButton, Menu, MenuItem, Popover, Avatar, Divider, useMediaQuery, useTheme } from '@mui/material';
+import { AppBar, Toolbar, Box, Button, Typography, Container, IconButton, Menu, MenuItem, Popover, MenuList, Avatar, Divider, useMediaQuery, useTheme } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import CameraAltIcon from '@mui/icons-material/CameraAlt';
 import DashboardIcon from '@mui/icons-material/Dashboard';
@@ -216,7 +216,7 @@ export default function Navbar() {
       </AppBar>
 
       {/* User Profile Popover Menu */}
-      <Menu
+      <Popover
         open={Boolean(profileMenuAnchor)}
         anchorEl={profileMenuAnchor}
         onClose={handleProfileMenuClose}
@@ -232,73 +232,75 @@ export default function Navbar() {
           }
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, p: 1.5, mb: 1, bgcolor: '#F8FAFC', borderRadius: 2 }}>
-          <Box sx={{ position: 'relative' }}>
-            <Avatar src={avatarSrc} sx={{ width: 44, height: 44, bgcolor: '#1E293B', fontWeight: 800 }}>
-              {initials}
-            </Avatar>
+        <MenuList disablePadding>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, p: 1.5, mb: 1, bgcolor: '#F8FAFC', borderRadius: 2 }}>
+            <Box sx={{ position: 'relative' }}>
+              <Avatar src={avatarSrc} sx={{ width: 44, height: 44, bgcolor: '#1E293B', fontWeight: 800 }}>
+                {initials}
+              </Avatar>
+            </Box>
+            <Box sx={{ minWidth: 0, flex: 1 }}>
+              <Typography variant="subtitle2" fontWeight={800} color="#0F172A" noWrap>
+                {fullName}
+              </Typography>
+              <Typography variant="caption" color="#64748B" noWrap display="block">
+                {user?.vendor_id ? `ID: ${user.vendor_id}` : user?.email}
+              </Typography>
+            </Box>
           </Box>
-          <Box sx={{ minWidth: 0, flex: 1 }}>
-            <Typography variant="subtitle2" fontWeight={800} color="#0F172A" noWrap>
-              {fullName}
+
+          <Divider sx={{ my: 1 }} />
+
+          <MenuItem
+            onClick={() => {
+              handleProfileMenuClose();
+              setAvatarModalOpen(true);
+            }}
+            sx={{ py: 1.2, borderRadius: 1.5, gap: 1.5 }}
+          >
+            <CameraAltIcon sx={{ fontSize: 20, color: '#1A1FE8' }} />
+            <Typography variant="body2" fontWeight={700} color="#0F172A">
+              Change Profile Picture
             </Typography>
-            <Typography variant="caption" color="#64748B" noWrap display="block">
-              {user?.vendor_id ? `ID: ${user.vendor_id}` : user?.email}
+          </MenuItem>
+
+          <MenuItem
+            component={RouterLink}
+            to="/dashboard"
+            onClick={handleProfileMenuClose}
+            sx={{ py: 1.2, borderRadius: 1.5, gap: 1.5 }}
+          >
+            <DashboardIcon sx={{ fontSize: 20, color: '#64748B' }} />
+            <Typography variant="body2" fontWeight={600} color="#0F172A">
+              My Dashboard
             </Typography>
-          </Box>
-        </Box>
+          </MenuItem>
 
-        <Divider sx={{ my: 1 }} />
+          <MenuItem
+            component={RouterLink}
+            to="/dashboard/update/bio"
+            onClick={handleProfileMenuClose}
+            sx={{ py: 1.2, borderRadius: 1.5, gap: 1.5 }}
+          >
+            <EditIcon sx={{ fontSize: 20, color: '#64748B' }} />
+            <Typography variant="body2" fontWeight={600} color="#0F172A">
+              Edit Business Info
+            </Typography>
+          </MenuItem>
 
-        <MenuItem
-          onClick={() => {
-            handleProfileMenuClose();
-            setAvatarModalOpen(true);
-          }}
-          sx={{ py: 1.2, borderRadius: 1.5, gap: 1.5 }}
-        >
-          <CameraAltIcon sx={{ fontSize: 20, color: '#1A1FE8' }} />
-          <Typography variant="body2" fontWeight={700} color="#0F172A">
-            Change Profile Picture
-          </Typography>
-        </MenuItem>
+          <Divider sx={{ my: 1 }} />
 
-        <MenuItem
-          component={RouterLink}
-          to="/dashboard"
-          onClick={handleProfileMenuClose}
-          sx={{ py: 1.2, borderRadius: 1.5, gap: 1.5 }}
-        >
-          <DashboardIcon sx={{ fontSize: 20, color: '#64748B' }} />
-          <Typography variant="body2" fontWeight={600} color="#0F172A">
-            My Dashboard
-          </Typography>
-        </MenuItem>
-
-        <MenuItem
-          component={RouterLink}
-          to="/dashboard/update/bio"
-          onClick={handleProfileMenuClose}
-          sx={{ py: 1.2, borderRadius: 1.5, gap: 1.5 }}
-        >
-          <EditIcon sx={{ fontSize: 20, color: '#64748B' }} />
-          <Typography variant="body2" fontWeight={600} color="#0F172A">
-            Edit Business Info
-          </Typography>
-        </MenuItem>
-
-        <Divider sx={{ my: 1 }} />
-
-        <MenuItem
-          onClick={handleLogout}
-          sx={{ py: 1.2, borderRadius: 1.5, gap: 1.5, color: '#EF4444' }}
-        >
-          <LogoutIcon sx={{ fontSize: 20 }} />
-          <Typography variant="body2" fontWeight={700}>
-            Sign Out
-          </Typography>
-        </MenuItem>
-      </Menu>
+          <MenuItem
+            onClick={handleLogout}
+            sx={{ py: 1.2, borderRadius: 1.5, gap: 1.5, color: '#EF4444' }}
+          >
+            <LogoutIcon sx={{ fontSize: 20 }} />
+            <Typography variant="body2" fontWeight={700}>
+              Sign Out
+            </Typography>
+          </MenuItem>
+        </MenuList>
+      </Popover>
 
       {/* Quick Avatar Upload Modal */}
       <QuickAvatarUploadModal

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Box, Typography, Avatar, Button, IconButton, Menu, MenuItem, Divider } from '@mui/material';
+import { Box, Typography, Avatar, Button, IconButton, Popover, MenuList, MenuItem, Divider } from '@mui/material';
 import { Link as RouterLink, Outlet, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import NotificationsNoneIcon from '@mui/icons-material/NotificationsNone';
 import PersonOutlinedIcon from '@mui/icons-material/PersonOutlined';
@@ -117,7 +117,7 @@ export default function DashboardLayout() {
       </Box>
 
       {/* Profile Popover Menu */}
-      <Menu
+      <Popover
         open={Boolean(profileMenuAnchor)}
         anchorEl={profileMenuAnchor}
         onClose={handleProfileMenuClose}
@@ -133,71 +133,73 @@ export default function DashboardLayout() {
           }
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, p: 1.5, mb: 1, bgcolor: '#F8FAFC', borderRadius: 2 }}>
-          <Avatar src={avatarSrc} sx={{ width: 44, height: 44, bgcolor: '#1E293B', fontWeight: 800 }}>
-            {initials}
-          </Avatar>
-          <Box sx={{ minWidth: 0, flex: 1 }}>
-            <Typography variant="subtitle2" fontWeight={800} color="#0F172A" noWrap>
-              {fullName}
-            </Typography>
-            <Typography variant="caption" color="#64748B" noWrap display="block">
-              {user?.vendor_id ? `ID: ${user.vendor_id}` : user?.email}
-            </Typography>
+        <MenuList disablePadding>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, p: 1.5, mb: 1, bgcolor: '#F8FAFC', borderRadius: 2 }}>
+            <Avatar src={avatarSrc} sx={{ width: 44, height: 44, bgcolor: '#1E293B', fontWeight: 800 }}>
+              {initials}
+            </Avatar>
+            <Box sx={{ minWidth: 0, flex: 1 }}>
+              <Typography variant="subtitle2" fontWeight={800} color="#0F172A" noWrap>
+                {fullName}
+              </Typography>
+              <Typography variant="caption" color="#64748B" noWrap display="block">
+                {user?.vendor_id ? `ID: ${user.vendor_id}` : user?.email}
+              </Typography>
+            </Box>
           </Box>
-        </Box>
 
-        <Divider sx={{ my: 1 }} />
+          <Divider sx={{ my: 1 }} />
 
-        <MenuItem
-          onClick={() => {
-            handleProfileMenuClose();
-            setAvatarModalOpen(true);
-          }}
-          sx={{ py: 1.2, borderRadius: 1.5, gap: 1.5 }}
-        >
-          <CameraAltIcon sx={{ fontSize: 20, color: '#1A1FE8' }} />
-          <Typography variant="body2" fontWeight={700} color="#0F172A">
-            Change Profile Picture
-          </Typography>
-        </MenuItem>
+          <MenuItem
+            onClick={() => {
+              handleProfileMenuClose();
+              setAvatarModalOpen(true);
+            }}
+            sx={{ py: 1.2, borderRadius: 1.5, gap: 1.5 }}
+          >
+            <CameraAltIcon sx={{ fontSize: 20, color: '#1A1FE8' }} />
+            <Typography variant="body2" fontWeight={700} color="#0F172A">
+              Change Profile Picture
+            </Typography>
+          </MenuItem>
 
-        <MenuItem
-          component={RouterLink}
-          to="/dashboard"
-          onClick={handleProfileMenuClose}
-          sx={{ py: 1.2, borderRadius: 1.5, gap: 1.5 }}
-        >
-          <DashboardIcon sx={{ fontSize: 20, color: '#64748B' }} />
-          <Typography variant="body2" fontWeight={600} color="#0F172A">
-            My Dashboard
-          </Typography>
-        </MenuItem>
+          <MenuItem
+            component={RouterLink}
+            to="/dashboard"
+            onClick={handleProfileMenuClose}
+            sx={{ py: 1.2, borderRadius: 1.5, gap: 1.5 }}
+          >
+            <DashboardIcon sx={{ fontSize: 20, color: '#64748B' }} />
+            <Typography variant="body2" fontWeight={600} color="#0F172A">
+              My Dashboard
+            </Typography>
+          </MenuItem>
 
-        <MenuItem
-          component={RouterLink}
-          to="/dashboard/update/bio"
-          onClick={handleProfileMenuClose}
-          sx={{ py: 1.2, borderRadius: 1.5, gap: 1.5 }}
-        >
-          <EditIcon sx={{ fontSize: 20, color: '#64748B' }} />
-          <Typography variant="body2" fontWeight={600} color="#0F172A">
-            Edit Business Info
-          </Typography>
-        </MenuItem>
+          <MenuItem
+            component={RouterLink}
+            to="/dashboard/update/bio"
+            onClick={handleProfileMenuClose}
+            sx={{ py: 1.2, borderRadius: 1.5, gap: 1.5 }}
+          >
+            <EditIcon sx={{ fontSize: 20, color: '#64748B' }} />
+            <Typography variant="body2" fontWeight={600} color="#0F172A">
+              Edit Business Info
+            </Typography>
+          </MenuItem>
 
-        <Divider sx={{ my: 1 }} />
+          <Divider sx={{ my: 1 }} />
 
-        <MenuItem
-          onClick={handleLogout}
-          sx={{ py: 1.2, borderRadius: 1.5, gap: 1.5, color: '#EF4444' }}
-        >
-          <LogoutOutlinedIcon sx={{ fontSize: 20 }} />
-          <Typography variant="body2" fontWeight={700}>
-            Sign Out
-          </Typography>
-        </MenuItem>
-      </Menu>
+          <MenuItem
+            onClick={handleLogout}
+            sx={{ py: 1.2, borderRadius: 1.5, gap: 1.5, color: '#EF4444' }}
+          >
+            <LogoutOutlinedIcon sx={{ fontSize: 20 }} />
+            <Typography variant="body2" fontWeight={700}>
+              Sign Out
+            </Typography>
+          </MenuItem>
+        </MenuList>
+      </Popover>
 
       {/* Quick Avatar Modal */}
       <QuickAvatarUploadModal
