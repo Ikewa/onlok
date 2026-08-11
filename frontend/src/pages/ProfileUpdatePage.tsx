@@ -34,12 +34,12 @@ const options = [
     desc: 'Make The Necessary Change By Updating Your Information',
     route: '/dashboard/update/docs',
   },
-  {
-    icon: <AccountCircleIcon sx={{ color: '#1A1FE8', fontSize: 22 }} />,
-    title: 'Update Profile Picture',
-    desc: 'Upload A New Photo For Your Public Vendor Profile',
-    route: '/dashboard/update/avatar',
-  },
+  // {
+  //   icon: <AccountCircleIcon sx={{ color: '#1A1FE8', fontSize: 22 }} />,
+  //   title: 'Update Profile Picture',
+  //   desc: 'Upload A New Photo For Your Public Vendor Profile',
+  //   route: '/dashboard/update/avatar',
+  // },
 ];
 
 export default function ProfileUpdatePage() {

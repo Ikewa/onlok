@@ -33,6 +33,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import HighlightOffIcon from '@mui/icons-material/HighlightOff';
 import ErrorOutlinedIcon from '@mui/icons-material/ErrorOutlined';
 import BlockIcon from '@mui/icons-material/Block';
+import GppMaybeIcon from '@mui/icons-material/GppMaybe';
 import { Link as RouterLink, useSearchParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { searchVendors } from '../api/dashboard';
@@ -92,13 +93,7 @@ const getSocialUrl = (platform: 'twitter' | 'instagram' | 'facebook' | 'tiktok' 
   }
 };
 
-const verificationItems = [
-  { label: 'Identity Verified', desc: 'Biometric liveness check passed' },
-  { label: 'Government ID Confirmed', desc: 'Passport verified via NFC' },
-  { label: 'Business Registration Verified', desc: 'Chen Design Studio LLC' },
-  { label: 'Address Verified', desc: 'Proof of residence confirmed' },
-  { label: 'Ongoing Monitoring Active', desc: 'Daily global watchlist screening' },
-];
+
 
 function SocialRow({ icon, label, sub, url, disabled }: { icon: React.ReactNode; label: string; sub: string; url?: string | null; disabled?: boolean }) {
   const hasUrl = !!url?.trim() && !disabled;
@@ -153,30 +148,13 @@ export default function PublicProfilePage() {
 
   useEffect(() => {
     if (vendorId) {
+      setLoading(true);
       searchVendors(vendorId)
         .then((res) => {
           if (res.results.length > 0) {
             setVendor(res.results[0]);
           } else {
-            // If vendor search returns empty but an ID or status override is present (e.g. demo mode), fallback to mock
-            setVendor({
-              id: 65,
-              vendor_id: vendorId,
-              first_name: 'Munir',
-              last_name: 'Musa',
-              business_name: 'UX Designer & Consultant',
-              status: statusParam || 'verified',
-              created_at: new Date().toISOString(),
-              badges: ['verified_vendor', 'gold'],
-              phone_number: '+6591234567',
-              instagram_handle: '@munirmusa',
-              twitter_handle: '@munirmusa',
-              tiktok_handle: '@munirmusa',
-              facebook_handle: 'munirmusa',
-              profile_picture_url: null,
-              reports_count: 3,
-              admin_notes: 'Multiple complains received regarding user reports.',
-            });
+            setVendor(null);
           }
         })
         .catch(() => {
@@ -184,28 +162,10 @@ export default function PublicProfilePage() {
         })
         .finally(() => setLoading(false));
     } else {
-      // Default demo state if page opened without query params
-      setVendor({
-        id: 65,
-        vendor_id: 'OL-NG-0065',
-        first_name: 'Munir',
-        last_name: 'Musa',
-        business_name: 'UX Designer & Consultant',
-        status: statusParam || 'flagged',
-        created_at: new Date().toISOString(),
-        badges: ['verified_vendor', 'gold'],
-        phone_number: '+6591234567',
-        instagram_handle: '@munirmusa',
-        twitter_handle: '@munirmusa',
-        tiktok_handle: '@munirmusa',
-        facebook_handle: 'munirmusa',
-        profile_picture_url: null,
-        reports_count: 3,
-        admin_notes: 'Multiple complains received regarding user reports.',
-      });
+      setVendor(null);
       setLoading(false);
     }
-  }, [vendorId, statusParam]);
+  }, [vendorId]);
 
   // Determine raw and effective status
   const rawStatus = (statusParam || vendor?.status || 'pending').toLowerCase();
@@ -221,19 +181,31 @@ export default function PublicProfilePage() {
     effectiveStatus = 'pending';
   }
 
-  const fullName = vendor ? `${vendor.first_name} ${vendor.last_name}`.trim() : 'Munir Musa';
-  const initials = fullName.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
+  const fullName = vendor
+    ? `${vendor.first_name || ''} ${vendor.last_name || ''}`.trim() || vendor.business_name || 'Vendor Profile'
+    : '';
+  const initials = fullName
+    ? fullName.split(' ').filter(Boolean).map((n) => n[0]).join('').toUpperCase().slice(0, 2)
+    : '';
   const isVerified = effectiveStatus === 'verified';
   const avatarSrc = vendor?.profile_picture_url ? `${API_BASE}${vendor.profile_picture_url}` : undefined;
-  const memberSince = vendor
+  const memberSince = vendor?.created_at
     ? new Date(vendor.created_at).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
-    : 'June 2024';
+    : 'N/A';
   const lastVerified = isVerified
-    ? (vendor?.last_verified ? new Date(vendor.last_verified).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }) : 'August 2026')
+    ? (vendor?.last_verified ? new Date(vendor.last_verified).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }) : 'Verified')
     : 'Not Verified';
 
-  const userRoleText = vendor?.business_name && vendor.business_name !== '-' ? vendor.business_name : 'UX Designer & Consultant';
+  const userRoleText = vendor?.business_name && vendor.business_name !== '-' ? vendor.business_name : 'Registered Vendor';
   const countryName = vendor?.business_address || vendor?.country || getCountryFromVendorId(vendor?.vendor_id) || 'Not Specified';
+
+  const verificationItems = [
+    { label: 'Identity Verified', desc: 'Biometric liveness check passed' },
+    { label: 'Government ID Confirmed', desc: 'Government-issued ID verified' },
+    { label: 'Business Registration Verified', desc: vendor?.business_name ? `${vendor.business_name} verified` : 'Business registration confirmed' },
+    { label: 'Address Verified', desc: 'Proof of address confirmed' },
+    { label: 'Ongoing Monitoring Active', desc: 'Daily global watchlist screening' },
+  ];
 
   // Status configuration mapping
   const statusConfig = {
@@ -454,7 +426,7 @@ export default function PublicProfilePage() {
               {fullName}
             </Typography>
             <Typography sx={{ fontWeight: 700, fontSize: '0.9rem', color: '#475569', mt: 0.5 }}>
-              ID: {vendor?.vendor_id ?? 'OL-NG-0065'}
+              ID: {vendor?.vendor_id}
             </Typography>
           </Box>
 
@@ -741,7 +713,7 @@ export default function PublicProfilePage() {
                 {itemVerified ? (
                   <CheckCircleIcon sx={{ color: '#0EA5E9', fontSize: 22, mt: 0.1, flexShrink: 0 }} />
                 ) : effectiveStatus === 'revoked' ? (
-                  <GppBadIcon sx={{ color: '#EF4444', fontSize: 22, mt: 0.1, flexShrink: 0 }} />
+                  <HighlightOffIcon sx={{ color: '#EF4444', fontSize: 22, mt: 0.1, flexShrink: 0 }} />
                 ) : (
                   <WarningAmberIcon sx={{ color: '#EA580C', fontSize: 22, mt: 0.1, flexShrink: 0 }} />
                 )}
