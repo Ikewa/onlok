@@ -335,7 +335,7 @@ const updateVerificationStatus = async (req, res) => {
                     <p>Great news! Your account verification has been approved.</p>
                     ${renderDocBreakdown()}
                     <p>You can now log in and access all features of your vendor portal.</p>
-                    <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/login" style="padding: 10px 15px; background: #0F172A; color: #fff; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 0;">Log In to Onlok</a>
+                    <a href="${process.env.FRONTEND_URL || 'https://app.onlok.net'}/login" style="padding: 10px 15px; background: #0F172A; color: #fff; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 0;">Log In to Onlok</a>
                     <br/><br/>
                     <p>Best regards,<br/><strong>The Onlok Team</strong></p>
                 </div>
@@ -349,7 +349,7 @@ const updateVerificationStatus = async (req, res) => {
                     <p>Your documents have been reviewed and you have been approved for the <strong>${finalTier}</strong> tier.</p>
                     ${renderDocBreakdown()}
                     <p>Please log in to your dashboard to complete your subscription payment and finalize your verification.</p>
-                    <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/dashboard" style="padding: 10px 15px; background: #0029FF; color: #fff; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 0;">Go to Dashboard</a>
+                    <a href="${process.env.FRONTEND_URL || 'https://app.onlok.net'}/dashboard" style="padding: 10px 15px; background: #0029FF; color: #fff; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 0;">Go to Dashboard</a>
                     <br/><br/>
                     <p>Best regards,<br/><strong>The Onlok Team</strong></p>
                 </div>
@@ -368,7 +368,7 @@ const updateVerificationStatus = async (req, res) => {
                     </div>` : ''}
                     ${renderDocBreakdown()}
                     <p>Please log into your dashboard to update your profile or resubmit requested documents.</p>
-                    <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/dashboard/verification" style="padding: 10px 15px; background: #D97706; color: #fff; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 0;">Go to Verification Page</a>
+                    <a href="${process.env.FRONTEND_URL || 'https://app.onlok.net'}/dashboard/verification" style="padding: 10px 15px; background: #D97706; color: #fff; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 0;">Go to Verification Page</a>
                     <br/><br/>
                     <p>Best regards,<br/><strong>The Onlok Team</strong></p>
                 </div>

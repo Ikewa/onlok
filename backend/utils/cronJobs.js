@@ -23,7 +23,7 @@ const checkExpiringSubscriptions = async () => {
                     <p>Hi ${sub.first_name},</p>
                     <p>This is a friendly reminder that your <strong>${sub.plan_type.charAt(0).toUpperCase() + sub.plan_type.slice(1)}</strong> Onlok subscription is expiring in exactly <strong>7 days</strong> on ${new Date(sub.end_date).toLocaleDateString()}.</p>
                     <p>Please log in to your dashboard to renew your subscription so you don't lose access to your vendor features.</p>
-                    <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/login" style="padding: 10px 15px; background: #0029FF; color: #fff; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 0;">Renew Subscription</a>
+                    <a href="${process.env.FRONTEND_URL || 'https://app.onlok.net'}/login" style="padding: 10px 15px; background: #0029FF; color: #fff; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 0;">Renew Subscription</a>
                     <br/><br/>
                     <p>Best regards,<br/><strong>The Onlok Team</strong></p>
                 </div>
@@ -47,7 +47,7 @@ const checkExpiringSubscriptions = async () => {
                     <p>Hi ${sub.first_name},</p>
                     <p>Your <strong>${sub.plan_type.charAt(0).toUpperCase() + sub.plan_type.slice(1)}</strong> Onlok subscription is expiring <strong>tomorrow</strong>.</p>
                     <p>If you don't renew before it expires, your account will temporarily lose access to verified vendor features.</p>
-                    <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/login" style="padding: 10px 15px; background: #0029FF; color: #fff; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 0;">Renew Now</a>
+                    <a href="${process.env.FRONTEND_URL || 'https://app.onlok.net'}/login" style="padding: 10px 15px; background: #0029FF; color: #fff; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 0;">Renew Now</a>
                     <br/><br/>
                     <p>Best regards,<br/><strong>The Onlok Team</strong></p>
                 </div>

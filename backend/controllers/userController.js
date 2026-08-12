@@ -460,7 +460,7 @@ const forgotPassword = async (req, res) => {
         );
 
         // Create reset URL (assuming frontend runs on same domain or env var)
-        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+        const frontendUrl = process.env.FRONTEND_URL || 'https://app.onlok.net';
         const resetUrl = `${frontendUrl}/reset-password/${resetToken}`;
 
         const emailHtml = `

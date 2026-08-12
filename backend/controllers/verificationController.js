@@ -50,7 +50,7 @@ const submitVerification = async (req, res) => {
                     <p>Hi there,</p>
                     <p>We noticed some required files (like your Government ID or Business Video) were missing when you submitted your verification.</p>
                     <p>Please log back in to your dashboard and re-upload the missing documents to complete your registration.</p>
-                    <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/login" style="padding: 10px 15px; background: #0029FF; color: #fff; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 0;">Log In</a>
+                    <a href="${process.env.FRONTEND_URL || 'https://app.onlok.net'}/login" style="padding: 10px 15px; background: #0029FF; color: #fff; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 0;">Log In</a>
                     <br/><br/>
                     <p>Best regards,<br/><strong>The Onlok Team</strong></p>
                 </div>
@@ -125,7 +125,7 @@ const submitVerification = async (req, res) => {
                 <h2 style="color: #0F172A;">Welcome to Onlok!</h2>
                 <p>Your vendor application and documents have been received successfully.</p>
                 <p>Your dashboard is now ready. Our administrative team will review your application and get back to you shortly.</p>
-                <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/dashboard" style="padding: 10px 15px; background: #0029FF; color: #fff; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 0;">Go to Dashboard</a>
+                <a href="${process.env.FRONTEND_URL || 'https://app.onlok.net'}/dashboard" style="padding: 10px 15px; background: #0029FF; color: #fff; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 0;">Go to Dashboard</a>
                 <br/><br/>
                 <p>Best regards,<br/><strong>The Onlok Team</strong></p>
             </div>
