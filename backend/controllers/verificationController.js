@@ -43,22 +43,6 @@ const submitVerification = async (req, res) => {
         const hasVideo = req.files && req.files['business_video'];
         const { sendEmail } = require('../utils/emailService');
         
-        if (!hasGovId && !hasVideo) {
-            const html = `
-                <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
-                    <h2 style="color: #D97706;">Registration Incomplete</h2>
-                    <p>Hi there,</p>
-                    <p>We noticed some required files (like your Government ID or Business Video) were missing when you submitted your verification.</p>
-                    <p>Please log back in to your dashboard and re-upload the missing documents to complete your registration.</p>
-                    <a href="${process.env.FRONTEND_URL || 'https://app.onlok.net'}/login" style="padding: 10px 15px; background: #0029FF; color: #fff; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 0;">Log In</a>
-                    <br/><br/>
-                    <p>Best regards,<br/><strong>The Onlok Team</strong></p>
-                </div>
-            `;
-            await sendEmail(req.user.email, 'Action Required: Missing Documents - Onlok', html);
-            return res.status(400).json({ message: 'Government ID and Business Video are required.' });
-        }
-
         const govIdUrl = hasGovId ? `/uploads/${req.files['gov_id'][0].filename}` : null;
         const cacUrl = hasCac ? `/uploads/${req.files['cac_document'][0].filename}` : null;
         const videoUrl = hasVideo ? `/uploads/${req.files['business_video'][0].filename}` : null;
@@ -70,19 +54,37 @@ const submitVerification = async (req, res) => {
         );
 
         let verificationId = null;
+        
+        let finalGovIdUrl = govIdUrl;
+        let finalCacUrl = cacUrl;
+        let finalVideoUrl = videoUrl;
+        
+        if (existing.length > 0) {
+            finalGovIdUrl = govIdUrl || existing[0].gov_id_url;
+            finalCacUrl = cacUrl || existing[0].cac_url;
+            finalVideoUrl = videoUrl || existing[0].video_url;
+        }
+
+        if (!finalGovIdUrl || !finalVideoUrl) {
+            const html = `
+                <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+                    <h2 style="color: #D97706;">Registration Incomplete</h2>
+                    <p>Hi there,</p>
+                    <p>We noticed some required files (like your Government ID or Business Video) were missing or failed to upload when you submitted your verification.</p>
+                    <p>Please log back in to your dashboard and re-upload the missing documents to complete your registration.</p>
+                    <a href="${process.env.FRONTEND_URL || 'https://app.onlok.net'}/login" style="padding: 10px 15px; background: #0029FF; color: #fff; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 0;">Log In</a>
+                    <br/><br/>
+                    <p>Best regards,<br/><strong>The Onlok Team</strong></p>
+                </div>
+            `;
+            await sendEmail(req.user.email, 'Action Required: Missing Documents - Onlok', html);
+            return res.status(400).json({ message: 'Government ID and Business Video are required.' });
+        }
 
         if (existing.length > 0) {
             // Update existing record in-place
             const currentRec = existing[0];
             verificationId = currentRec.id;
-
-            const finalGovIdUrl = govIdUrl || currentRec.gov_id_url;
-            const finalCacUrl = cacUrl || currentRec.cac_url;
-            const finalVideoUrl = videoUrl || currentRec.video_url;
-
-            if (!finalGovIdUrl || !finalVideoUrl) {
-                return res.status(400).json({ message: 'Government ID and Business Video are required for initial verification.' });
-            }
 
             const updateQuery = `
                 UPDATE verifications 
@@ -108,11 +110,8 @@ const submitVerification = async (req, res) => {
             ]);
         } else {
             // Create initial verification record
-            if (!govIdUrl || !videoUrl) {
-                return res.status(400).json({ message: 'Government ID and Business Video are required for verification.' });
-            }
             const insertQuery = `INSERT INTO verifications (user_id, gov_id_url, cac_url, video_url, status) VALUES (?, ?, ?, ?, 'pending')`;
-            const [result] = await pool.query(insertQuery, [userId, govIdUrl, cacUrl, videoUrl]);
+            const [result] = await pool.query(insertQuery, [userId, finalGovIdUrl, finalCacUrl, finalVideoUrl]);
             verificationId = result.insertId;
         }
 
