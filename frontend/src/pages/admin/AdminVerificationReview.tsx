@@ -129,6 +129,29 @@ export default function AdminVerificationReview() {
     }
   };
 
+  const getSocialLink = (platform: string, handle: string | null | undefined) => {
+    if (!handle) return <Typography variant="body2" fontWeight={600} color="#111827" sx={{ fontSize: '0.8rem' }} noWrap>N/A</Typography>;
+    
+    let url = handle;
+    if (!handle.startsWith('http')) {
+      const cleanHandle = handle.replace(/^@/, '');
+      switch (platform) {
+        case 'twitter': url = `https://twitter.com/${cleanHandle}`; break;
+        case 'instagram': url = `https://instagram.com/${cleanHandle}`; break;
+        case 'facebook': url = `https://facebook.com/${cleanHandle}`; break;
+        case 'tiktok': url = `https://tiktok.com/@${cleanHandle}`; break;
+      }
+    }
+    
+    return (
+      <Typography variant="body2" fontWeight={600} sx={{ fontSize: '0.8rem' }} noWrap>
+        <a href={url} target="_blank" rel="noopener noreferrer" style={{ color: '#0029FF', textDecoration: 'none' }}>
+          {handle}
+        </a>
+      </Typography>
+    );
+  };
+
   const getMediaUrl = (path?: string) => {
     if (!path) return '';
     if (import.meta.env.PROD) {
@@ -263,9 +286,7 @@ export default function AdminVerificationReview() {
                   <TwitterIcon sx={{ color: '#1DA1F2', fontSize: 18 }} />
                   <Box sx={{ overflow: 'hidden' }}>
                     <Typography variant="caption" color="#9CA3AF" display="block" sx={{ fontSize: '0.7rem' }}>Twitter / X</Typography>
-                    <Typography variant="body2" fontWeight={600} color="#111827" sx={{ fontSize: '0.8rem' }} noWrap>
-                      {details.twitter_handle ? `@${details.twitter_handle.replace(/^@/, '')}` : 'N/A'}
-                    </Typography>
+                    {getSocialLink('twitter', details.twitter_handle)}
                   </Box>
                 </Box>
               </Grid>
@@ -275,9 +296,7 @@ export default function AdminVerificationReview() {
                   <InstagramIcon sx={{ color: '#E4405F', fontSize: 18 }} />
                   <Box sx={{ overflow: 'hidden' }}>
                     <Typography variant="caption" color="#9CA3AF" display="block" sx={{ fontSize: '0.7rem' }}>Instagram</Typography>
-                    <Typography variant="body2" fontWeight={600} color="#111827" sx={{ fontSize: '0.8rem' }} noWrap>
-                      {details.instagram_handle ? `@${details.instagram_handle.replace(/^@/, '')}` : 'N/A'}
-                    </Typography>
+                    {getSocialLink('instagram', details.instagram_handle)}
                   </Box>
                 </Box>
               </Grid>
@@ -287,9 +306,7 @@ export default function AdminVerificationReview() {
                   <FacebookIcon sx={{ color: '#1877F2', fontSize: 18 }} />
                   <Box sx={{ overflow: 'hidden' }}>
                     <Typography variant="caption" color="#9CA3AF" display="block" sx={{ fontSize: '0.7rem' }}>Facebook</Typography>
-                    <Typography variant="body2" fontWeight={600} color="#111827" sx={{ fontSize: '0.8rem' }} noWrap>
-                      {details.facebook_handle || 'N/A'}
-                    </Typography>
+                    {getSocialLink('facebook', details.facebook_handle)}
                   </Box>
                 </Box>
               </Grid>
@@ -299,9 +316,7 @@ export default function AdminVerificationReview() {
                   <MusicNoteIcon sx={{ color: '#000000', fontSize: 18 }} />
                   <Box sx={{ overflow: 'hidden' }}>
                     <Typography variant="caption" color="#9CA3AF" display="block" sx={{ fontSize: '0.7rem' }}>TikTok</Typography>
-                    <Typography variant="body2" fontWeight={600} color="#111827" sx={{ fontSize: '0.8rem' }} noWrap>
-                      {details.tiktok_handle ? `@${details.tiktok_handle.replace(/^@/, '')}` : 'N/A'}
-                    </Typography>
+                    {getSocialLink('tiktok', details.tiktok_handle)}
                   </Box>
                 </Box>
               </Grid>
