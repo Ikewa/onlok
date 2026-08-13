@@ -133,7 +133,11 @@ export default function RegisterPage() {
             password: form.password,
             phone_number: form.phone_number,
             country_code: form.country_code,
-            referred_by: refCode || undefined
+            referred_by: refCode || undefined,
+            twitter_handle: form.twitter_handle,
+            instagram_handle: form.instagram_handle,
+            facebook_handle: form.facebook_handle,
+            tiktok_handle: form.tiktok_handle
           });
           setRegisteredUser(user);
           login(user);

@@ -106,6 +106,10 @@ export interface RegisterPayload {
   business_address?: string;
   country_code?: string;
   referred_by?: string;
+  twitter_handle?: string;
+  instagram_handle?: string;
+  facebook_handle?: string;
+  tiktok_handle?: string;
 }
 
 export interface LoginPayload {
