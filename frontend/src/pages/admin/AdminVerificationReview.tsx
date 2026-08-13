@@ -321,27 +321,7 @@ export default function AdminVerificationReview() {
                 </Box>
               </Grid>
 
-              {/* TEST CARD 1 (Handle only) */}
-              <Grid item xs={6} sm={3}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 1.2, bgcolor: '#F9FAFB', borderRadius: '8px', border: '1px solid #E5E7EB' }}>
-                  <MusicNoteIcon sx={{ color: '#000000', fontSize: 18 }} />
-                  <Box sx={{ overflow: 'hidden' }}>
-                    <Typography variant="caption" color="#9CA3AF" display="block" sx={{ fontSize: '0.7rem' }}>Test Handle</Typography>
-                    {getSocialLink('tiktok', '@my_test_handle')}
-                  </Box>
-                </Box>
-              </Grid>
-
-              {/* TEST CARD 2 (Full URL) */}
-              <Grid item xs={6} sm={3}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 1.2, bgcolor: '#F9FAFB', borderRadius: '8px', border: '1px solid #E5E7EB' }}>
-                  <MusicNoteIcon sx={{ color: '#000000', fontSize: 18 }} />
-                  <Box sx={{ overflow: 'hidden' }}>
-                    <Typography variant="caption" color="#9CA3AF" display="block" sx={{ fontSize: '0.7rem' }}>Test URL</Typography>
-                    {getSocialLink('tiktok', 'https://tiktok.com/@full_url_test')}
-                  </Box>
-                </Box>
-              </Grid>
+              {/* TEST CARDS REMOVED */}
             </Grid>
           </Paper>
 
