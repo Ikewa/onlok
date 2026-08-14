@@ -35,7 +35,6 @@ import AdminVerificationQueue from './pages/admin/AdminVerificationQueue';
 import AdminVerificationReview from './pages/admin/AdminVerificationReview';
 import AdminLoginPage from './pages/admin/AdminLoginPage';
 import AdminDashboard from './pages/admin/AdminDashboard';
-import AdminUsers from './pages/admin/AdminUsers';
 import AdminAlerts from './pages/admin/AdminAlerts';
 import AdminComplaints from './pages/admin/AdminComplaints';
 import AdminComplaintDetail from './pages/admin/AdminComplaintDetail';
@@ -92,7 +91,6 @@ export default function App() {
               <Route path="/admin/verifications" element={<AdminVerificationQueue />} />
               <Route path="/admin/verifications/:id" element={<AdminVerificationReview />} />
               <Route path="/admin/dashboard" element={<AdminDashboard />} />
-              <Route path="/admin/users" element={<AdminUsers />} />
               <Route path="/admin/alerts" element={<AdminAlerts />} />
               <Route path="/admin/complaints" element={<AdminComplaints />} />
               <Route path="/admin/complaints/:id" element={<AdminComplaintDetail />} />

@@ -15,7 +15,8 @@ import FacebookIcon from '@mui/icons-material/Facebook';
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
 import AccessTimeOutlinedIcon from '@mui/icons-material/AccessTimeOutlined';
 import { useNavigate, useParams } from 'react-router-dom';
-import { getVerificationDetails, updateVerificationStatus, type AdminVerification } from '../../api/admin';
+import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined';
+import { getVerificationDetails, updateVerificationStatus, deleteAdminUser, type AdminVerification } from '../../api/admin';
 import { MenuItem, Select } from '@mui/material';
 import toast from 'react-hot-toast';
 import api from '../../api/axiosInstance';
@@ -40,6 +41,10 @@ export default function AdminVerificationReview() {
   // Request Information Modal State
   const [requestModalOpen, setRequestModalOpen] = useState(false);
   const [requestMessage, setRequestMessage] = useState('');
+
+  // Delete User Modal State
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Prembly Search State
   const [searchType, setSearchType] = useState('nin');
@@ -126,6 +131,21 @@ export default function AdminVerificationReview() {
       setSearchResult({ error: error.response?.data || error.message });
     } finally {
       setIsSearching(false);
+    }
+  };
+
+  const handleDeleteUser = async () => {
+    if (!details?.user_id) return;
+    setIsDeleting(true);
+    try {
+      await deleteAdminUser(details.user_id);
+      toast.success('User deleted successfully');
+      navigate('/admin/verifications');
+    } catch (err) {
+      toast.error('Failed to delete user');
+    } finally {
+      setIsDeleting(false);
+      setDeleteModalOpen(false);
     }
   };
 
@@ -943,6 +963,19 @@ export default function AdminVerificationReview() {
             >
               Flag as Suspicious
             </Button>
+            <Box sx={{ mt: 2 }}>
+              <Button
+                variant="outlined"
+                color="error"
+                fullWidth
+                startIcon={<DeleteOutlinedIcon />}
+                onClick={() => setDeleteModalOpen(true)}
+                disabled={actionLoading}
+                sx={{ py: 1.25, borderRadius: '8px', textTransform: 'none', fontWeight: 600, fontSize: '0.88rem' }}
+              >
+                Delete User Completely
+              </Button>
+            </Box>
           </Box>
 
         </Grid>
@@ -983,6 +1016,32 @@ export default function AdminVerificationReview() {
             sx={{ bgcolor: '#D97706', color: '#fff', borderRadius: 2, px: 3, fontWeight: 700, textTransform: 'none', '&:hover': { bgcolor: '#B45309' } }}
           >
             {actionLoading ? 'Sending...' : 'Send Request'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete User Dialog */}
+      <Dialog open={deleteModalOpen} onClose={() => !isDeleting && setDeleteModalOpen(false)} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: 3, p: 1 } }}>
+        <DialogTitle sx={{ fontWeight: 800, color: '#0F172A', pb: 1 }}>
+          Delete User Permanently?
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="#64748B">
+            Are you sure you want to permanently delete <strong>{details.first_name} {details.last_name}</strong>? This action cannot be undone and all their data will be removed.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setDeleteModalOpen(false)} disabled={isDeleting} sx={{ textTransform: 'none', color: '#64748B', fontWeight: 600 }}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            disabled={isDeleting}
+            onClick={handleDeleteUser}
+            sx={{ borderRadius: 2, px: 3, fontWeight: 700, textTransform: 'none', boxShadow: 'none' }}
+          >
+            {isDeleting ? <CircularProgress size={20} color="inherit" /> : 'Yes, Delete'}
           </Button>
         </DialogActions>
       </Dialog>
