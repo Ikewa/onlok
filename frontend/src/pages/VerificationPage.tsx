@@ -28,6 +28,13 @@ const fmt = (dateStr: string | null | undefined) => {
   });
 };
 
+/** Available subscription tiers and pricing */
+const PLANS: Record<'Bronze' | 'Silver' | 'Gold', { monthly: number; annual: number }> = {
+  Bronze: { monthly: 850, annual: 10000 },
+  Silver: { monthly: 1500, annual: 15000 },
+  Gold: { monthly: 2500, annual: 25000 },
+};
+
 /** Derive dynamic timeline steps from the real verification record */
 function buildTimeline(record: VerificationRecord) {
   const submittedAt = record.submitted_at;
@@ -153,6 +160,11 @@ export default function VerificationPage() {
   const [error, setError] = useState<string | null>(null);
   const [isPaying, setIsPaying] = useState(false);
 
+  // Plan selection state
+  const [planModalOpen, setPlanModalOpen] = useState(false);
+  const [selectedTier, setSelectedTier] = useState<'Bronze' | 'Silver' | 'Gold'>('Bronze');
+  const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
+
   // Targeted document resubmission state
   const [resubmitModalOpen, setResubmitModalOpen] = useState(false);
   const [activeDocKey, setActiveDocKey] = useState<'govId' | 'cac' | 'video'>('govId');
@@ -188,16 +200,14 @@ export default function VerificationPage() {
     if (!record || !user) return;
     setIsPaying(true);
     try {
-      let amount = 10000;
-      if (record.assigned_tier === 'Silver') amount = 15000;
-      if (record.assigned_tier === 'Gold') amount = 25000;
-      
+      const amount = PLANS[selectedTier][billingCycle];
+
       const res = await initializePayment({
         email: user.email,
-        amount: amount,
-        plan: record.assigned_tier || 'Bronze',
+        amount,
+        plan: `${selectedTier}-${billingCycle}`,
       });
-      
+
       if (res?.data?.authorization_url) {
         window.location.href = res.data.authorization_url;
       } else {
@@ -208,6 +218,7 @@ export default function VerificationPage() {
       toast.error(errorMsg);
     } finally {
       setIsPaying(false);
+      setPlanModalOpen(false);
     }
   };
 
@@ -427,7 +438,7 @@ export default function VerificationPage() {
                   <Typography sx={{ color: '#1E40AF', fontSize: '0.9rem', maxWidth: 600, mb: 2 }}>
                     Your documents have been reviewed and you have been approved for a tier. Please complete your subscription payment to finalize the verification process.
                   </Typography>
-                  <Button variant="contained" disabled={isPaying} onClick={handlePay} sx={{ bgcolor: '#2563EB', '&:hover': { bgcolor: '#1D4ED8' }, textTransform: 'none', borderRadius: 2 }}>
+                  <Button variant="contained" disabled={isPaying} onClick={() => setPlanModalOpen(true)} sx={{ bgcolor: '#2563EB', '&:hover': { bgcolor: '#1D4ED8' }, textTransform: 'none', borderRadius: 2 }}>
                     {isPaying ? <CircularProgress size={24} color="inherit" /> : 'Proceed to Payment'}
                   </Button>
                 </Box>
@@ -663,6 +674,81 @@ export default function VerificationPage() {
           </>
         );
       })()}
+
+      {/* Plan Selection Dialog */}
+      <Dialog open={planModalOpen} onClose={() => setPlanModalOpen(false)} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: 3, p: 1 } }}>
+        <DialogTitle sx={{ fontWeight: 800, color: '#0F172A', pb: 1 }}>
+          Choose Your Plan
+        </DialogTitle>
+        <DialogContent>
+          {/* Billing cycle toggle */}
+          <Stack direction="row" spacing={1} mb={3}>
+            {(['monthly', 'annual'] as const).map((cycle) => (
+              <Button
+                key={cycle}
+                fullWidth
+                variant={billingCycle === cycle ? 'contained' : 'outlined'}
+                onClick={() => setBillingCycle(cycle)}
+                sx={{
+                  textTransform: 'none',
+                  borderRadius: 2,
+                  fontWeight: 700,
+                  bgcolor: billingCycle === cycle ? '#2563EB' : 'transparent',
+                  borderColor: '#93C5FD',
+                  color: billingCycle === cycle ? '#fff' : '#2563EB',
+                }}
+              >
+                {cycle === 'monthly' ? 'Monthly' : 'Annually'}
+              </Button>
+            ))}
+          </Stack>
+
+          {/* Tier options */}
+          <Stack spacing={1.5}>
+            {(['Bronze', 'Silver', 'Gold'] as const).map((tier) => {
+              const price = PLANS[tier][billingCycle];
+              const selected = selectedTier === tier;
+              return (
+                <Box
+                  key={tier}
+                  onClick={() => setSelectedTier(tier)}
+                  sx={{
+                    cursor: 'pointer',
+                    border: selected ? '2px solid #2563EB' : '1px solid #E2E8F0',
+                    bgcolor: selected ? '#EFF6FF' : '#F8FAFC',
+                    borderRadius: 2,
+                    p: 2,
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                  }}
+                >
+                  <Typography sx={{ fontWeight: 700, color: '#0F172A' }}>{tier}</Typography>
+                  <Typography sx={{ fontWeight: 700, color: '#2563EB' }}>
+                    ₦{price.toLocaleString()}
+                    <Typography component="span" sx={{ color: '#64748B', fontWeight: 500, fontSize: '0.75rem' }}>
+                      {billingCycle === 'monthly' ? '/mo' : '/yr'}
+                    </Typography>
+                  </Typography>
+                </Box>
+              );
+            })}
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setPlanModalOpen(false)} sx={{ textTransform: 'none', color: '#64748B', fontWeight: 600 }}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            disabled={isPaying}
+            onClick={handlePay}
+            sx={{ bgcolor: '#2563EB', color: '#fff', borderRadius: 2, px: 3, fontWeight: 700, textTransform: 'none', '&:hover': { bgcolor: '#1D4ED8' } }}
+          >
+            {isPaying ? <CircularProgress size={20} color="inherit" /> : 'Continue to Payment'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Targeted Document Resubmission Dialog */}
       <Dialog open={resubmitModalOpen} onClose={() => setResubmitModalOpen(false)} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: 3, p: 1 } }}>
