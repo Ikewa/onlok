@@ -272,6 +272,18 @@ export const getWebsiteHits = async (period: 'week' | 'month' | 'quarterly' | 'a
   return data;
 };
 
+// ── Users Management ─────────────────────────────────────────────────────────
+
+export const getAllUsers = async (): Promise<UserManagement[]> => {
+  const { data } = await api.get('/users');
+  return data;
+};
+
+export const deleteAdminUser = async (id: number): Promise<{ message: string }> => {
+  const { data } = await api.delete(`/users/${id}`);
+  return data;
+};
+
 // ── Reports API ───────────────────────────────────────────────────────────────
 
 export const getAdminReports = async (filters: ReportFilters = {}): Promise<ReportListResponse> => {
