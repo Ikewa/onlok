@@ -8,13 +8,12 @@ import Navbar from '../components/Navbar';
 import { jsPDF } from 'jspdf';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
-
-import axios from 'axios';
+import { verifyPayment as verifyPaymentApi } from '../api/payment';
 
 export default function PaymentSuccessPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [verifying, setVerifying] = useState(true);
   const [verified, setVerified] = useState(false);
 
@@ -27,11 +26,10 @@ export default function PaymentSuccessPage() {
 
     const verifyPayment = async () => {
       try {
-        await axios.get(`/api/payment/verify/${reference}`, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('onlok_token')}`
-          }
-        });
+        await verifyPaymentApi(reference);
+        if (typeof refreshUser === 'function') {
+          await refreshUser();
+        }
         setVerified(true);
       } catch (error) {
         console.error('Error verifying payment:', error);
@@ -42,7 +40,7 @@ export default function PaymentSuccessPage() {
     };
 
     verifyPayment();
-  }, [searchParams]);
+  }, [searchParams, refreshUser]);
 
   const handleDownloadReceipt = () => {
     try {

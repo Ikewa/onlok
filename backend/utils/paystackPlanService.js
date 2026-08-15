@@ -8,7 +8,7 @@ const SUBSCRIPTION_TIERS = {
         key: 'tier1_monthly',
         tier: 'bronze',
         plan_name: 'Verified Vendor Plan',
-        amount: 1000,
+        amount: 850,
         interval: 'monthly',
         description: 'Monthly Verified Vendor Plan (Bronze Badge)'
     },
@@ -24,7 +24,7 @@ const SUBSCRIPTION_TIERS = {
         key: 'tier2_monthly',
         tier: 'silver',
         plan_name: 'Verified Professional Plan',
-        amount: 1300,
+        amount: 1500,
         interval: 'monthly',
         description: 'Monthly Verified Professional Plan (Silver Badge)'
     },
@@ -40,7 +40,7 @@ const SUBSCRIPTION_TIERS = {
         key: 'tier3_monthly',
         tier: 'gold',
         plan_name: 'Premium Category Plan',
-        amount: 2150,
+        amount: 2500,
         interval: 'monthly',
         description: 'Monthly Premium Category Plan (Gold Badge)'
     },
@@ -59,7 +59,8 @@ const SUBSCRIPTION_TIERS = {
  */
 const resolveTierConfig = (planOrTierInput, billingCycle = 'annually') => {
     const inputStr = (planOrTierInput || '').toLowerCase();
-    const cycle = (billingCycle || '').toLowerCase() === 'monthly' ? 'monthly' : 'annually';
+    const cycleStr = (billingCycle || '').toLowerCase();
+    const cycle = (cycleStr === 'monthly' || inputStr.includes('monthly')) ? 'monthly' : 'annually';
 
     let tierLevel = 'bronze';
     if (inputStr.includes('silver') || inputStr.includes('professional') || inputStr.includes('tier 2') || inputStr.includes('tier two')) {

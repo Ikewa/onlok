@@ -205,7 +205,8 @@ export default function VerificationPage() {
       const res = await initializePayment({
         email: user.email,
         amount,
-        plan: `${selectedTier}-${billingCycle}`,
+        plan: selectedTier,
+        billingCycle: billingCycle === 'annual' ? 'annually' : 'monthly',
       });
 
       if (res?.data?.authorization_url) {
@@ -214,7 +215,7 @@ export default function VerificationPage() {
         toast.error(res?.error || 'Could not initialize payment.');
       }
     } catch (err: any) {
-      const errorMsg = err.response?.data?.error || 'Failed to initialize payment.';
+      const errorMsg = err.response?.data?.error || err.response?.data?.message || 'Failed to initialize payment.';
       toast.error(errorMsg);
     } finally {
       setIsPaying(false);
@@ -247,6 +248,12 @@ export default function VerificationPage() {
     getMyVerification()
       .then((rec) => {
         setRecord(rec);
+        if (rec?.assigned_tier) {
+          const normalized = rec.assigned_tier.charAt(0).toUpperCase() + rec.assigned_tier.slice(1).toLowerCase();
+          if (['Bronze', 'Silver', 'Gold'].includes(normalized)) {
+            setSelectedTier(normalized as 'Bronze' | 'Silver' | 'Gold');
+          }
+        }
         if (user) {
           if (rec.status === 'approved' && user.status !== 'verified') {
             login({ ...user, status: 'verified' });

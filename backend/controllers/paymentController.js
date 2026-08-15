@@ -100,71 +100,46 @@ const verifyPayment = async (req, res) => {
 
         const data = response.data.data;
         if (data.status === 'success') {
-            const userId = data.metadata?.user_id;
-            const plan = data.metadata?.plan;
-            const referrerId = data.metadata?.referrer_id;
-            const amount = data.amount;
-            
-            if (userId) {
-                // Check if already paid to prevent duplicate commission
-                const [rows] = await pool.query(`SELECT payment_status FROM verifications WHERE user_id = ?`, [userId]);
-                if (rows.length > 0 && rows[0].payment_status !== 'paid') {
-                    await pool.query(
-                        `UPDATE verifications SET payment_status = 'paid', status = 'payment_received' WHERE user_id = ? AND status = 'tier_assigned'`,
-                        [userId]
-                    );
+            const { metadata, amount, customer, authorization, plan, subscription_code } = data;
 
-                    if (referrerId) {
-                        const commission = (amount / 100) * 0.10; // 10% commission for referrals
-                        await pool.query(
-                            `INSERT INTO referrals (referrer_id, referred_user_id, subscription_plan, amount_paid, commission_earned, status)
-                             VALUES (?, ?, ?, ?, ?, 'available')`,
-                            [referrerId, userId, plan, amount / 100, commission]
-                        );
-                    }
-                }
+            const userId       = metadata?.user_id   || req.user?.id;
+            const tier         = metadata?.tier      || 'bronze';
+            const planName     = metadata?.plan      || 'Verified Vendor';
+            const billingCycle = metadata?.billing_cycle || 'annually';
+            const referrerId   = metadata?.referrer_id   || null;
+            const amountPaid   = metadata?.amount        || (amount / 100);
+
+            if (!userId) {
+                console.error(`Verify Payment Error: Could not determine userId for ref "${reference}"`);
+                return res.status(400).json({ status: false, message: 'User ID missing in transaction metadata' });
             }
 
-            res.status(200).json({ status: true, message: 'Payment successful', data });
+            // Provision / Update Subscription safely
+            await processSuccessfulSubscription({
+                userId,
+                tier,
+                planName,
+                billingCycle,
+                amountPaid,
+                referrerId,
+                paystackSubCode:  subscription_code             || null,
+                paystackPlanCode: plan?.plan_code               || null,
+                paystackAuthCode: authorization?.authorization_code || null,
+                customerCode:     customer?.customer_code       || null,
+            });
+
+            const [userRows] = await pool.query('SELECT id, first_name, last_name, email, role, status, badge_type, vendor_id FROM users WHERE id = ?', [userId]);
+
+            return res.status(200).json({
+                status: true,
+                message: 'Payment verified and subscription activated',
+                provisioned: true,
+                user: userRows[0] || null,
+                data,
+            });
         } else {
-            res.status(400).json({ status: false, message: 'Payment not successful', data });
+            return res.status(400).json({ status: false, message: 'Payment not successful', data });
         }
-
-        // Extract metadata
-        const { metadata, amount, customer, authorization, plan, subscription_code } = data;
-
-        const userId       = metadata?.user_id   || req.user?.id;
-        const tier         = metadata?.tier      || 'bronze';
-        const planName     = metadata?.plan      || 'Verified Vendor';
-        const billingCycle = metadata?.billing_cycle || 'annually';
-        const referrerId   = metadata?.referrer_id   || null;
-        const amountPaid   = metadata?.amount        || (amount / 100);
-
-        if (!userId) {
-            console.error(`Verify Payment Error: Could not determine userId for ref "${reference}"`);
-            return res.status(400).json({ status: false, message: 'User ID missing in transaction metadata' });
-        }
-
-        // Provision / Update Subscription safely
-        await processSuccessfulSubscription({
-            userId,
-            tier,
-            planName,
-            billingCycle,
-            amountPaid,
-            referrerId,
-            paystackSubCode:  subscription_code             || null,
-            paystackPlanCode: plan?.plan_code               || null,
-            paystackAuthCode: authorization?.authorization_code || null,
-            customerCode:     customer?.customer_code       || null,
-        });
-
-        return res.status(200).json({
-            status: true,
-            message: 'Payment verified and subscription activated',
-            provisioned: true,
-            data,
-        });
 
     } catch (error) {
         console.error(`Verify Payment Error for ref "${reference}":`, error.response?.data || error.message || error);
