@@ -715,14 +715,22 @@ export default function VerificationPage() {
             {(['Bronze', 'Silver', 'Gold'] as const).map((tier) => {
               const price = PLANS[tier][billingCycle];
               const selected = selectedTier === tier;
+              
+              const tiersOrder = ['Bronze', 'Silver', 'Gold'];
+              const minEligibleTier = record?.assigned_tier ? (record.assigned_tier.charAt(0).toUpperCase() + record.assigned_tier.slice(1).toLowerCase()) : 'Bronze';
+              const minIndex = tiersOrder.indexOf(minEligibleTier);
+              const currentTierIndex = tiersOrder.indexOf(tier);
+              const isEligible = currentTierIndex >= minIndex;
+
               return (
                 <Box
                   key={tier}
-                  onClick={() => setSelectedTier(tier)}
+                  onClick={() => isEligible && setSelectedTier(tier)}
                   sx={{
-                    cursor: 'pointer',
+                    cursor: isEligible ? 'pointer' : 'not-allowed',
                     border: selected ? '2px solid #2563EB' : '1px solid #E2E8F0',
-                    bgcolor: selected ? '#EFF6FF' : '#F8FAFC',
+                    bgcolor: selected ? '#EFF6FF' : (isEligible ? '#F8FAFC' : '#F1F5F9'),
+                    opacity: isEligible ? 1 : 0.6,
                     borderRadius: 2,
                     p: 2,
                     display: 'flex',
@@ -730,10 +738,17 @@ export default function VerificationPage() {
                     alignItems: 'center',
                   }}
                 >
-                  <Typography sx={{ fontWeight: 700, color: '#0F172A' }}>{tier}</Typography>
-                  <Typography sx={{ fontWeight: 700, color: '#2563EB' }}>
+                  <Typography sx={{ fontWeight: 700, color: isEligible ? '#0F172A' : '#64748B' }}>
+                    {tier}
+                    {!isEligible && (
+                        <Typography component="span" sx={{ color: '#94A3B8', fontSize: '0.75rem', ml: 1, fontWeight: 600 }}>
+                            (Not Eligible)
+                        </Typography>
+                    )}
+                  </Typography>
+                  <Typography sx={{ fontWeight: 700, color: isEligible ? '#2563EB' : '#94A3B8' }}>
                     ₦{price.toLocaleString()}
-                    <Typography component="span" sx={{ color: '#64748B', fontWeight: 500, fontSize: '0.75rem' }}>
+                    <Typography component="span" sx={{ color: isEligible ? '#64748B' : '#94A3B8', fontWeight: 500, fontSize: '0.75rem' }}>
                       {billingCycle === 'monthly' ? '/mo' : '/yr'}
                     </Typography>
                   </Typography>

@@ -20,11 +20,31 @@ const initializePayment = async (req, res) => {
             return res.status(500).json({ message: 'Paystack secret key is missing in server environment' });
         }
 
+        // Tier Eligibility Check
+        const [userRows] = await pool.query(`
+            SELECT u.badge_type, v.assigned_tier 
+            FROM users u 
+            LEFT JOIN verifications v ON v.user_id = u.id 
+            WHERE u.id = ?
+            ORDER BY v.id DESC LIMIT 1
+        `, [userId]);
+        
+        const userInfo = userRows[0] || {};
+        const minEligibleTier = (userInfo.badge_type || userInfo.assigned_tier || 'bronze').toLowerCase();
+        
+        const reqConfig = paystackPlanService.resolveTierConfig(plan || minEligibleTier, billingCycle);
+        const minConfig = paystackPlanService.resolveTierConfig(minEligibleTier, billingCycle);
+        
+        const tiers = ['bronze', 'silver', 'gold'];
+        if (tiers.indexOf(reqConfig.tier) < tiers.indexOf(minConfig.tier)) {
+            return res.status(400).json({ message: `You are not eligible to subscribe to a tier lower than your assigned tier (${minConfig.tier}).` });
+        }
+
         // Get or create Paystack plan_code for the requested tier & billing cycle
         let planCode = null;
         let tierConfig = null;
         try {
-            const planResult = await paystackPlanService.getOrCreatePlanCode(plan || 'Verified Vendor', billingCycle || 'annually');
+            const planResult = await paystackPlanService.getOrCreatePlanCode(reqConfig.tier, billingCycle || 'annually');
             planCode = planResult.plan_code;
             tierConfig = planResult.config;
         } catch (planErr) {

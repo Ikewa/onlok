@@ -133,7 +133,10 @@ const getOrCreatePlanCode = async (planOrTierInput, billingCycle = 'annually') =
     // 2. Search Paystack existing plans
     try {
         const existingPlans = await fetchPaystackPlans();
-        const found = existingPlans.find(p => p.name === config.description || p.name === `${config.plan_name} (${config.interval})`);
+        const found = existingPlans.find(p => 
+            (p.name === config.description || p.name === `${config.plan_name} (${config.interval})`) && 
+            p.amount === Math.round(config.amount * 100)
+        );
         if (found && found.plan_code) {
             await pool.query('REPLACE INTO admin_settings (setting_key, setting_value) VALUES (?, ?)', [settingKey, found.plan_code]);
             return { plan_code: found.plan_code, config };
