@@ -269,7 +269,7 @@ const processSuccessfulSubscription = async ({ userId, tier, planName, billingCy
                 console.warn(`Process Subscription Warning: QR code generation failed for user #${userId}:`, qrErr.message);
             }
             await pool.query(
-                'INSERT INTO vendor_profiles (user_id, profile_link, qr_code_url) VALUES (?, ?, ?)',
+                'INSERT IGNORE INTO vendor_profiles (user_id, profile_link, qr_code_url) VALUES (?, ?, ?)',
                 [userId, profileLink, qrCodeUrl]
             );
         }
