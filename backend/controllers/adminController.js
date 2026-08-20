@@ -183,7 +183,7 @@ const updateVerificationStatus = async (req, res) => {
             video_notes
         } = req.body; 
 
-        if (!['approved', 'rejected', 'flagged', 'pending', 'tier_assigned', 'payment_received'].includes(status)) {
+        if (!['approved', 'rejected', 'flagged', 'pending', 'tier_assigned', 'payment_received', 'revoked'].includes(status)) {
             return res.status(400).json({ message: 'Invalid status' });
         }
 
@@ -290,6 +290,11 @@ const updateVerificationStatus = async (req, res) => {
             await pool.query(`DELETE FROM badges WHERE user_id = ? AND badge_type = "verified_vendor"`, [verification.user_id]);
         } else if (status === 'flagged') {
             await pool.query(`UPDATE users SET status = 'suspended' WHERE id = ?`, [verification.user_id]);
+        } else if (status === 'revoked') {
+            // When revoked, the user is downgraded to pending and their badge is removed, 
+            // but the verifications table keeps status 'revoked' so we know they were revoked and need to pay/reverify.
+            await pool.query(`UPDATE users SET status = 'pending' WHERE id = ?`, [verification.user_id]);
+            await pool.query(`DELETE FROM badges WHERE user_id = ? AND badge_type = "verified_vendor"`, [verification.user_id]);
         } else if (status === 'pending' || status === 'tier_assigned' || status === 'payment_received') {
             await pool.query(`UPDATE users SET status = 'pending' WHERE id = ?`, [verification.user_id]);
         }
@@ -301,6 +306,7 @@ const updateVerificationStatus = async (req, res) => {
         if (status === 'rejected') actionText = 'Rejected verification';
         if (status === 'approved') actionText = 'Approved verification (Final)';
         if (status === 'tier_assigned') actionText = `Assigned tier: ${assigned_tier}`;
+        if (status === 'revoked') actionText = 'Revoked verification';
 
         await pool.query(
             'INSERT INTO audit_logs (user_id, action, severity, details) VALUES (?, ?, ?, ?)',
@@ -374,12 +380,13 @@ const updateVerificationStatus = async (req, res) => {
                 </div>
             `;
             await sendEmail(verification.email, 'Action Required: Information Requested by Admin - Onlok', html);
-        } else if (status === 'rejected' || status === 'flagged') {
+        } else if (status === 'rejected' || status === 'flagged' || status === 'revoked') {
             const html = `
                 <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
                     <h2 style="color: #EF4444;">Account Update</h2>
                     <p>Hi ${verification.first_name},</p>
                     <p>Your account verification status has been marked as <strong>${status}</strong>.</p>
+                    ${status === 'revoked' ? '<p>Please log in to your dashboard to complete payment or re-verify your account to restore your access.</p>' : ''}
                     ${notes ? `<p><strong>Admin Notes:</strong> ${notes}</p>` : ''}
                     ${renderDocBreakdown()}
                     <br/><br/>

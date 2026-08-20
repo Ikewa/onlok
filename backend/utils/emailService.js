@@ -20,6 +20,11 @@ const transporter = nodemailer.createTransport({
  */
 const sendEmail = async (to, subject, html) => {
     try {
+        if (!to) {
+            console.warn('⚠️ No recipient email provided. Skipping email send.');
+            return { success: false, error: 'No recipient provided' };
+        }
+
         if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
             console.warn('⚠️ SMTP credentials not provided. Email not sent. Check .env variables: SMTP_USER, SMTP_PASS');
             console.log(`\n--- [SIMULATED EMAIL to ${to}] ---\nSubject: ${subject}\nBody: ${html}\n-----------------------------------\n`);

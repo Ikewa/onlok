@@ -190,6 +190,7 @@ export default function AdminVerificationReview() {
   const isPending = details.status === 'pending';
   const isPaymentReceived = details.status === 'payment_received';
   const isTierAssigned = details.status === 'tier_assigned';
+  const isRevoked = details.status === 'revoked';
 
   return (
     <Box sx={{ maxWidth: 1100, pb: 10, fontFamily: 'Inter, sans-serif' }}>
@@ -963,7 +964,30 @@ export default function AdminVerificationReview() {
             >
               Flag as Suspicious
             </Button>
-            <Box sx={{ mt: 2 }}>
+
+            <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
+              {isRevoked ? (
+                <Button
+                  variant="outlined"
+                  fullWidth
+                  onClick={() => handleAction('approved')}
+                  disabled={actionLoading}
+                  sx={{ borderColor: '#16A34A', color: '#16A34A', '&:hover': { bgcolor: '#F0FDF4' }, py: 1.25, borderRadius: '8px', textTransform: 'none', fontWeight: 600, fontSize: '0.88rem' }}
+                >
+                  Unrevoke (Restore Approval)
+                </Button>
+              ) : (
+                <Button
+                  variant="outlined"
+                  color="warning"
+                  fullWidth
+                  onClick={() => handleAction('revoked')}
+                  disabled={actionLoading || !isApproved}
+                  sx={{ py: 1.25, borderRadius: '8px', textTransform: 'none', fontWeight: 600, fontSize: '0.88rem' }}
+                >
+                  Revoke Verification
+                </Button>
+              )}
               <Button
                 variant="outlined"
                 color="error"

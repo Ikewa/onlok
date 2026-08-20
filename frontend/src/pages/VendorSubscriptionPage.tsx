@@ -16,6 +16,12 @@ import { useAuth } from '../context/AuthContext';
 import { getMySubscription, getManageSubscriptionLink, cancelSubscription, type UserSubscriptionInfo } from '../api/subscriptions';
 import toast from 'react-hot-toast';
 
+const PLANS: Record<string, { monthly: number; annual: number }> = {
+  Bronze: { monthly: 850, annual: 10000 },
+  Silver: { monthly: 1500, annual: 15000 },
+  Gold: { monthly: 2500, annual: 25000 },
+};
+
 export default function VendorSubscriptionPage() {
   const { user, refreshUser } = useAuth();
   const navigate = useNavigate();
@@ -97,6 +103,12 @@ export default function VendorSubscriptionPage() {
   const formattedExpires = expiresDateStr
     ? new Date(expiresDateStr).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
     : 'N/A';
+    
+  const getFallbackPrice = () => {
+    const tier = subData?.assigned_tier ? (subData.assigned_tier.charAt(0).toUpperCase() + subData.assigned_tier.slice(1).toLowerCase()) : 'Bronze';
+    const amount = PLANS[tier]?.annual || 10000;
+    return `₦${amount.toLocaleString()} / year`;
+  };
 
   return (
     <Box sx={{ p: { xs: 2, md: 5 }, maxWidth: 1100, width: '100%', flexGrow: 1, fontFamily: 'Inter, sans-serif' }}>
@@ -179,7 +191,7 @@ export default function VendorSubscriptionPage() {
                     {sub?.plan_name || 'Verified Vendor Plan'}
                   </Typography>
                   <Typography sx={{ fontSize: '0.85rem', color: '#64748B', fontWeight: 500 }}>
-                    {sub?.amount ? `₦${Number(sub.amount).toLocaleString()} / ${sub.billing_cycle || 'year'}` : '₦10,000 / year'}
+                    {sub?.amount ? `₦${Number(sub.amount).toLocaleString()} / ${sub.billing_cycle || 'year'}` : getFallbackPrice()}
                   </Typography>
                 </Box>
               </Box>
