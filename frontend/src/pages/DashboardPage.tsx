@@ -187,7 +187,7 @@ export default function DashboardPage() {
   const firstName = dashUser?.first_name ?? 'Munir';
   const fullName = `${dashUser?.first_name ?? 'Muhammad'} ${dashUser?.last_name ?? 'Munir'}`.trim();
   const vendorId = dashUser?.vendor_id ?? 'ONL-7829-KX';
-  const profileLink = `https://onlok.net/profile?id=${vendorId}`;
+  const profileLink = `https://app.onlok.net/profile?id=${vendorId}`;
 
   const badgeTier = resolveVendorBadgeTier({
     badges: data?.badges,

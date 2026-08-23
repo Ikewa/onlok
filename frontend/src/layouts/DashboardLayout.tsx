@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Box, Typography, Avatar, Button, IconButton, Popover, MenuList, MenuItem, Divider } from '@mui/material';
+import { Box, Typography, Avatar, Button, IconButton, Popover, MenuList, MenuItem, Divider, Link } from '@mui/material';
 import { Link as RouterLink, Outlet, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import NotificationsNoneIcon from '@mui/icons-material/NotificationsNone';
 import PersonOutlinedIcon from '@mui/icons-material/PersonOutlined';
@@ -227,6 +227,10 @@ export default function DashboardLayout() {
             )}
           </Box>
           <Box sx={{ p: 2, pb: 4 }}>
+            <Box sx={{ display: 'flex', gap: 2, px: 2.5, mb: 2, mt: 'auto' }}>
+              <Link component={RouterLink} to="/privacy-policy" sx={{ fontSize: '0.75rem', color: '#64748B', textDecoration: 'none', '&:hover': { color: '#CBD5E1' } }}>Privacy Policy</Link>
+              <Link component={RouterLink} to="/terms-and-conditions" sx={{ fontSize: '0.75rem', color: '#64748B', textDecoration: 'none', '&:hover': { color: '#CBD5E1' } }}>Terms of Service</Link>
+            </Box>
             <Button onClick={handleLogout} startIcon={<LogoutOutlinedIcon />} sx={{ justifyContent: 'flex-start', color: '#CBD5E1', width: '100%', px: 2.5, py: 1.2, borderRadius: 2, textTransform: 'none', fontWeight: 500, '&:hover': { color: '#fff', bgcolor: 'rgba(255,255,255,0.05)' } }}>
               Logout
             </Button>

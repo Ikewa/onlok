@@ -30,6 +30,8 @@ import ProfileDocUploadPage from './pages/ProfileDocUploadPage';
 import ProfilePictureUpdatePage from './pages/ProfilePictureUpdatePage';
 import PublicProfilePage from './pages/PublicProfilePage';
 import BadgeShowcasePage from './pages/BadgeShowcasePage';
+import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
+import TermsAndConditionsPage from './pages/TermsAndConditionsPage';
 import AdminLayout from './layouts/AdminLayout';
 import AdminVerificationQueue from './pages/admin/AdminVerificationQueue';
 import AdminVerificationReview from './pages/admin/AdminVerificationReview';
@@ -65,6 +67,8 @@ export default function App() {
             <Route path="/profile" element={<PublicProfilePage />} />
             <Route path="/badges" element={<BadgeShowcasePage />} />
             <Route path="/about" element={<ComingSoonPage />} />
+            <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+            <Route path="/terms-and-conditions" element={<TermsAndConditionsPage />} />
             <Route path="*" element={<ComingSoonPage />} />
             <Route
               path="/dashboard"
