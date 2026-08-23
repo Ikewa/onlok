@@ -5,7 +5,6 @@ import ErrorOutlineIcon from '@mui/icons-material/ErrorOutlined';
 import DownloadIcon from '@mui/icons-material/Download';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Navbar from '../components/Navbar';
-import { jsPDF } from 'jspdf';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { verifyPayment as verifyPaymentApi } from '../api/payment';
@@ -42,8 +41,9 @@ export default function PaymentSuccessPage() {
     verifyPayment();
   }, [searchParams, refreshUser]);
 
-  const handleDownloadReceipt = () => {
+  const handleDownloadReceipt = async () => {
     try {
+      const { jsPDF } = await import('jspdf');
       const doc = new jsPDF();
       
       // Header

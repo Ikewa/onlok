@@ -1,11 +1,12 @@
 const cron = require('node-cron');
 const pool = require('../config/db');
 const { sendEmail } = require('./emailService');
+const logger = require('./logger');
 require('dotenv').config();
 
 const checkExpiringSubscriptions = async () => {
     try {
-        console.log('[CRON] Running daily check for expiring subscriptions...');
+        logger.info('[CRON] Running daily check for expiring subscriptions...');
         
         // Find subscriptions expiring in exactly 7 days
         const [expiringIn7Days] = await pool.query(`
@@ -94,9 +95,9 @@ const checkExpiringSubscriptions = async () => {
             await pool.query('UPDATE subscriptions SET status = "completed" WHERE id = ?', [sub.id]);
         }
 
-        console.log(`[CRON] Sent ${expiringIn7Days.length} 7-day annual notices, ${expiringIn3Days.length} 3-day monthly notices, and ${expiringIn1Day.length} 1-day notices.`);
+        logger.info(`[CRON] Sent ${expiringIn7Days.length} 7-day annual notices, ${expiringIn3Days.length} 3-day monthly notices, and ${expiringIn1Day.length} 1-day notices.`);
     } catch (error) {
-        console.error('[CRON] Error checking expiring subscriptions:', error);
+        logger.error('[CRON] Error checking expiring subscriptions', { error });
     }
 };
 
@@ -105,7 +106,7 @@ const startCronJobs = () => {
     cron.schedule('0 12 * * *', () => {
         checkExpiringSubscriptions();
     });
-    console.log('[CRON] Scheduled jobs initialized.');
+    logger.info('[CRON] Scheduled jobs initialized.');
 };
 
 module.exports = { startCronJobs };

@@ -7,9 +7,17 @@ const fs = require('fs');
 const pool = require('./config/db');
 const runMigrations = require('./config/autoMigrate');
 const bcrypt = require('bcrypt');
+const crypto = require('crypto');
+const logger = require('./utils/logger');
 require('dotenv').config();
 
 const app = express();
+
+// Assign a unique Trace ID to every request
+app.use((req, res, next) => {
+    req.id = crypto.randomUUID();
+    next();
+});
 
 // Middlewares
 app.use(helmet({ crossOriginResourcePolicy: false }));
@@ -35,7 +43,13 @@ app.use(express.json({
         req.rawBody = buf;
     }
 }));
-app.use(morgan('dev'));
+
+// Use Morgan for structured HTTP logging
+morgan.token('traceId', (req) => req.id);
+app.use(morgan(':method :url :status :res[content-length] - :response-time ms | traceId=:traceId', {
+    stream: { write: (message) => logger.info(message.trim(), { type: 'http' }) }
+}));
+
 
 // Website hit tracking middleware
 app.use(async (req, res, next) => {
@@ -124,6 +138,22 @@ app.get(/.*/, (req, res) => {
             }
         });
     }
+});
+
+// Global Error Handler
+app.use((err, req, res, next) => {
+    logger.error(`Unhandled Error: ${err.message}`, {
+        traceId: req.id,
+        stack: err.stack,
+        url: req.originalUrl,
+        method: req.method
+    });
+    
+    res.status(err.status || 500).json({
+        status: 'error',
+        message: 'Internal Server Error',
+        traceId: req.id
+    });
 });
 
 // Auto-migrate: create tables, add missing columns, seed admin
