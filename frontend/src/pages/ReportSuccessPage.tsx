@@ -10,8 +10,6 @@ import DashboardIcon from '@mui/icons-material/Dashboard';
 import { useLocation, Link as RouterLink } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import toast from 'react-hot-toast';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 import { useRef } from 'react';
 
 export default function ReportSuccessPage() {
@@ -35,6 +33,8 @@ export default function ReportSuccessPage() {
   const handleDownloadPDF = async () => {
     if (!receiptRef.current) return;
     try {
+      const { default: html2canvas } = await import('html2canvas');
+      const { jsPDF } = await import('jspdf');
       const canvas = await html2canvas(receiptRef.current, {
         scale: 1.5,
         useCORS: true,
