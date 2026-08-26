@@ -133,6 +133,45 @@ const loginUser = async (req, res) => {
     }
 };
 
+// @desc    Magic Link Login (Auto-login from email)
+// @route   POST /api/users/magic-login
+// @access  Public
+const magicLogin = async (req, res) => {
+    try {
+        const { token } = req.body;
+        if (!token) {
+            return res.status(400).json({ message: 'Token is required' });
+        }
+
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        
+        const [users] = await pool.query('SELECT * FROM users WHERE id = ?', [decoded.id]);
+        if (users.length === 0) {
+            return res.status(401).json({ message: 'Invalid or expired magic link' });
+        }
+        
+        const user = users[0];
+        
+        // Generate new session token
+        const sessionToken = generateToken(user.id, user.role, user.vendor_id);
+        
+        res.status(200).json({
+            id: user.id,
+            vendor_id: user.vendor_id,
+            first_name: user.first_name,
+            last_name: user.last_name,
+            business_name: user.business_name,
+            email: user.email,
+            role: user.role,
+            status: user.status,
+            token: sessionToken
+        });
+    } catch (error) {
+        console.error('Magic Login Error:', error);
+        res.status(401).json({ message: 'Invalid or expired magic link' });
+    }
+};
+
 // @desc    Get user data
 // @route   GET /api/users/me
 // @access  Private
@@ -527,6 +566,7 @@ const resetPassword = async (req, res) => {
 module.exports = {
     registerUser,
     loginUser,
+    magicLogin,
     getMe,
     getUsers,
     updateUser,

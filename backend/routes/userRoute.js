@@ -1,11 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const { registerUser, loginUser, getMe, getUsers, updateUser, deleteUser, getReferrals, uploadProfilePicture, forgotPassword, resetPassword } = require('../controllers/userController');
+const { registerUser, loginUser, magicLogin, getMe, getUsers, updateUser, deleteUser, getReferrals, uploadProfilePicture, forgotPassword, resetPassword } = require('../controllers/userController');
 const { protect } = require('../middlewares/authMiddleware');
 const { uploadAvatar } = require('../middlewares/uploadMiddleware');
 
 router.post('/register', registerUser);
 router.post('/login', loginUser);
+router.post('/magic-login', magicLogin);
 router.post('/forgot-password', forgotPassword);
 router.put('/reset-password/:token', resetPassword);
 router.get('/me', protect, getMe);

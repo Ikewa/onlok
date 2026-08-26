@@ -232,10 +232,10 @@ const processSuccessfulSubscription = async ({ userId, tier, planName, billingCy
             [normalizedTier, subscriptionId, expirationDate, userId]
         );
 
-        // 3. Update Verifications table status to approved
+        // 3. Update Verifications table status to payment_received
         await pool.query(
             `UPDATE verifications 
-             SET payment_status = 'paid', status = 'approved', assigned_tier = ? 
+             SET payment_status = 'paid', status = 'payment_received', assigned_tier = ? 
              WHERE user_id = ?`,
             [normalizedTier, userId]
         );

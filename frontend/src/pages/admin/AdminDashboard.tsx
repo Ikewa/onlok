@@ -280,6 +280,63 @@ export default function AdminDashboard() {
           ))}
         </Box>
       </Paper>
+      {/* Users & Subscriptions Table */}
+      <Paper elevation={0} sx={{ borderRadius: '12px', border: '1px solid #E5E7EB', bgcolor: '#FFFFFF', p: 3, mt: 3 }}>
+        <Typography variant="h6" fontWeight={600} color="#111827" mb={2.5} sx={{ fontSize: '1.05rem' }}>
+          All Users & Subscriptions
+        </Typography>
+        <Box sx={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid #E5E7EB', color: '#6B7280', fontSize: '0.85rem' }}>
+                <th style={{ padding: '12px 8px', fontWeight: 500 }}>User</th>
+                <th style={{ padding: '12px 8px', fontWeight: 500 }}>Email</th>
+                <th style={{ padding: '12px 8px', fontWeight: 500 }}>Plan</th>
+                <th style={{ padding: '12px 8px', fontWeight: 500 }}>Expiry</th>
+                <th style={{ padding: '12px 8px', fontWeight: 500 }}>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(data?.users || []).map((u: any) => (
+                <tr key={u.id} style={{ borderBottom: '1px solid #F3F4F6' }}>
+                  <td style={{ padding: '12px 8px', fontSize: '0.88rem', color: '#111827', fontWeight: 500 }}>
+                    {u.first_name} {u.last_name}
+                  </td>
+                  <td style={{ padding: '12px 8px', fontSize: '0.85rem', color: '#6B7280' }}>
+                    {u.email}
+                  </td>
+                  <td style={{ padding: '12px 8px', fontSize: '0.85rem', color: '#111827' }}>
+                    {u.plan_name || 'None'}
+                    {u.tier && <span style={{ marginLeft: 6, padding: '2px 6px', background: '#EEF2FF', color: '#4F46E5', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 600 }}>{u.tier.toUpperCase()}</span>}
+                  </td>
+                  <td style={{ padding: '12px 8px', fontSize: '0.85rem', color: '#6B7280' }}>
+                    {u.subscription_expires_at ? new Date(u.subscription_expires_at).toLocaleDateString() : 'N/A'}
+                  </td>
+                  <td style={{ padding: '12px 8px' }}>
+                    <Chip 
+                      label={(u.subscription_status || 'Inactive').toUpperCase()} 
+                      size="small"
+                      sx={{
+                        fontSize: '0.7rem',
+                        fontWeight: 600,
+                        bgcolor: u.subscription_status === 'active' ? '#DCFCE7' : '#F3F4F6',
+                        color: u.subscription_status === 'active' ? '#166534' : '#6B7280'
+                      }}
+                    />
+                  </td>
+                </tr>
+              ))}
+              {(!data?.users || data.users.length === 0) && (
+                <tr>
+                  <td colSpan={5} style={{ padding: '24px', textAlign: 'center', color: '#6B7280', fontSize: '0.88rem' }}>
+                    No users found.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </Box>
+      </Paper>
     </Box>
   );
 }

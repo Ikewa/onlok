@@ -336,9 +336,10 @@ const updateVerificationStatus = async (req, res) => {
         if (status === 'approved') {
             const html = `
                 <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
-                    <h2 style="color: #10B981;">Account Approved!</h2>
+                    <h2 style="color: #10B981;">Account Fully Approved!</h2>
                     <p>Hi ${verification.first_name},</p>
-                    <p>Great news! Your account verification has been approved.</p>
+                    <p>Great news! Your account verification has been successfully approved.</p>
+                    <p>Welcome to the <strong>${finalTier.charAt(0).toUpperCase() + finalTier.slice(1)}</strong> tier! Your new verified vendor badge is now live on your profile.</p>
                     ${renderDocBreakdown()}
                     <p>You can now log in and access all features of your vendor portal.</p>
                     <a href="${process.env.FRONTEND_URL || 'https://app.onlok.net'}/login" style="padding: 10px 15px; background: #0F172A; color: #fff; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 0;">Log In to Onlok</a>
@@ -348,14 +349,16 @@ const updateVerificationStatus = async (req, res) => {
             `;
             await sendEmail(verification.email, 'Your Onlok Account has been Approved', html);
         } else if (status === 'tier_assigned') {
+            const token = jwt.sign({ id: verification.user_id }, process.env.JWT_SECRET, { expiresIn: '24h' });
+            const magicLink = `${process.env.FRONTEND_URL || 'https://app.onlok.net'}/magic-login?token=${token}`;
             const html = `
                 <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
                     <h2 style="color: #0029FF;">Verification Pre-Approved!</h2>
                     <p>Hi ${verification.first_name},</p>
                     <p>Your documents have been reviewed and you have been approved for the <strong>${finalTier}</strong> tier.</p>
                     ${renderDocBreakdown()}
-                    <p>Please log in to your dashboard to complete your subscription payment and finalize your verification.</p>
-                    <a href="${process.env.FRONTEND_URL || 'https://app.onlok.net'}/dashboard" style="padding: 10px 15px; background: #0029FF; color: #fff; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 0;">Go to Dashboard</a>
+                    <p>Click the button below to securely log in to your dashboard and complete your subscription payment to finalize your verification.</p>
+                    <a href="${magicLink}" style="padding: 10px 15px; background: #0029FF; color: #fff; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 0;">Go to Dashboard</a>
                     <br/><br/>
                     <p>Best regards,<br/><strong>The Onlok Team</strong></p>
                 </div>
@@ -451,27 +454,14 @@ const getDashboardMetrics = async (req, res) => {
             });
         }
 
-        // If database records have no historical spread across past months (e.g. all created in same month),
-        // generate a smooth growth curve leading up to actual totalUsers & approvedVendors
-        if (totalTrendUsers === 0 || userTrends.every(t => t.newUsers === 0)) {
-            const baseTotal = usersCount[0]?.total || 32;
-            const verifiedTotal = approvedCount[0]?.total || 24;
-            
-            const ratios = [0.18, 0.32, 0.48, 0.65, 0.82, 1.0];
-            const verifiedRatios = [0.12, 0.24, 0.38, 0.54, 0.72, 0.90];
-
-            userTrends.forEach((item, idx) => {
-                item.newUsers = Math.max(1, Math.round(baseTotal * ratios[idx]));
-                item.verifiedUsers = Math.max(1, Math.round(verifiedTotal * verifiedRatios[idx]));
-            });
-        }
 
         const [users] = await pool.query(`
-            SELECT id, vendor_id, first_name, last_name, email, role, status, 
-                   created_at 
-            FROM users 
-            WHERE role != "admin"
-            ORDER BY created_at DESC 
+            SELECT u.id, u.vendor_id, u.first_name, u.last_name, u.email, u.role, u.status, 
+                   u.created_at, u.subscription_expires_at, s.tier, s.plan_name, s.status as subscription_status, s.next_payment_date 
+            FROM users u
+            LEFT JOIN subscriptions s ON u.active_subscription_id = s.id
+            WHERE u.role != "admin"
+            ORDER BY u.created_at DESC 
             LIMIT 50
         `);
 
