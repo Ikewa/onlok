@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Box, Typography, Button, Avatar, Breadcrumbs, Link as MuiLink, Paper } from '@mui/material';
+import { Box, Typography, Button, Avatar, Breadcrumbs, Link as MuiLink, Paper, LinearProgress } from '@mui/material';
 import NotificationsNoneIcon from '@mui/icons-material/NotificationsNone';
 import EditNoteIcon from '@mui/icons-material/EditNote';
 import FactCheckIcon from '@mui/icons-material/FactCheck';
@@ -9,7 +9,9 @@ import UploadIcon from '@mui/icons-material/Upload';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
-import { submitVerification } from '../api/verifications';
+import { submitVerification, uploadSingleDocument } from '../api/verifications';
+import { compressImageFile } from '../utils/fileCompressor';
+import { uploadFileInChunks } from '../utils/chunkUploader';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 
@@ -77,12 +79,12 @@ function UploadZone({
           <>
             <UploadIcon sx={{ color: '#94A3B8', fontSize: 32, mb: 1 }} />
             <Typography sx={{ fontWeight: 600, fontSize: '0.9rem', color: '#475569' }}>Click To Upload Document</Typography>
-            <Typography sx={{ fontSize: '0.75rem', color: '#94A3B8', mt: 0.3 }}>{accept.includes('video') ? 'mp4 (100mb)' : 'PNG, JPG or PDF (max. 10MB)'}</Typography>
+            <Typography sx={{ fontSize: '0.75rem', color: '#94A3B8', mt: 0.3 }}>{accept.includes('video') ? 'MP4, MOV, WebM (max. 100MB)' : 'PNG, JPG, WebP, PDF (max. 15MB)'}</Typography>
           </>
         )}
       </Box>
 
-      <Box sx={{ display: 'flex', gap: 1 }}>
+      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
         {labels.map((l) => (
           <Typography key={l} sx={{ fontSize: '0.75rem', color: '#64748B', bgcolor: '#F1F5F9', px: 1.2, py: 0.4, borderRadius: 1, fontWeight: 500 }}>
             {l}
@@ -101,6 +103,7 @@ export default function ProfileDocUploadPage() {
   const [video, setVideo] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const [uploadPhase, setUploadPhase] = useState<string>('');
 
   const handleSubmit = async () => {
     if (!govId && !cacDoc && !video) {
@@ -109,17 +112,59 @@ export default function ProfileDocUploadPage() {
     }
     setLoading(true);
     setUploadProgress(0);
+    setUploadPhase('');
+
     try {
-      await submitVerification(govId, cacDoc, video, (progress) => {
-        setUploadProgress(progress);
+      let govIdUrl: string | undefined;
+      let cacDocUrl: string | undefined;
+      let videoUrl: string | undefined;
+
+      if (govId) {
+        setUploadPhase('Optimizing & uploading Government ID...');
+        let fileToUpload = govId;
+        if (govId.type.startsWith('image/')) {
+          fileToUpload = await compressImageFile(govId);
+        }
+        const res = await uploadSingleDocument(fileToUpload, 'gov_id');
+        govIdUrl = res.url;
+      }
+
+      if (cacDoc) {
+        setUploadPhase('Optimizing & uploading CAC Document...');
+        let fileToUpload = cacDoc;
+        if (cacDoc.type.startsWith('image/')) {
+          fileToUpload = await compressImageFile(cacDoc);
+        }
+        const res = await uploadSingleDocument(fileToUpload, 'cac_document');
+        cacDocUrl = res.url;
+      }
+
+      if (video) {
+        setUploadPhase('Uploading Video in resilient chunks...');
+        const res = await uploadFileInChunks(video, 'video', {
+          onProgress: (pct, cur, tot) => {
+            setUploadProgress(pct);
+            setUploadPhase(`Uploading video chunk ${cur}/${tot} (${pct}%)...`);
+          },
+        });
+        videoUrl = res.url;
+      }
+
+      setUploadPhase('Finalizing request...');
+      await submitVerification({
+        gov_id_url: govIdUrl,
+        cac_url: cacDocUrl,
+        video_url: videoUrl,
       });
+
       toast.success('Documents submitted for review!');
       navigate('/dashboard/verification');
     } catch (err: any) {
       console.error(err);
-      toast.error(err?.response?.data?.message || 'Failed to submit verification');
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to submit verification');
     } finally {
       setLoading(false);
+      setUploadPhase('');
     }
   };
 
@@ -267,6 +312,15 @@ export default function ProfileDocUploadPage() {
             ))}
           </Box>
 
+          {loading && (
+            <Box sx={{ mb: 2.5 }}>
+              <LinearProgress variant={uploadProgress > 0 ? 'determinate' : 'indeterminate'} value={uploadProgress} sx={{ height: 6, borderRadius: 1 }} />
+              <Typography variant="caption" sx={{ color: '#1A1FE8', mt: 1, display: 'block', fontWeight: 600 }}>
+                {uploadPhase || 'Processing uploads...'}
+              </Typography>
+            </Box>
+          )}
+
           <Button
             variant="contained"
             fullWidth
@@ -274,7 +328,7 @@ export default function ProfileDocUploadPage() {
             onClick={handleSubmit}
             sx={{ bgcolor: '#1A1FE8', color: '#fff', borderRadius: 2.5, py: 1.6, fontWeight: 700, fontSize: '1rem', textTransform: 'none', '&:hover': { bgcolor: '#1318C0' } }}
           >
-            {loading ? (uploadProgress > 0 && uploadProgress < 100 ? `Uploading Video... ${uploadProgress}%` : (uploadProgress === 100 ? 'Processing...' : 'Starting Upload...')) : 'Submit For Review'}
+            {loading ? 'Submitting Documents...' : 'Submit For Review'}
           </Button>
         </Paper>
       </Box>
