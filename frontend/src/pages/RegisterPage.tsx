@@ -1,9 +1,7 @@
 import { useState, useRef } from 'react';
 import {
-  Box, Container, Typography, TextField, Button, CircularProgress, Paper, MenuItem, Select, FormControl, Stack, Chip, IconButton, InputAdornment, Switch, FormControlLabel
+  Box, Container, Typography, TextField, Button, CircularProgress, Paper, MenuItem, Select, FormControl, Stack, Chip, Switch, FormControlLabel, LinearProgress, Alert
 } from '@mui/material';
-import VisibilityIcon from '@mui/icons-material/Visibility';
-import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
@@ -11,15 +9,26 @@ import FileUploadOutlinedIcon from '@mui/icons-material/FileUploadOutlined';
 import InsertDriveFileOutlinedIcon from '@mui/icons-material/InsertDriveFileOutlined';
 import PlayCircleOutlinedIcon from '@mui/icons-material/PlayCircleOutlined';
 import VerifiedUserOutlinedIcon from '@mui/icons-material/VerifiedUserOutlined';
+import ReplayIcon from '@mui/icons-material/Replay';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { registerUser } from '../api/auth';
-import { submitVerification } from '../api/verifications';
-import { verifyNIN, verifyCAC } from '../api/identity';
+import { submitVerification, uploadSingleDocument } from '../api/verifications';
+import { compressImageFile, formatBytes } from '../utils/fileCompressor';
+import { uploadFileInChunks } from '../utils/chunkUploader';
 import Navbar from '../components/Navbar';
 import toast from 'react-hot-toast';
 
-const STEPS = ['Personal Info', 'business', 'ID', 'Review'];
+const STEPS = ['Personal Info', 'Business', 'Documents', 'Review'];
+
+interface FileUploadState {
+  status: 'idle' | 'compressing' | 'uploading' | 'completed' | 'error';
+  progress: number;
+  error: string | null;
+  uploadedUrl?: string;
+  originalSize?: number;
+  compressedSize?: number;
+}
 
 interface FormData {
   first_name: string;
@@ -36,8 +45,11 @@ interface FormData {
   password: string;
   confirm_password: string;
   gov_id_file: File | null;
+  gov_id_url: string;
   business_video_file: File | null;
+  business_video_url: string;
   cac_file: File | null;
+  cac_url: string;
   category: string;
   nin: string;
   rc_number: string;
@@ -48,8 +60,16 @@ const initialData: FormData = {
   country_code: 'NG', business_name: '', business_address: '',
   twitter_handle: '', instagram_handle: '', facebook_handle: '', tiktok_handle: '',
   password: '', confirm_password: '',
-  gov_id_file: null, business_video_file: null, cac_file: null,
+  gov_id_file: null, gov_id_url: '',
+  business_video_file: null, business_video_url: '',
+  cac_file: null, cac_url: '',
   category: 'Consumer', nin: '', rc_number: ''
+};
+
+const initialFileState: FileUploadState = {
+  status: 'idle',
+  progress: 0,
+  error: null,
 };
 
 const countryCodes = [
@@ -67,14 +87,20 @@ export default function RegisterPage() {
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
   const refCode = queryParams.get('ref');
+
   const [activeStep, setActiveStep] = useState(0);
   const [form, setForm] = useState<FormData>(initialData);
   const [loading, setLoading] = useState(false);
   const [registeredUser, setRegisteredUser] = useState<any>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  
-  // New state to hold the exact input text including spaces
+  const [submissionProgressLabel, setSubmissionProgressLabel] = useState<string>('');
+
+  // Per-file upload tracking
+  const [govIdState, setGovIdState] = useState<FileUploadState>(initialFileState);
+  const [cacState, setCacState] = useState<FileUploadState>(initialFileState);
+  const [videoState, setVideoState] = useState<FileUploadState>(initialFileState);
+
   const [fullNameInput, setFullNameInput] = useState('');
 
   const set = (field: keyof FormData, value: any) =>
@@ -82,9 +108,7 @@ export default function RegisterPage() {
 
   const handleFullNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
-    setFullNameInput(val); // Keep the UI responsive with spaces
-    
-    // Split for the database silently in the background
+    setFullNameInput(val);
     const parts = val.trim().split(' ');
     set('first_name', parts[0] || '');
     set('last_name', parts.length > 1 ? parts.slice(1).join(' ') : '');
@@ -93,37 +117,119 @@ export default function RegisterPage() {
   const validateStep = (): boolean => {
     if (activeStep === 0) {
       if (!form.first_name || !form.last_name || !form.email || !form.phone_number) {
-        toast.error('Please enter your full First and Last name, email, and phone number.'); return false;
+        toast.error('Please enter your full First and Last name, email, and phone number.');
+        return false;
       }
       const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
       if (!form.password || !passwordRegex.test(form.password)) {
-        toast.error('Password must be at least 8 characters and include an uppercase letter, lowercase letter, number, and symbol.'); return false; 
+        toast.error('Password must be at least 8 characters and include an uppercase letter, lowercase letter, number, and symbol.');
+        return false;
       }
-      if (form.password !== form.confirm_password) { 
-        toast.error('Passwords do not match.'); return false; 
+      if (form.password !== form.confirm_password) {
+        toast.error('Passwords do not match.');
+        return false;
       }
     }
     if (activeStep === 1 && !form.business_name) {
-      toast.error('Business name or professional role is required.'); return false;
+      toast.error('Business name or professional role is required.');
+      return false;
     }
     if (activeStep === 2) {
-      if (!form.gov_id_file) { toast.error('Please upload your Government ID.'); return false; }
-      if (!form.cac_file) { toast.error('Please upload your CAC certificate.'); return false; }
-      if (!form.business_video_file) { toast.error('Please upload your business video.'); return false; }
+      if (!form.gov_id_file && !form.gov_id_url) {
+        toast.error('Please select your Government ID.');
+        return false;
+      }
+      if (!form.cac_file && !form.cac_url) {
+        toast.error('Please select your CAC certificate.');
+        return false;
+      }
+      if (!form.business_video_file && !form.business_video_url) {
+        toast.error('Please select your business video.');
+        return false;
+      }
     }
     return true;
+  };
+
+  // Upload handler for single documents (with client compression)
+  const processAndUploadDoc = async (
+    file: File,
+    fieldName: string,
+    setState: React.Dispatch<React.SetStateAction<FileUploadState>>,
+    urlField: 'gov_id_url' | 'cac_url'
+  ): Promise<string> => {
+    setState({ status: 'compressing', progress: 0, error: null, originalSize: file.size });
+    setSubmissionProgressLabel(`Optimizing ${file.name}...`);
+
+    let finalFile = file;
+    if (file.type.startsWith('image/')) {
+      try {
+        finalFile = await compressImageFile(file);
+      } catch (compErr) {
+        console.warn('Image compression fallback:', compErr);
+      }
+    }
+
+    setState({
+      status: 'uploading',
+      progress: 10,
+      error: null,
+      originalSize: file.size,
+      compressedSize: finalFile.size,
+    });
+    setSubmissionProgressLabel(`Uploading ${file.name}...`);
+
+    const result = await uploadSingleDocument(finalFile, fieldName, (pct) => {
+      setState((prev) => ({ ...prev, progress: pct }));
+    });
+
+    setState((prev) => ({
+      ...prev,
+      status: 'completed',
+      progress: 100,
+      uploadedUrl: result.url,
+    }));
+    set(urlField, result.url);
+    return result.url;
+  };
+
+  // Upload handler for chunked video
+  const processAndUploadVideo = async (
+    file: File,
+    setState: React.Dispatch<React.SetStateAction<FileUploadState>>
+  ): Promise<string> => {
+    setState({ status: 'uploading', progress: 0, error: null, originalSize: file.size });
+    setSubmissionProgressLabel('Uploading video in resilient chunks...');
+
+    const result = await uploadFileInChunks(file, 'video', {
+      onProgress: (pct, currentChunk, totalChunks) => {
+        setState((prev) => ({ ...prev, progress: pct }));
+        setSubmissionProgressLabel(`Uploading video chunk ${currentChunk}/${totalChunks} (${pct}%)...`);
+      },
+    });
+
+    setState((prev) => ({
+      ...prev,
+      status: 'completed',
+      progress: 100,
+      uploadedUrl: result.url,
+    }));
+    set('business_video_url', result.url);
+    return result.url;
   };
 
   const handleNext = async () => {
     if (!validateStep()) return;
 
+    // Moving from Review (Step 3) to Final Submission
     if (activeStep === 3) {
       setLoading(true);
       try {
         let user = registeredUser;
-        
-        // 1. Only register if we haven't successfully registered them yet in this session
+
+        // 1. Register or retrieve user session
         if (!user) {
+          setSubmissionProgressLabel('Creating your account...');
           user = await registerUser({
             first_name: form.first_name,
             last_name: form.last_name,
@@ -137,33 +243,52 @@ export default function RegisterPage() {
             twitter_handle: form.twitter_handle,
             instagram_handle: form.instagram_handle,
             facebook_handle: form.facebook_handle,
-            tiktok_handle: form.tiktok_handle
+            tiktok_handle: form.tiktok_handle,
           });
           setRegisteredUser(user);
           login(user);
         }
 
-        // Identity Verification via backend/prembly removed for manual admin review
-        
-        // 2. Now attempt to upload the files
-        await submitVerification(form.gov_id_file!, form.cac_file!, form.business_video_file!);
-        
-        toast.success('Verification submitted!');
+        // 2. Decoupled Upload: Government ID
+        let govIdUrl = form.gov_id_url;
+        if (!govIdUrl && form.gov_id_file) {
+          govIdUrl = await processAndUploadDoc(form.gov_id_file, 'gov_id', setGovIdState, 'gov_id_url');
+        }
+
+        // 3. Decoupled Upload: CAC Certificate
+        let cacUrl = form.cac_url;
+        if (!cacUrl && form.cac_file) {
+          cacUrl = await processAndUploadDoc(form.cac_file, 'cac_document', setCacState, 'cac_url');
+        }
+
+        // 4. Decoupled Upload: Business Video (Chunked)
+        let videoUrl = form.business_video_url;
+        if (!videoUrl && form.business_video_file) {
+          videoUrl = await processAndUploadVideo(form.business_video_file, setVideoState);
+        }
+
+        // 5. Finalize Verification Record
+        setSubmissionProgressLabel('Finalizing application review...');
+        await submitVerification({
+          gov_id_url: govIdUrl,
+          cac_url: cacUrl,
+          video_url: videoUrl,
+        });
+
+        toast.success('Verification submitted successfully!');
         setActiveStep(4); // Success screen
       } catch (err: any) {
         console.error('Submission error:', err);
         let msg = err?.response?.data?.message;
-        
-        // Handle NGINX / server limits (e.g. 413 Payload Too Large)
         if (err?.response?.status === 413) {
-          msg = 'Your video file is too large. Please upload a smaller video (max 100MB).';
+          msg = 'File size is too large. Please select a smaller video or image.';
         } else if (!msg) {
-          msg = err?.message || 'Registration failed or file is too large. Please check your connection and try again.';
+          msg = err?.message || 'Registration failed. Please check your connection and try again.';
         }
-        
         toast.error(msg);
       } finally {
         setLoading(false);
+        setSubmissionProgressLabel('');
       }
       return;
     }
@@ -173,13 +298,12 @@ export default function RegisterPage() {
 
   const handleBack = () => setActiveStep((s) => s - 1);
 
-  // Custom Stepper UI
+  // Stepper Header
   const renderStepper = () => {
-    if (activeStep === 4) return null; // hide on success
+    if (activeStep === 4) return null;
 
     return (
       <Box sx={{ mb: 6, position: 'relative', width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        {/* Connecting line */}
         <Box sx={{ position: 'absolute', top: 15, left: '5%', right: '5%', height: 2, bgcolor: '#E2E8F0', zIndex: 0 }}>
           <Box sx={{ height: '100%', bgcolor: '#00BCD4', width: `${(activeStep / (STEPS.length - 1)) * 100}%`, transition: 'width 0.3s ease' }} />
         </Box>
@@ -201,7 +325,7 @@ export default function RegisterPage() {
                   color: isCompleted || isActive ? '#fff' : '#64748B',
                   border: isCompleted || isActive ? 'none' : '2px solid #E2E8F0',
                   mb: 1,
-                  transition: 'all 0.3s'
+                  transition: 'all 0.3s',
                 }}
               >
                 {isCompleted ? <CheckCircleIcon sx={{ fontSize: 20 }} /> : <Typography variant="caption" fontWeight={700}>{index + 1}</Typography>}
@@ -221,10 +345,10 @@ export default function RegisterPage() {
     <Box key="step1">
       <Typography variant="h5" fontWeight={800} color="#0F172A" mb={0.5}>Personal Information</Typography>
       <Typography variant="body2" color="#64748B" mb={4}>Please provide your legal name exactly as it appears on your ID.</Typography>
-      
+
       <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} display="block">Full Legal Name</Typography>
       <TextField fullWidth value={fullNameInput} onChange={handleFullNameChange} placeholder="e.g., Sarah Chen" sx={{ mb: 3 }} InputProps={{ sx: { borderRadius: 2 } }} />
-      
+
       <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} display="block">Email Address</Typography>
       <TextField fullWidth type="email" value={form.email} onChange={(e) => set('email', e.target.value)} placeholder="sarah@example.com" sx={{ mb: 3 }} InputProps={{ sx: { borderRadius: 2 } }} />
 
@@ -252,40 +376,33 @@ export default function RegisterPage() {
         </Stack>
       </Box>
 
-      {/* Passwords required for registration but styled cleanly */}
       <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} display="block">Create Password</Typography>
-      <TextField 
-        fullWidth 
+      <TextField
+        fullWidth
         variant="outlined"
-        type={showPassword ? 'text' : 'password'} 
-        value={form.password} 
-        onChange={(e) => set('password', e.target.value)} 
-        sx={{ 
-          mb: 3,
-          '& .MuiOutlinedInput-root': { borderRadius: '30px' }
-        }} 
+        type={showPassword ? 'text' : 'password'}
+        value={form.password}
+        onChange={(e) => set('password', e.target.value)}
+        sx={{ mb: 3, '& .MuiOutlinedInput-root': { borderRadius: '30px' } }}
       />
       <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} display="block">Confirm Password</Typography>
-      <TextField 
-        fullWidth 
+      <TextField
+        fullWidth
         variant="outlined"
-        type={showConfirmPassword ? 'text' : 'password'} 
-        value={form.confirm_password} 
-        onChange={(e) => set('confirm_password', e.target.value)} 
-        sx={{ 
-          mb: 2,
-          '& .MuiOutlinedInput-root': { borderRadius: '30px' }
-        }} 
+        type={showConfirmPassword ? 'text' : 'password'}
+        value={form.confirm_password}
+        onChange={(e) => set('confirm_password', e.target.value)}
+        sx={{ mb: 2, '& .MuiOutlinedInput-root': { borderRadius: '30px' } }}
       />
       <FormControlLabel
         control={
-          <Switch 
-            checked={showPassword} 
+          <Switch
+            checked={showPassword}
             onChange={(e) => {
               setShowPassword(e.target.checked);
               setShowConfirmPassword(e.target.checked);
-            }} 
-            color="primary" 
+            }}
+            color="primary"
           />
         }
         label={<Typography variant="body2" sx={{ color: '#475569', fontWeight: 600 }}>Show Passwords</Typography>}
@@ -297,74 +414,97 @@ export default function RegisterPage() {
     <Box key="step2">
       <Typography variant="h5" fontWeight={800} color="#0F172A" mb={0.5}>Business / Service Details</Typography>
       <Typography variant="body2" color="#64748B" mb={4}>Tell us about what you do so we can display it on your public profile.</Typography>
-      
+
       <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} display="block">Business Name or Professional Role</Typography>
       <TextField fullWidth value={form.business_name} onChange={(e) => set('business_name', e.target.value)} placeholder="e.g., Chen Design Studio OR UX Designer" sx={{ mb: 3 }} InputProps={{ sx: { borderRadius: 2 } }} />
-      
+
       <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} display="block">Business Address / Location</Typography>
       <TextField fullWidth value={form.business_address} onChange={(e) => set('business_address', e.target.value)} placeholder="e.g., 12 Marina Boulevard, Marina Bay, Singapore" sx={{ mb: 4 }} InputProps={{ sx: { borderRadius: 2 } }} />
-      
-      <Typography variant="h6" fontWeight={800} color="#0F172A" mb={0.5}>social media presence</Typography>
-      <Typography variant="body2" color="#64748B" mb={3}>used to understand your digital footprint abd brand presence</Typography>
-      
-      <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} display="block">X (formally tweeter) handle</Typography>
+
+      <Typography variant="h6" fontWeight={800} color="#0F172A" mb={0.5}>Social Media Presence</Typography>
+      <Typography variant="body2" color="#64748B" mb={3}>Used to understand your digital footprint and brand presence.</Typography>
+
+      <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} display="block">X (formerly Twitter) Handle</Typography>
       <TextField fullWidth value={form.twitter_handle} onChange={(e) => set('twitter_handle', e.target.value)} placeholder="https://x.com/profile" sx={{ mb: 3 }} InputProps={{ sx: { borderRadius: 2 } }} />
-      
-      <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} display="block">Instagram Hanlde</Typography>
+
+      <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} display="block">Instagram Handle</Typography>
       <TextField fullWidth value={form.instagram_handle} onChange={(e) => set('instagram_handle', e.target.value)} placeholder="https://instagram.com/profile" sx={{ mb: 3 }} InputProps={{ sx: { borderRadius: 2 } }} />
-      
+
       <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} display="block">Facebook Handle</Typography>
       <TextField fullWidth value={form.facebook_handle} onChange={(e) => set('facebook_handle', e.target.value)} placeholder="https://facebook.com/profile" sx={{ mb: 3 }} InputProps={{ sx: { borderRadius: 2 } }} />
-      
+
       <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} display="block">TikTok Handle</Typography>
       <TextField fullWidth value={form.tiktok_handle} onChange={(e) => set('tiktok_handle', e.target.value)} placeholder="https://tiktok.com/@profile" InputProps={{ sx: { borderRadius: 2 } }} />
     </Box>,
 
-    // Step 3: ID Upload
+    // Step 3: Documents
     <Box key="step3">
       <Typography variant="h5" fontWeight={800} color="#0F172A" mb={0.5}>Identity Verification</Typography>
       <Typography variant="body2" color="#64748B" mb={4}>Upload a valid, unexpired government-issued ID.</Typography>
-      
-      <FileUploadDropzone 
-        file={form.gov_id_file} 
-        onChange={(f: File) => set('gov_id_file', f)} 
-        onRemove={() => set('gov_id_file', null)}
-        title="passport_front.jpg"
+
+      <FileUploadDropzone
+        file={form.gov_id_file}
+        uploadState={govIdState}
+        onChange={(f: File) => {
+          set('gov_id_file', f);
+          set('gov_id_url', '');
+          setGovIdState(initialFileState);
+        }}
+        onRemove={() => {
+          set('gov_id_file', null);
+          set('gov_id_url', '');
+          setGovIdState(initialFileState);
+        }}
+        title="Government ID"
         labels={['Passport', 'National ID', "Driver's License"]}
-        accept=".svg,.png,.jpg,.pdf"
-        maxSize="10MB"
+        accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf"
+        maxSize="15MB"
         icon={<InsertDriveFileOutlinedIcon />}
       />
-
-
 
       <Typography variant="h6" fontWeight={800} color="#0F172A" mb={0.5} mt={2}>Business Registration</Typography>
-      <Typography variant="body2" color="#64748B" mb={3}>Upload a valid, unexpired government-issued ID.</Typography>
-      
-      <FileUploadDropzone 
-        file={form.cac_file} 
-        onChange={(f: File) => set('cac_file', f)} 
-        onRemove={() => set('cac_file', null)}
-        title="CAC upload"
-        labels={['CAC Certificat']}
-        accept=".svg,.png,.jpg,.pdf"
-        maxSize="10MB"
+      <Typography variant="body2" color="#64748B" mb={3}>Upload your CAC certificate or proof of business registration.</Typography>
+
+      <FileUploadDropzone
+        file={form.cac_file}
+        uploadState={cacState}
+        onChange={(f: File) => {
+          set('cac_file', f);
+          set('cac_url', '');
+          setCacState(initialFileState);
+        }}
+        onRemove={() => {
+          set('cac_file', null);
+          set('cac_url', '');
+          setCacState(initialFileState);
+        }}
+        title="CAC Document"
+        labels={['CAC Certificate', 'Business Registration']}
+        accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf"
+        maxSize="15MB"
         icon={<InsertDriveFileOutlinedIcon />}
       />
 
+      <Typography variant="h6" fontWeight={800} color="#0F172A" mb={0.5} mt={2}>Video Verification</Typography>
+      <Typography variant="body2" color="#64748B" mb={3}>Upload a short 1-2 minute video of you and your business environment.</Typography>
 
-
-      <Typography variant="h6" fontWeight={800} color="#0F172A" mb={0.5} mt={2}>video upload</Typography>
-      <Typography variant="body2" color="#64748B" mb={3}>Upload two minute of you and your business environment</Typography>
-      
-      <FileUploadDropzone 
-        file={form.business_video_file} 
-        onChange={(f: File) => set('business_video_file', f)} 
-        onRemove={() => set('business_video_file', null)}
-        title="2 minute shot video"
-        labels={['Video (MP4, MOV, MKV)']}
-        accept=".mp4,.mkv,.mov,video/mp4,video/quicktime,video/x-matroska,video/*"
-        maxSize="100mb"
+      <FileUploadDropzone
+        file={form.business_video_file}
+        uploadState={videoState}
+        onChange={(f: File) => {
+          set('business_video_file', f);
+          set('business_video_url', '');
+          setVideoState(initialFileState);
+        }}
+        onRemove={() => {
+          set('business_video_file', null);
+          set('business_video_url', '');
+          setVideoState(initialFileState);
+        }}
+        title="Business Video"
+        labels={['MP4', 'MOV', 'WebM', 'MKV']}
+        accept=".mp4,.mov,.mkv,.webm,video/mp4,video/quicktime,video/x-matroska,video/webm"
+        maxSize="100MB"
         icon={<PlayCircleOutlinedIcon />}
       />
 
@@ -372,9 +512,14 @@ export default function RegisterPage() {
         <Stack direction="row" spacing={2} sx={{ alignItems: 'flex-start' }}>
           <InfoOutlinedIcon sx={{ color: '#1A1FE8' }} />
           <Box>
-            <Typography variant="subtitle2" fontWeight={700} color="#0F172A" mb={1.5}>Upload Instructions</Typography>
+            <Typography variant="subtitle2" fontWeight={700} color="#0F172A" mb={1.5}>Upload Instructions & Optimization</Typography>
             <Stack spacing={1}>
-              {['Ensure all 4 corners of the document are visible', 'Avoid glare or reflections on the document', 'Photo must be clear and text fully legible', 'Document must not be expired'].map((t) => (
+              {[
+                'Images are automatically compressed in your browser to save data and speed up upload.',
+                'Videos are uploaded in fast, resilient 2MB chunks with automatic resume.',
+                'Ensure all 4 corners of documents are visible and text is legible.',
+                'Video should clearly show your workspace or products.',
+              ].map((t) => (
                 <Typography component="div" key={t} variant="body2" sx={{ color: '#475569', display: 'flex', alignItems: 'center', gap: 1 }}>
                   <Box component="span" sx={{ width: 4, height: 4, bgcolor: '#64748B', borderRadius: '50%' }} /> {t}
                 </Typography>
@@ -405,9 +550,9 @@ export default function RegisterPage() {
           <Typography variant="subtitle2" fontWeight={800} color="#0F172A">Documents</Typography>
           <Typography variant="caption" fontWeight={700} color="#1A1FE8" sx={{ cursor: 'pointer' }} onClick={() => setActiveStep(2)}>Edit</Typography>
         </Box>
-        <FileReviewRow label="ID Document" file={form.gov_id_file} />
-        <FileReviewRow label="CAC Certificate" file={form.cac_file} />
-        <FileReviewRow label="Business Video" file={form.business_video_file} />
+        <FileReviewRow label="ID Document" file={form.gov_id_file} state={govIdState} />
+        <FileReviewRow label="CAC Certificate" file={form.cac_file} state={cacState} />
+        <FileReviewRow label="Business Video" file={form.business_video_file} state={videoState} />
       </Paper>
 
       <Paper elevation={0} sx={{ p: 3, borderRadius: 3, bgcolor: '#F8FAFC', mb: 4 }}>
@@ -419,11 +564,20 @@ export default function RegisterPage() {
         <GridRow label="Address" value={form.business_address || '-'} />
       </Paper>
 
+      {loading && submissionProgressLabel && (
+        <Alert severity="info" sx={{ mb: 3, borderRadius: 2 }}>
+          <Typography variant="body2" fontWeight={700} mb={1}>{submissionProgressLabel}</Typography>
+          <LinearProgress sx={{ borderRadius: 1, height: 6 }} />
+        </Alert>
+      )}
+
       <Box sx={{ p: 2.5, borderRadius: 3, bgcolor: '#E0F2FE', mb: 4, display: 'flex', alignItems: 'flex-start', gap: 2 }}>
         <VerifiedUserOutlinedIcon sx={{ color: '#0284C7' }} />
         <Box>
           <Typography variant="subtitle2" fontWeight={700} color="#0F172A">Ready for Verification</Typography>
-          <Typography variant="caption" color="#475569">By submitting, you agree to our Terms of Service and Privacy Policy. Verification typically takes 24-48 hours.</Typography>
+          <Typography variant="caption" color="#475569">
+            By submitting, you agree to our Terms of Service and Privacy Policy. Verification typically takes 24-48 hours.
+          </Typography>
         </Box>
       </Box>
     </Box>,
@@ -438,7 +592,7 @@ export default function RegisterPage() {
         <Typography variant="body1" color="#64748B" mb={5} sx={{ maxWidth: 400, mx: 'auto' }}>
           Thank you for completing the verification process. Our team will review your application and documents within 24-48 hours.
         </Typography>
-        
+
         <Paper elevation={0} sx={{ p: 4, borderRadius: 4, mb: 5, bgcolor: '#F8FAFC', maxWidth: 400, mx: 'auto' }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
             <Typography variant="body2" color="#64748B">Application ID</Typography>
@@ -452,12 +606,12 @@ export default function RegisterPage() {
             </Typography>
           </Box>
         </Paper>
-        
+
         <Button variant="contained" size="large" onClick={() => navigate('/dashboard')} sx={{ px: 6, borderRadius: 2, textTransform: 'none', fontWeight: 700, bgcolor: '#1A1FE8', '&:hover': { bgcolor: '#0F14B0' } }}>
           Dashboard (Pending)
         </Button>
       </Box>
-    </Box>
+    </Box>,
   ];
 
   return (
@@ -465,68 +619,55 @@ export default function RegisterPage() {
       <Navbar />
 
       <Container maxWidth="md" sx={{ py: { xs: 4, md: 8 }, flexGrow: 1 }}>
-        <Paper 
-          elevation={0} 
-          sx={{ 
-            p: { xs: 3, md: 6 }, 
-            borderRadius: 4, 
+        <Paper
+          elevation={0}
+          sx={{
+            p: { xs: 3, md: 6 },
+            borderRadius: 4,
             boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
-            position: 'relative'
+            position: 'relative',
           }}
         >
           {renderStepper()}
 
-          <Box>
-            {stepContent[activeStep]}
-          </Box>
+          <Box>{stepContent[activeStep]}</Box>
 
           {activeStep < 4 && (
-            <>
-              {activeStep === 3 ? null : (
-                 <Typography variant="caption" sx={{ display: 'block', textAlign: 'center', color: '#64748B', mt: 4, mb: -2 }}>
-                   Save & Continue Later
-                 </Typography>
+            <Box sx={{ mt: 5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              {activeStep === 0 ? (
+                <Box />
+              ) : (
+                <Button
+                  onClick={handleBack}
+                  disabled={loading}
+                  variant="contained"
+                  sx={{ bgcolor: '#E2E8F0', color: '#475569', px: 4, py: 1.5, borderRadius: 2, textTransform: 'none', fontWeight: 700, '&:hover': { bgcolor: '#CBD5E1' } }}
+                >
+                  Back
+                </Button>
               )}
-              <Box sx={{ mt: 5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                {activeStep === 0 ? (
-                  <Box /> // Empty box for flex spacing
-                ) : (
-                  <Button
-                    onClick={handleBack}
-                    variant="contained"
-                    sx={{ bgcolor: '#E2E8F0', color: '#475569', px: 4, py: 1.5, borderRadius: 2, textTransform: 'none', fontWeight: 700, '&:hover': { bgcolor: '#CBD5E1' } }}
-                  >
-                    Back
-                  </Button>
-                )}
-                
-                {activeStep === 3 ? (
-                  <Button
-                    onClick={handleNext}
-                    variant="contained"
-                    disabled={loading}
-                    endIcon={loading ? <CircularProgress size={16} color="inherit" /> : <VerifiedUserOutlinedIcon />}
-                    sx={{ bgcolor: '#1A1FE8', px: 4, py: 1.5, borderRadius: 2, textTransform: 'none', fontWeight: 700, '&:hover': { bgcolor: '#0F14B0' } }}
-                  >
-                    Submit for Verification
-                  </Button>
-                ) : (
-                  <Button
-                    onClick={handleNext}
-                    variant="contained"
-                    endIcon={<span>›</span>}
-                    sx={{ bgcolor: '#1A1FE8', px: 4, py: 1.5, borderRadius: 2, textTransform: 'none', fontWeight: 700, '&:hover': { bgcolor: '#0F14B0' } }}
-                  >
-                    Next Step
-                  </Button>
-                )}
-              </Box>
-              {activeStep === 3 && (
-                 <Typography variant="caption" sx={{ display: 'block', textAlign: 'center', color: '#64748B', mt: 4 }}>
-                   Save & Continue Later
-                 </Typography>
+
+              {activeStep === 3 ? (
+                <Button
+                  onClick={handleNext}
+                  variant="contained"
+                  disabled={loading}
+                  endIcon={loading ? <CircularProgress size={16} color="inherit" /> : <VerifiedUserOutlinedIcon />}
+                  sx={{ bgcolor: '#1A1FE8', px: 4, py: 1.5, borderRadius: 2, textTransform: 'none', fontWeight: 700, '&:hover': { bgcolor: '#0F14B0' } }}
+                >
+                  {loading ? 'Submitting Documents...' : 'Submit for Verification'}
+                </Button>
+              ) : (
+                <Button
+                  onClick={handleNext}
+                  variant="contained"
+                  endIcon={<span>›</span>}
+                  sx={{ bgcolor: '#1A1FE8', px: 4, py: 1.5, borderRadius: 2, textTransform: 'none', fontWeight: 700, '&:hover': { bgcolor: '#0F14B0' } }}
+                >
+                  Next Step
+                </Button>
               )}
-            </>
+            </Box>
           )}
         </Paper>
       </Container>
@@ -542,7 +683,7 @@ const GridRow = ({ label, value }: { label: string; value: string }) => (
   </Box>
 );
 
-const FileReviewRow = ({ label, file }: { label: string; file: File | null }) => {
+const FileReviewRow = ({ label, file, state }: { label: string; file: File | null; state?: FileUploadState }) => {
   if (!file) {
     return <GridRow label={label} value="Missing" />;
   }
@@ -552,27 +693,42 @@ const FileReviewRow = ({ label, file }: { label: string; file: File | null }) =>
   return (
     <Box sx={{ display: 'flex', mb: 2, alignItems: 'center' }}>
       <Typography variant="body2" color="#64748B" sx={{ width: 150 }}>{label}</Typography>
-      {isImage && previewUrl ? (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Box component="img" src={previewUrl} sx={{ width: 60, height: 40, objectFit: 'cover', borderRadius: 1, border: '1px solid #E2E8F0' }} />
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+        {isImage && previewUrl && (
+          <Box component="img" src={previewUrl} sx={{ width: 44, height: 32, objectFit: 'cover', borderRadius: 1, border: '1px solid #E2E8F0' }} />
+        )}
+        <Box>
           <Typography variant="subtitle2" sx={{ color: '#0F172A', fontWeight: 700 }}>{file.name}</Typography>
+          <Typography variant="caption" sx={{ color: '#64748B' }}>
+            {formatBytes(file.size)}
+            {state?.status === 'completed' && ' • Ready'}
+          </Typography>
         </Box>
-      ) : (
-        <Typography variant="subtitle2" sx={{ color: '#0F172A', fontWeight: 700 }}>{file.name}</Typography>
-      )}
+      </Box>
     </Box>
   );
 };
 
-const FileUploadDropzone = ({ file, onChange, onRemove, title, labels, accept, maxSize, icon }: any) => {
+interface DropzoneProps {
+  file: File | null;
+  uploadState?: FileUploadState;
+  onChange: (f: File) => void;
+  onRemove: () => void;
+  title: string;
+  labels: string[];
+  accept: string;
+  maxSize: string;
+  icon: React.ReactNode;
+}
+
+const FileUploadDropzone = ({ file, uploadState, onChange, onRemove, title, labels, accept, maxSize, icon }: DropzoneProps) => {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (!selectedFile) return;
 
-    // Determine max size in bytes based on the prop string (e.g. "50MB" or "10MB")
-    let maxBytes = 50 * 1024 * 1024; // Default to 50MB
+    let maxBytes = 100 * 1024 * 1024;
     if (typeof maxSize === 'string' && maxSize.toLowerCase().includes('mb')) {
       const mbValue = parseInt(maxSize.toLowerCase().replace('mb', ''));
       if (!isNaN(mbValue)) maxBytes = mbValue * 1024 * 1024;
@@ -580,7 +736,7 @@ const FileUploadDropzone = ({ file, onChange, onRemove, title, labels, accept, m
 
     if (selectedFile.size > maxBytes) {
       toast.error(`File is too large. Maximum size is ${maxSize}.`);
-      e.target.value = ''; // Reset input
+      e.target.value = '';
       return;
     }
 
@@ -590,47 +746,68 @@ const FileUploadDropzone = ({ file, onChange, onRemove, title, labels, accept, m
   if (file) {
     const isImage = file.type.startsWith('image/');
     const previewUrl = isImage ? URL.createObjectURL(file) : null;
+    const isUploading = uploadState?.status === 'uploading' || uploadState?.status === 'compressing';
+    const isError = uploadState?.status === 'error';
 
     return (
-      <Box sx={{ p: 2, borderRadius: 2, border: '1px solid #00BCD4', bgcolor: '#E0F7FA', display: 'flex', alignItems: 'center', mb: 3 }}>
-        {isImage && previewUrl ? (
-          <Box component="img" src={previewUrl} alt="preview" sx={{ width: 48, height: 48, borderRadius: 1, objectFit: 'cover', mr: 2 }} />
-        ) : (
-          <Box sx={{ width: 40, height: 40, borderRadius: 2, bgcolor: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#00BCD4', mr: 2 }}>
-            {icon}
+      <Box sx={{ p: 2.5, borderRadius: 2, border: '1px solid', borderColor: isError ? '#EF4444' : '#00BCD4', bgcolor: isError ? '#FEF2F2' : '#F0FDFA', mb: 3 }}>
+        <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
+          {isImage && previewUrl ? (
+            <Box component="img" src={previewUrl} alt="preview" sx={{ width: 52, height: 52, borderRadius: 1.5, objectFit: 'cover' }} />
+          ) : (
+            <Box sx={{ width: 44, height: 44, borderRadius: 1.5, bgcolor: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#00BCD4' }}>
+              {icon}
+            </Box>
+          )}
+
+          <Box sx={{ flexGrow: 1 }}>
+            <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#0F172A' }}>{title || file.name}</Typography>
+              {!isUploading && !isError && <CheckCircleIcon sx={{ fontSize: 16, color: '#00BCD4' }} />}
+            </Stack>
+            <Typography variant="caption" color="#64748B" display="block">
+              {file.name} ({formatBytes(file.size)})
+            </Typography>
+
+            {isUploading && (
+              <Box sx={{ mt: 1, width: '100%' }}>
+                <LinearProgress variant="determinate" value={uploadState?.progress || 0} sx={{ height: 6, borderRadius: 1 }} />
+                <Typography variant="caption" sx={{ color: '#0284C7', mt: 0.5, display: 'block', fontWeight: 600 }}>
+                  {uploadState?.status === 'compressing' ? 'Optimizing...' : `Uploading (${uploadState?.progress || 0}%)`}
+                </Typography>
+              </Box>
+            )}
+
+            {isError && (
+              <Typography variant="caption" sx={{ color: '#DC2626', mt: 0.5, display: 'block', fontWeight: 600 }}>
+                {uploadState?.error || 'Upload failed. Click remove to try another file.'}
+              </Typography>
+            )}
           </Box>
-        )}
-        <Box sx={{ flexGrow: 1 }}>
-          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#0F172A' }}>{title || file.name}</Typography>
-            <CheckCircleIcon sx={{ fontSize: 16, color: '#00BCD4' }} />
-          </Stack>
-          <Typography variant="caption" color="#64748B">
-            {(file.size / 1024 / 1024).toFixed(1)} MB • Uploaded successfully
-          </Typography>
-        </Box>
-        <Button size="small" onClick={onRemove} sx={{ color: '#EF4444', fontWeight: 700, textTransform: 'none' }}>
-          Remove
-        </Button>
+
+          <Button size="small" onClick={onRemove} disabled={isUploading} sx={{ color: '#EF4444', fontWeight: 700, textTransform: 'none' }}>
+            Remove
+          </Button>
+        </Stack>
       </Box>
     );
   }
 
   const isVideoInput = accept.includes('video');
-  const formatLabel = isVideoInput ? 'MP4, MOV, QuickTime' : accept.toUpperCase().replace(/\./g, '');
+  const formatLabel = isVideoInput ? 'MP4, MOV, WebM, MKV' : 'JPG, PNG, WebP, PDF';
 
   return (
-    <Box 
+    <Box
       onClick={() => inputRef.current?.click()}
-      sx={{ 
-        position: 'relative', 
-        p: 4, 
-        borderRadius: 3, 
-        border: '1px dashed #CBD5E1', 
-        textAlign: 'center', 
-        mb: 3, 
+      sx={{
+        position: 'relative',
+        p: 4,
+        borderRadius: 3,
+        border: '1px dashed #CBD5E1',
+        textAlign: 'center',
+        mb: 3,
         cursor: 'pointer',
-        '&:hover': { borderColor: '#94A3B8', bgcolor: '#F8FAFC' } 
+        '&:hover': { borderColor: '#94A3B8', bgcolor: '#F8FAFC' },
       }}
     >
       <Box sx={{ width: 40, height: 40, borderRadius: '50%', bgcolor: '#F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748B', mx: 'auto', mb: 2 }}>
@@ -642,7 +819,7 @@ const FileUploadDropzone = ({ file, onChange, onRemove, title, labels, accept, m
       <Typography variant="caption" sx={{ color: '#64748B', mb: 2, display: 'block' }}>
         {formatLabel} (max. {maxSize})
       </Typography>
-      <Stack direction="row" spacing={1} sx={{ justifyContent: 'center' }}>
+      <Stack direction="row" spacing={1} sx={{ justifyContent: 'center', flexWrap: 'wrap', gap: 0.5 }}>
         {labels.map((l: string) => (
           <Chip key={l} label={l} size="small" variant="outlined" sx={{ borderRadius: 1, color: '#64748B', borderColor: '#E2E8F0' }} />
         ))}

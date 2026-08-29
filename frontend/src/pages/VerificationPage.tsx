@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Box, Typography, CircularProgress, Button, Stack } from '@mui/material';
+import { Box, Typography, CircularProgress, Button, Stack, LinearProgress } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import VerifiedUserOutlinedIcon from '@mui/icons-material/VerifiedUserOutlined';
 import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined';
@@ -13,7 +13,9 @@ import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import { Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import { useAuth } from '../context/AuthContext';
-import { getMyVerification, resubmitVerificationDocuments } from '../api/verifications';
+import { getMyVerification, resubmitVerificationDocuments, uploadSingleDocument } from '../api/verifications';
+import { compressImageFile } from '../utils/fileCompressor';
+import { uploadFileInChunks } from '../utils/chunkUploader';
 import type { VerificationRecord } from '../api/verifications';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { initializePayment } from '../api/payment';
@@ -171,28 +173,72 @@ export default function VerificationPage() {
   const [activeDocTitle, setActiveDocTitle] = useState<string>('Government ID');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isResubmitting, setIsResubmitting] = useState(false);
+  const [resubmitProgress, setResubmitProgress] = useState<number>(0);
+  const [resubmitPhase, setResubmitPhase] = useState<string>('');
 
   const openResubmitModal = (key: 'gov_id' | 'cac' | 'video', title: string) => {
     const mapped = key === 'gov_id' ? 'govId' : key === 'cac' ? 'cac' : 'video';
     setActiveDocKey(mapped);
     setActiveDocTitle(title);
     setSelectedFile(null);
+    setResubmitProgress(0);
+    setResubmitPhase('');
     setResubmitModalOpen(true);
   };
 
   const handleResubmit = async () => {
     if (!selectedFile) return toast.error('Please select a file to upload');
     setIsResubmitting(true);
+    setResubmitProgress(0);
+
     try {
-      await resubmitVerificationDocuments({ [activeDocKey]: selectedFile });
+      let uploadedUrl = '';
+
+      if (activeDocKey === 'video') {
+        setResubmitPhase('Uploading video in resilient chunks...');
+        const res = await uploadFileInChunks(selectedFile, 'video', {
+          onProgress: (pct, current, total) => {
+            setResubmitProgress(pct);
+            setResubmitPhase(`Uploading chunk ${current}/${total} (${pct}%)...`);
+          },
+        });
+        uploadedUrl = res.url;
+        await resubmitVerificationDocuments({ video_url: uploadedUrl });
+      } else {
+        setResubmitPhase('Optimizing document image...');
+        let fileToUpload = selectedFile;
+        if (selectedFile.type.startsWith('image/')) {
+          try {
+            fileToUpload = await compressImageFile(selectedFile);
+          } catch (e) {
+            console.warn('Compression fallback:', e);
+          }
+        }
+        setResubmitPhase('Uploading document...');
+        const fieldName = activeDocKey === 'govId' ? 'gov_id' : 'cac_document';
+        const res = await uploadSingleDocument(fileToUpload, fieldName, (pct) => {
+          setResubmitProgress(pct);
+        });
+        uploadedUrl = res.url;
+
+        if (activeDocKey === 'govId') {
+          await resubmitVerificationDocuments({ gov_id_url: uploadedUrl });
+        } else {
+          await resubmitVerificationDocuments({ cac_url: uploadedUrl });
+        }
+      }
+
       toast.success(`${activeDocTitle} resubmitted! Account is now under pending review.`);
       setResubmitModalOpen(false);
       const updatedRec = await getMyVerification();
       setRecord(updatedRec);
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to resubmit document.');
+      console.error('Resubmit error:', err);
+      toast.error(err.response?.data?.message || err.message || 'Failed to resubmit document.');
     } finally {
       setIsResubmitting(false);
+      setResubmitProgress(0);
+      setResubmitPhase('');
     }
   };
 
@@ -773,7 +819,7 @@ export default function VerificationPage() {
       </Dialog>
 
       {/* Targeted Document Resubmission Dialog */}
-      <Dialog open={resubmitModalOpen} onClose={() => setResubmitModalOpen(false)} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: 3, p: 1 } }}>
+      <Dialog open={resubmitModalOpen} onClose={() => !isResubmitting && setResubmitModalOpen(false)} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: 3, p: 1 } }}>
         <DialogTitle sx={{ fontWeight: 800, color: '#0F172A', pb: 1 }}>
           Re-upload {activeDocTitle}
         </DialogTitle>
@@ -784,15 +830,20 @@ export default function VerificationPage() {
           <Button
             component="label"
             variant="outlined"
+            disabled={isResubmitting}
             fullWidth
             startIcon={<CloudUploadIcon />}
             sx={{ py: 3, borderStyle: 'dashed', borderRadius: 2, textTransform: 'none', fontWeight: 600, color: '#2563EB', borderColor: '#93C5FD' }}
           >
-            {selectedFile ? selectedFile.name : `Choose new file (${activeDocKey === 'video' ? 'MP4/MOV' : 'JPG/PNG/PDF'})`}
+            {selectedFile ? selectedFile.name : `Choose new file (${activeDocKey === 'video' ? 'MP4/MOV/WebM/MKV' : 'JPG/PNG/WebP/PDF'})`}
             <input
               type="file"
               hidden
-              accept={activeDocKey === 'video' ? 'video/*' : 'image/*,application/pdf'}
+              accept={
+                activeDocKey === 'video'
+                  ? '.mp4,.mov,.mkv,.webm,video/mp4,video/quicktime,video/x-matroska,video/webm'
+                  : '.jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf'
+              }
               onChange={(e) => {
                 if (e.target.files && e.target.files[0]) {
                   setSelectedFile(e.target.files[0]);
@@ -800,9 +851,18 @@ export default function VerificationPage() {
               }}
             />
           </Button>
+
+          {isResubmitting && (
+            <Box sx={{ mt: 2.5 }}>
+              <LinearProgress variant="determinate" value={resubmitProgress} sx={{ height: 6, borderRadius: 1 }} />
+              <Typography variant="caption" sx={{ color: '#2563EB', mt: 1, display: 'block', fontWeight: 600 }}>
+                {resubmitPhase || `Uploading (${resubmitProgress}%)...`}
+              </Typography>
+            </Box>
+          )}
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setResubmitModalOpen(false)} sx={{ textTransform: 'none', color: '#64748B', fontWeight: 600 }}>
+          <Button disabled={isResubmitting} onClick={() => setResubmitModalOpen(false)} sx={{ textTransform: 'none', color: '#64748B', fontWeight: 600 }}>
             Cancel
           </Button>
           <Button
