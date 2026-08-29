@@ -67,7 +67,7 @@ const initializePayment = async (req, res) => {
             email: email || req.user.email,
             amount: amountInKobo,
             metadata,
-            callback_url: `${process.env.CORS_ORIGIN || 'https://onlok.net'}/payment-success`
+            callback_url: `${process.env.FRONTEND_URL || process.env.CORS_ORIGIN || 'https://app.onlok.net'}/payment-success`
         };
 
         if (planCode) {
@@ -261,7 +261,7 @@ const processSuccessfulSubscription = async ({ userId, tier, planName, billingCy
         // 6. Create vendor_profile + QR code if one doesn't exist yet
         const [existingProfile] = await pool.query('SELECT id FROM vendor_profiles WHERE user_id = ?', [userId]);
         if (existingProfile.length === 0) {
-            const profileLink = `${process.env.CORS_ORIGIN || 'https://onlok.net'}/vendor/${finalVendorId}`;
+            const profileLink = `${process.env.FRONTEND_URL || process.env.CORS_ORIGIN || 'https://app.onlok.net'}/vendor/${finalVendorId}`;
             let qrCodeUrl = null;
             try {
                 qrCodeUrl = await generateQRCode(profileLink);
