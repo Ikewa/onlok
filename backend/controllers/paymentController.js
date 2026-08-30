@@ -469,7 +469,7 @@ const syncUserPayment = async (req, res) => {
         if (!pendingRef && user?.email) {
             try {
                 const listRes = await axios.get(
-                    `https://api.paystack.co/transaction?customer=${encodeURIComponent(user.email)}&status=success&perPage=5`,
+                    `https://api.paystack.co/transaction?customer=${encodeURIComponent(user.email)}&status=success&perPage=50`,
                     {
                         headers: { Authorization: `Bearer ${PAYSTACK_SECRET}` },
                         timeout: 10000
@@ -477,7 +477,10 @@ const syncUserPayment = async (req, res) => {
                 );
 
                 const txs = listRes.data?.data || [];
-                const matchedTx = txs.find(tx => String(tx.metadata?.user_id) === String(userId));
+                const matchedTx = txs.find(tx => 
+                    String(tx.metadata?.user_id) === String(userId) ||
+                    (tx.customer?.email && tx.customer.email.toLowerCase() === user.email.toLowerCase())
+                );
                 if (matchedTx) {
                     pendingRef = matchedTx.reference;
                 }
