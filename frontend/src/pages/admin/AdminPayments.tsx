@@ -3,7 +3,7 @@ import {
   Box, Typography, Paper, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, Chip, IconButton, TextField, InputAdornment, MenuItem,
   Select, FormControl, InputLabel, Button, CircularProgress, Tooltip, Stack,
-  Dialog, DialogTitle, DialogContent, DialogActions, Avatar, Pagination
+  Dialog, DialogTitle, DialogContent, DialogActions, Avatar, TablePagination
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import RefreshIcon from '@mui/icons-material/Refresh';
@@ -12,6 +12,7 @@ import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
 import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
 import CancelOutlinedIcon from '@mui/icons-material/CancelOutlined';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import { getPaymentsAdmin, syncPaymentAdmin, type AdminPaymentRecord } from '../../api/admin';
 import toast from 'react-hot-toast';
 
@@ -26,8 +27,8 @@ export default function AdminPayments() {
   const [tierFilter, setTierFilter] = useState('all');
 
   // Pagination
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
   const [totalCount, setTotalCount] = useState(0);
 
   // Metrics
@@ -45,8 +46,8 @@ export default function AdminPayments() {
     setLoading(true);
     try {
       const res = await getPaymentsAdmin({
-        page,
-        limit: 15,
+        page: page + 1,
+        limit: rowsPerPage,
         q: searchQuery,
         status: statusFilter,
         tier: tierFilter
@@ -54,7 +55,6 @@ export default function AdminPayments() {
 
       setRecords(res.results || []);
       setTotalCount(res.total || 0);
-      setTotalPages(Math.ceil((res.total || 0) / 15) || 1);
       if (res.metrics) {
         setMetrics(res.metrics);
       }
@@ -68,11 +68,11 @@ export default function AdminPayments() {
 
   useEffect(() => {
     fetchPayments();
-  }, [page, statusFilter, tierFilter]);
+  }, [page, rowsPerPage, statusFilter, tierFilter]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setPage(1);
+    setPage(0);
     fetchPayments();
   };
 
@@ -104,26 +104,50 @@ export default function AdminPayments() {
     const s = (status || 'pending').toLowerCase();
     switch (s) {
       case 'active':
-        return <Chip label="ACTIVE" size="small" sx={{ bgcolor: '#DCFCE7', color: '#15803D', fontWeight: 700, borderRadius: 1.5 }} />;
+        return (
+          <Chip
+            label="Active"
+            size="small"
+            sx={{ bgcolor: '#DCFCE7', color: '#16A34A', fontWeight: 600, fontSize: '0.78rem', px: 1, borderRadius: '9999px' }}
+          />
+        );
       case 'attention':
-        return <Chip label="ATTENTION" size="small" sx={{ bgcolor: '#FEF3C7', color: '#B45309', fontWeight: 700, borderRadius: 1.5 }} />;
+        return (
+          <Chip
+            label="Attention"
+            size="small"
+            sx={{ bgcolor: '#FEF3C7', color: '#D97706', fontWeight: 600, fontSize: '0.78rem', px: 1, borderRadius: '9999px' }}
+          />
+        );
       case 'cancelled':
       case 'expired':
-        return <Chip label={s.toUpperCase()} size="small" sx={{ bgcolor: '#F3F4F6', color: '#4B5563', fontWeight: 700, borderRadius: 1.5 }} />;
+        return (
+          <Chip
+            label={s.charAt(0).toUpperCase() + s.slice(1)}
+            size="small"
+            sx={{ bgcolor: '#F3F4F6', color: '#6B7280', fontWeight: 600, fontSize: '0.78rem', px: 1, borderRadius: '9999px' }}
+          />
+        );
       default:
-        return <Chip label={s.toUpperCase()} size="small" sx={{ bgcolor: '#EFF6FF', color: '#1D4ED8', fontWeight: 700, borderRadius: 1.5 }} />;
+        return (
+          <Chip
+            label={s.charAt(0).toUpperCase() + s.slice(1)}
+            size="small"
+            sx={{ bgcolor: '#E0F2FE', color: '#0369A1', fontWeight: 600, fontSize: '0.78rem', px: 1, borderRadius: '9999px' }}
+          />
+        );
     }
   };
 
   return (
-    <Box sx={{ fontFamily: 'Inter, sans-serif' }}>
+    <Box sx={{ maxWidth: 1200, fontFamily: 'Inter, sans-serif' }}>
       {/* Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3.5, flexWrap: 'wrap', gap: 2 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 2 }}>
         <Box>
-          <Typography variant="h5" fontWeight={800} color="#0F172A">
+          <Typography variant="h4" fontWeight={700} color="#111827" mb={0.5} sx={{ fontSize: { xs: '1.5rem', md: '1.75rem' }, lineHeight: 1.2 }}>
             Payments & Transactions
           </Typography>
-          <Typography variant="body2" color="#64748B">
+          <Typography variant="body1" color="#6B7280" sx={{ fontSize: '0.88rem' }}>
             Monitor vendor subscription payments, Paystack transaction codes, and billing status.
           </Typography>
         </Box>
@@ -131,111 +155,123 @@ export default function AdminPayments() {
         <Button
           variant="outlined"
           onClick={() => fetchPayments()}
-          startIcon={<RefreshIcon />}
-          sx={{ borderColor: '#CBD5E1', color: '#0F172A', textTransform: 'none', borderRadius: 2, fontWeight: 600 }}
+          startIcon={<RefreshIcon sx={{ fontSize: 18 }} />}
+          sx={{
+            borderColor: '#E5E7EB',
+            color: '#374151',
+            textTransform: 'none',
+            borderRadius: '8px',
+            fontWeight: 600,
+            fontSize: '0.85rem',
+            px: 2,
+            py: 0.8,
+            bgcolor: '#FFFFFF',
+            '&:hover': { bgcolor: '#F9FAFB', borderColor: '#D1D5DB' }
+          }}
         >
           Refresh Data
         </Button>
       </Box>
 
       {/* Metrics Summary Cards */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: 'repeat(4, 1fr)' }, gap: 2.5, mb: 4 }}>
-        <Paper elevation={0} sx={{ p: 2.5, borderRadius: 3, border: '1px solid #E2E8F0', bgcolor: '#FFFFFF' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-            <Typography variant="caption" fontWeight={700} color="#64748B" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: 'repeat(4, 1fr)' }, gap: 2, mb: 3 }}>
+        <Paper elevation={0} sx={{ p: 2.5, borderRadius: '12px', border: '1px solid #E5E7EB', bgcolor: '#FFFFFF' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+            <Typography variant="caption" fontWeight={600} color="#6B7280" sx={{ textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: '0.75rem' }}>
               Total Volume
             </Typography>
-            <Avatar sx={{ bgcolor: '#EEF2FF', color: '#4F46E5', width: 36, height: 36 }}>
+            <Avatar sx={{ bgcolor: '#EEF2FF', color: '#5B5FEC', width: 38, height: 38, borderRadius: '10px' }}>
               <AccountBalanceWalletOutlinedIcon fontSize="small" />
             </Avatar>
           </Box>
-          <Typography variant="h5" fontWeight={800} color="#0F172A">
+          <Typography variant="h5" fontWeight={700} color="#111827" sx={{ fontSize: '1.5rem', mb: 0.5 }}>
             ₦{metrics.totalVolume.toLocaleString()}
           </Typography>
-          <Typography variant="caption" color="#94A3B8">
-            Total subscription payments logged
+          <Typography variant="caption" color="#6B7280" sx={{ fontSize: '0.78rem' }}>
+            Total payments logged
           </Typography>
         </Paper>
 
-        <Paper elevation={0} sx={{ p: 2.5, borderRadius: 3, border: '1px solid #E2E8F0', bgcolor: '#FFFFFF' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-            <Typography variant="caption" fontWeight={700} color="#64748B" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+        <Paper elevation={0} sx={{ p: 2.5, borderRadius: '12px', border: '1px solid #E5E7EB', bgcolor: '#FFFFFF' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+            <Typography variant="caption" fontWeight={600} color="#6B7280" sx={{ textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: '0.75rem' }}>
               Active Subscriptions
             </Typography>
-            <Avatar sx={{ bgcolor: '#F0FDF4', color: '#16A34A', width: 36, height: 36 }}>
+            <Avatar sx={{ bgcolor: '#DCFCE7', color: '#16A34A', width: 38, height: 38, borderRadius: '10px' }}>
               <CheckCircleOutlinedIcon fontSize="small" />
             </Avatar>
           </Box>
-          <Typography variant="h5" fontWeight={800} color="#0F172A">
+          <Typography variant="h5" fontWeight={700} color="#111827" sx={{ fontSize: '1.5rem', mb: 0.5 }}>
             {metrics.activeCount}
           </Typography>
-          <Typography variant="caption" color="#94A3B8">
-            Currently active & verified vendors
+          <Typography variant="caption" color="#6B7280" sx={{ fontSize: '0.78rem' }}>
+            Verified active vendors
           </Typography>
         </Paper>
 
-        <Paper elevation={0} sx={{ p: 2.5, borderRadius: 3, border: '1px solid #E2E8F0', bgcolor: '#FFFFFF' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-            <Typography variant="caption" fontWeight={700} color="#64748B" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+        <Paper elevation={0} sx={{ p: 2.5, borderRadius: '12px', border: '1px solid #E5E7EB', bgcolor: '#FFFFFF' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+            <Typography variant="caption" fontWeight={600} color="#6B7280" sx={{ textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: '0.75rem' }}>
               Attention Needed
             </Typography>
-            <Avatar sx={{ bgcolor: '#FEF3C7', color: '#D97706', width: 36, height: 36 }}>
+            <Avatar sx={{ bgcolor: '#FEF3C7', color: '#D97706', width: 38, height: 38, borderRadius: '10px' }}>
               <WarningAmberOutlinedIcon fontSize="small" />
             </Avatar>
           </Box>
-          <Typography variant="h5" fontWeight={800} color="#D97706">
+          <Typography variant="h5" fontWeight={700} color="#D97706" sx={{ fontSize: '1.5rem', mb: 0.5 }}>
             {metrics.attentionCount}
           </Typography>
-          <Typography variant="caption" color="#94A3B8">
-            Failed renewals or pending paystack syncs
+          <Typography variant="caption" color="#6B7280" sx={{ fontSize: '0.78rem' }}>
+            Pending sync or renewals
           </Typography>
         </Paper>
 
-        <Paper elevation={0} sx={{ p: 2.5, borderRadius: 3, border: '1px solid #E2E8F0', bgcolor: '#FFFFFF' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-            <Typography variant="caption" fontWeight={700} color="#64748B" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+        <Paper elevation={0} sx={{ p: 2.5, borderRadius: '12px', border: '1px solid #E5E7EB', bgcolor: '#FFFFFF' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+            <Typography variant="caption" fontWeight={600} color="#6B7280" sx={{ textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: '0.75rem' }}>
               Inactive / Cancelled
             </Typography>
-            <Avatar sx={{ bgcolor: '#F3F4F6', color: '#6B7280', width: 36, height: 36 }}>
+            <Avatar sx={{ bgcolor: '#F3F4F6', color: '#6B7280', width: 38, height: 38, borderRadius: '10px' }}>
               <CancelOutlinedIcon fontSize="small" />
             </Avatar>
           </Box>
-          <Typography variant="h5" fontWeight={800} color="#0F172A">
+          <Typography variant="h5" fontWeight={700} color="#111827" sx={{ fontSize: '1.5rem', mb: 0.5 }}>
             {metrics.inactiveCount}
           </Typography>
-          <Typography variant="caption" color="#94A3B8">
-            Expired or cancelled billing accounts
+          <Typography variant="caption" color="#6B7280" sx={{ fontSize: '0.78rem' }}>
+            Expired accounts
           </Typography>
         </Paper>
       </Box>
 
       {/* Filter & Search Bar */}
-      <Paper elevation={0} sx={{ p: 2.5, mb: 3, borderRadius: 3, border: '1px solid #E2E8F0', bgcolor: '#FFFFFF' }}>
+      <Paper elevation={0} sx={{ p: 3, mb: 3, borderRadius: '12px', border: '1px solid #E5E7EB', bgcolor: '#FFFFFF' }}>
         <Box component="form" onSubmit={handleSearchSubmit} sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
           <TextField
-            size="small"
-            placeholder="Search Vendor ID, Name, Email, or Reference..."
+            placeholder="Search by name, ONLOK ID, email, or reference..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             sx={{ flexGrow: 1, minWidth: 260 }}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
-                  <SearchIcon sx={{ color: '#94A3B8' }} />
+                  <SearchIcon sx={{ color: '#9CA3AF' }} />
                 </InputAdornment>
               ),
+              sx: { borderRadius: '8px', bgcolor: '#F3F4F6', '& fieldset': { border: 'none' }, fontSize: '0.88rem' }
             }}
           />
 
-          <FormControl size="small" sx={{ minWidth: 150 }}>
-            <InputLabel>Status</InputLabel>
+          <FormControl size="small" sx={{ minWidth: 140 }}>
+            <InputLabel sx={{ fontSize: '0.85rem' }}>Status</InputLabel>
             <Select
               value={statusFilter}
               label="Status"
               onChange={(e) => {
                 setStatusFilter(e.target.value);
-                setPage(1);
+                setPage(0);
               }}
+              sx={{ borderRadius: '8px', fontSize: '0.85rem' }}
             >
               <MenuItem value="all">All Statuses</MenuItem>
               <MenuItem value="active">Active</MenuItem>
@@ -246,15 +282,16 @@ export default function AdminPayments() {
             </Select>
           </FormControl>
 
-          <FormControl size="small" sx={{ minWidth: 140 }}>
-            <InputLabel>Badge Tier</InputLabel>
+          <FormControl size="small" sx={{ minWidth: 130 }}>
+            <InputLabel sx={{ fontSize: '0.85rem' }}>Badge Tier</InputLabel>
             <Select
               value={tierFilter}
               label="Badge Tier"
               onChange={(e) => {
                 setTierFilter(e.target.value);
-                setPage(1);
+                setPage(0);
               }}
+              sx={{ borderRadius: '8px', fontSize: '0.85rem' }}
             >
               <MenuItem value="all">All Tiers</MenuItem>
               <MenuItem value="bronze">Bronze</MenuItem>
@@ -263,100 +300,116 @@ export default function AdminPayments() {
             </Select>
           </FormControl>
 
-          <Button type="submit" variant="contained" sx={{ bgcolor: '#4F46E5', textTransform: 'none', borderRadius: 2, px: 3, fontWeight: 700 }}>
+          <Button
+            type="submit"
+            disableElevation
+            sx={{
+              bgcolor: '#5B5FEC',
+              color: '#FFFFFF',
+              borderRadius: '8px',
+              px: 3,
+              py: 0.9,
+              textTransform: 'none',
+              fontWeight: 600,
+              fontSize: '0.85rem',
+              '&:hover': { bgcolor: '#4F52D4' }
+            }}
+          >
             Filter
           </Button>
         </Box>
       </Paper>
 
       {/* Transactions Data Table */}
-      <Paper elevation={0} sx={{ borderRadius: 3, border: '1px solid #E2E8F0', overflow: 'hidden', bgcolor: '#FFFFFF' }}>
+      <Paper elevation={0} sx={{ borderRadius: '12px', border: '1px solid #E5E7EB', overflow: 'hidden', bgcolor: '#FFFFFF' }}>
         <TableContainer>
           <Table sx={{ minWidth: 850 }}>
-            <TableHead sx={{ bgcolor: '#F8FAFC' }}>
+            <TableHead sx={{ bgcolor: '#F9FAFB' }}>
               <TableRow>
-                <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.82rem' }}>VENDOR</TableCell>
-                <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.82rem' }}>PLAN & TIER</TableCell>
-                <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.82rem' }}>AMOUNT & CYCLE</TableCell>
-                <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.82rem' }}>STATUS</TableCell>
-                <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.82rem' }}>PAYSTACK CODE / REF</TableCell>
-                <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.82rem' }}>DATE / RENEWAL</TableCell>
-                <TableCell align="center" sx={{ fontWeight: 700, color: '#475569', fontSize: '0.82rem' }}>ACTIONS</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', fontSize: '0.8rem', borderBottom: '1px solid #E5E7EB' }}>Vendor</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', fontSize: '0.8rem', borderBottom: '1px solid #E5E7EB' }}>Plan & Tier</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', fontSize: '0.8rem', borderBottom: '1px solid #E5E7EB' }}>Amount & Cycle</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', fontSize: '0.8rem', borderBottom: '1px solid #E5E7EB' }}>Status</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', fontSize: '0.8rem', borderBottom: '1px solid #E5E7EB' }}>Paystack Code / Ref</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', fontSize: '0.8rem', borderBottom: '1px solid #E5E7EB' }}>Date / Renewal</TableCell>
+                <TableCell align="center" sx={{ fontWeight: 500, color: '#6B7280', fontSize: '0.8rem', borderBottom: '1px solid #E5E7EB' }}>Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {loading ? (
                 <TableRow>
                   <TableCell colSpan={7} align="center" sx={{ py: 6 }}>
-                    <CircularProgress size={32} sx={{ color: '#4F46E5' }} />
-                    <Typography variant="body2" color="#64748B" mt={1}>Loading transactions...</Typography>
+                    <CircularProgress size={32} sx={{ color: '#5B5FEC' }} />
+                    <Typography variant="body2" color="#6B7280" mt={1}>Loading transactions...</Typography>
                   </TableCell>
                 </TableRow>
               ) : records.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} align="center" sx={{ py: 6 }}>
-                    <Typography variant="body1" fontWeight={600} color="#0F172A">No transactions found</Typography>
-                    <Typography variant="body2" color="#64748B">Try clearing filters or search term</Typography>
+                    <Typography variant="body1" fontWeight={600} color="#111827">No transactions found</Typography>
+                    <Typography variant="body2" color="#6B7280">Try clearing filters or search term</Typography>
                   </TableCell>
                 </TableRow>
               ) : (
-                records.map((rec, idx) => (
-                  <TableRow key={`${rec.subscription_id}-${rec.user_id}-${idx}`} hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
-                    {/* Vendor Info */}
-                    <TableCell>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                        <Avatar
-                          src={rec.profile_picture_url || undefined}
-                          sx={{ width: 38, height: 38, bgcolor: '#4F46E5', fontWeight: 700, fontSize: '0.85rem' }}
-                        >
-                          {rec.first_name?.[0] || 'V'}
-                        </Avatar>
-                        <Box>
-                          <Typography variant="body2" fontWeight={700} color="#0F172A">
-                            {rec.first_name} {rec.last_name}
-                          </Typography>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Chip
-                              label={rec.vendor_id || `ID-${rec.user_id}`}
-                              size="small"
-                              sx={{ height: 20, fontSize: '0.72rem', fontWeight: 700, bgcolor: '#EEF2FF', color: '#4338CA' }}
-                            />
-                            <Typography variant="caption" color="#64748B">{rec.email}</Typography>
+                records.map((rec, idx) => {
+                  const initials = `${rec.first_name?.[0] || ''}${rec.last_name?.[0] || ''}`.toUpperCase() || 'V';
+                  const safeTier = (rec.tier || 'bronze').toLowerCase();
+                  
+                  return (
+                    <TableRow 
+                      key={`${rec.subscription_id}-${rec.user_id}-${idx}`} 
+                      hover 
+                      sx={{ '&:hover': { bgcolor: '#F9FAFB' }, borderBottom: '1px solid #F3F4F6' }}
+                    >
+                      {/* Vendor Info */}
+                      <TableCell sx={{ py: 2 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                          <Avatar
+                            src={rec.profile_picture_url || undefined}
+                            sx={{ width: 38, height: 38, bgcolor: '#374151', color: '#FFFFFF', fontWeight: 600, fontSize: '0.85rem' }}
+                          >
+                            {initials}
+                          </Avatar>
+                          <Box>
+                            <Typography variant="body2" fontWeight={600} color="#111827" sx={{ fontSize: '0.88rem' }}>
+                              {rec.first_name} {rec.last_name}
+                            </Typography>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.3 }}>
+                              <Typography variant="caption" fontFamily="monospace" color="#4B5563" sx={{ fontSize: '0.78rem' }}>
+                                {rec.vendor_id || `ID-${rec.user_id}`}
+                              </Typography>
+                              <Typography variant="caption" color="#6B7280" sx={{ fontSize: '0.78rem' }}>• {rec.email}</Typography>
+                            </Box>
                           </Box>
                         </Box>
-                      </Box>
-                    </TableCell>
+                      </TableCell>
 
-                    {/* Plan & Tier */}
-                    <TableCell>
-                        <Typography variant="body2" fontWeight={700} color="#0F172A">
+                      {/* Plan & Tier */}
+                      <TableCell>
+                        <Typography variant="body2" fontWeight={600} color="#111827" sx={{ fontSize: '0.85rem' }}>
                           {rec.plan_name || 'Verified Vendor'}
                         </Typography>
                         <Chip
-                          label={(rec.tier || 'bronze').toUpperCase()}
+                          label={safeTier.toUpperCase()}
                           size="small"
                           sx={{
                             height: 20,
                             fontSize: '0.7rem',
                             fontWeight: 700,
-                            borderRadius: 1,
+                            borderRadius: '6px',
                             mt: 0.3,
-                            bgcolor: (rec.tier || '').toLowerCase() === 'gold' ? '#FEF3C7'
-                                   : (rec.tier || '').toLowerCase() === 'silver' ? '#F1F5F9'
-                                   : '#FFEDD5',
-                            color: (rec.tier || '').toLowerCase() === 'gold' ? '#B45309'
-                                 : (rec.tier || '').toLowerCase() === 'silver' ? '#475569'
-                                 : '#9A3412'
+                            bgcolor: safeTier === 'gold' ? '#FEF3C7' : safeTier === 'silver' ? '#F3F4F6' : '#FFEDD5',
+                            color: safeTier === 'gold' ? '#B45309' : safeTier === 'silver' ? '#374151' : '#C2410C'
                           }}
                         />
                       </TableCell>
 
                       {/* Amount & Cycle */}
                       <TableCell>
-                        <Typography variant="body2" fontWeight={800} color="#0F172A">
+                        <Typography variant="body2" fontWeight={700} color="#111827" sx={{ fontSize: '0.88rem' }}>
                           ₦{Number(rec.amount || 0).toLocaleString()}
                         </Typography>
-                        <Typography variant="caption" color="#64748B" sx={{ textTransform: 'capitalize' }}>
+                        <Typography variant="caption" color="#6B7280" sx={{ textTransform: 'capitalize', fontSize: '0.78rem' }}>
                           {rec.billing_cycle || 'Annual'} billing
                         </Typography>
                       </TableCell>
@@ -369,11 +422,11 @@ export default function AdminPayments() {
                       {/* Paystack Code / Reference */}
                       <TableCell>
                         <Box>
-                          <Typography variant="caption" fontFamily="monospace" color="#334155" sx={{ display: 'block' }}>
+                          <Typography variant="caption" fontFamily="monospace" color="#4B5563" sx={{ display: 'block', fontSize: '0.82rem' }}>
                             {rec.paystack_subscription_code || rec.payment_reference || '—'}
                           </Typography>
                           {rec.paystack_plan_code && (
-                            <Typography variant="caption" color="#94A3B8" sx={{ fontSize: '0.72rem' }}>
+                            <Typography variant="caption" color="#6B7280" sx={{ fontSize: '0.75rem' }}>
                               Plan: {rec.paystack_plan_code}
                             </Typography>
                           )}
@@ -382,11 +435,11 @@ export default function AdminPayments() {
 
                       {/* Date / Renewal */}
                       <TableCell>
-                        <Typography variant="body2" fontSize="0.82rem" color="#334155">
+                        <Typography variant="body2" fontSize="0.85rem" color="#4B5563">
                           {new Date(rec.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                         </Typography>
                         {rec.next_payment_date && (
-                          <Typography variant="caption" color="#64748B">
+                          <Typography variant="caption" color="#6B7280" sx={{ fontSize: '0.78rem' }}>
                             Next: {new Date(rec.next_payment_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                           </Typography>
                         )}
@@ -401,104 +454,130 @@ export default function AdminPayments() {
                               variant="outlined"
                               disabled={syncingId === rec.subscription_id}
                               onClick={() => handleSyncPayment(rec.subscription_id)}
-                              startIcon={syncingId === rec.subscription_id ? <CircularProgress size={14} /> : <RefreshIcon fontSize="small" />}
-                              sx={{ textTransform: 'none', borderRadius: 1.5, fontSize: '0.78rem', py: 0.4, borderColor: '#CBD5E1', color: '#334155' }}
+                              startIcon={syncingId === rec.subscription_id ? <CircularProgress size={14} sx={{ color: '#5B5FEC' }} /> : <RefreshIcon fontSize="small" />}
+                              sx={{
+                                textTransform: 'none',
+                                borderRadius: '6px',
+                                fontSize: '0.78rem',
+                                py: 0.4,
+                                px: 1.2,
+                                borderColor: '#E5E7EB',
+                                color: '#374151',
+                                fontWeight: 600,
+                                '&:hover': { bgcolor: '#F9FAFB', borderColor: '#D1D5DB' }
+                              }}
                             >
                               Sync
                             </Button>
                           </Tooltip>
 
                           <Tooltip title="View Transaction Details">
-                            <IconButton size="small" onClick={() => setSelectedRecord(rec)} sx={{ color: '#64748B' }}>
+                            <IconButton size="small" onClick={() => setSelectedRecord(rec)} sx={{ color: '#6B7280' }}>
                               <InfoOutlinedIcon fontSize="small" />
                             </IconButton>
                           </Tooltip>
                         </Stack>
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
+                  );
+                })
+              )}
             </TableBody>
           </Table>
         </TableContainer>
 
         {/* Pagination */}
-        {totalPages > 1 && (
-          <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #E2E8F0' }}>
-            <Typography variant="body2" color="#64748B">
-              Showing {records.length} of {totalCount} records
-            </Typography>
-            <Pagination
-              count={totalPages}
-              page={page}
-              onChange={(_, value) => setPage(value)}
-              color="primary"
-              shape="rounded"
-            />
-          </Box>
-        )}
+        <TablePagination
+          rowsPerPageOptions={[10, 20, 50]}
+          component="div"
+          count={totalCount}
+          rowsPerPage={rowsPerPage}
+          page={page}
+          onPageChange={(_, newPage) => setPage(newPage)}
+          onRowsPerPageChange={(e) => {
+            setRowsPerPage(parseInt(e.target.value, 10));
+            setPage(0);
+          }}
+          sx={{ borderTop: '1px solid #E5E7EB' }}
+        />
       </Paper>
 
       {/* Transaction Details Dialog */}
-      <Dialog open={!!selectedRecord} onClose={() => setSelectedRecord(null)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 3, p: 1 } }}>
+      <Dialog
+        open={!!selectedRecord}
+        onClose={() => setSelectedRecord(null)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: '12px', p: 1, border: '1px solid #E5E7EB' } }}
+      >
         {selectedRecord && (
           <>
-            <DialogTitle sx={{ fontWeight: 800, color: '#0F172A', pb: 1 }}>
+            <DialogTitle sx={{ fontWeight: 700, color: '#111827', pb: 1, fontSize: '1.15rem' }}>
               Transaction Details — #{selectedRecord.subscription_id}
             </DialogTitle>
-            <DialogContent dividers>
+            <DialogContent dividers sx={{ borderColor: '#E5E7EB' }}>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Typography variant="body2" color="#64748B">Vendor Name</Typography>
-                  <Typography variant="body2" fontWeight={700} color="#0F172A">{selectedRecord.first_name} {selectedRecord.last_name}</Typography>
+                  <Typography variant="body2" color="#6B7280">Vendor Name</Typography>
+                  <Typography variant="body2" fontWeight={600} color="#111827">{selectedRecord.first_name} {selectedRecord.last_name}</Typography>
                 </Box>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Typography variant="body2" color="#64748B">Vendor ID</Typography>
-                  <Typography variant="body2" fontWeight={700} color="#0F172A">{selectedRecord.vendor_id}</Typography>
+                  <Typography variant="body2" color="#6B7280">ONLOK ID</Typography>
+                  <Typography variant="body2" fontFamily="monospace" fontWeight={600} color="#111827">{selectedRecord.vendor_id || `ID-${selectedRecord.user_id}`}</Typography>
                 </Box>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Typography variant="body2" color="#64748B">Vendor Email</Typography>
-                  <Typography variant="body2" fontWeight={600} color="#334155">{selectedRecord.email}</Typography>
+                  <Typography variant="body2" color="#6B7280">Vendor Email</Typography>
+                  <Typography variant="body2" fontWeight={600} color="#4B5563">{selectedRecord.email}</Typography>
                 </Box>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Typography variant="body2" color="#64748B">Plan & Tier</Typography>
-                  <Typography variant="body2" fontWeight={700} color="#0F172A">{selectedRecord.plan_name} ({selectedRecord.tier})</Typography>
+                  <Typography variant="body2" color="#6B7280">Plan & Tier</Typography>
+                  <Typography variant="body2" fontWeight={600} color="#111827">{selectedRecord.plan_name} ({(selectedRecord.tier || 'bronze').toUpperCase()})</Typography>
                 </Box>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Typography variant="body2" color="#64748B">Amount Paid</Typography>
-                  <Typography variant="body2" fontWeight={800} color="#0F172A">₦{Number(selectedRecord.amount).toLocaleString()}</Typography>
+                  <Typography variant="body2" color="#6B7280">Amount Paid</Typography>
+                  <Typography variant="body2" fontWeight={700} color="#111827">₦{Number(selectedRecord.amount).toLocaleString()}</Typography>
                 </Box>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Typography variant="body2" color="#64748B">Billing Cycle</Typography>
-                  <Typography variant="body2" fontWeight={600} color="#334155" sx={{ textTransform: 'capitalize' }}>{selectedRecord.billing_cycle}</Typography>
+                  <Typography variant="body2" color="#6B7280">Billing Cycle</Typography>
+                  <Typography variant="body2" fontWeight={600} color="#4B5563" sx={{ textTransform: 'capitalize' }}>{selectedRecord.billing_cycle}</Typography>
                 </Box>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Typography variant="body2" color="#64748B">Status</Typography>
+                  <Typography variant="body2" color="#6B7280">Status</Typography>
                   {renderStatusChip(selectedRecord.status)}
                 </Box>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Typography variant="body2" color="#64748B">Paystack Sub Code</Typography>
+                  <Typography variant="body2" color="#6B7280">Paystack Sub Code</Typography>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    <Typography variant="caption" fontFamily="monospace" color="#0F172A">{selectedRecord.paystack_subscription_code || 'N/A'}</Typography>
+                    <Typography variant="caption" fontFamily="monospace" color="#111827" fontWeight={600}>{selectedRecord.paystack_subscription_code || 'N/A'}</Typography>
                     {selectedRecord.paystack_subscription_code && (
                       <IconButton size="small" onClick={() => copyToClipboard(selectedRecord.paystack_subscription_code)}>
-                        <ContentCopyIcon sx={{ fontSize: 14 }} />
+                        <ContentCopyIcon sx={{ fontSize: 14, color: '#6B7280' }} />
                       </IconButton>
                     )}
                   </Box>
                 </Box>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Typography variant="body2" color="#64748B">Paystack Plan Code</Typography>
-                  <Typography variant="caption" fontFamily="monospace" color="#0F172A">{selectedRecord.paystack_plan_code || 'N/A'}</Typography>
+                  <Typography variant="body2" color="#6B7280">Paystack Plan Code</Typography>
+                  <Typography variant="caption" fontFamily="monospace" color="#111827">{selectedRecord.paystack_plan_code || 'N/A'}</Typography>
                 </Box>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Typography variant="body2" color="#64748B">Payment Reference</Typography>
-                  <Typography variant="caption" fontFamily="monospace" color="#0F172A">{selectedRecord.payment_reference || 'N/A'}</Typography>
+                  <Typography variant="body2" color="#6B7280">Payment Reference</Typography>
+                  <Typography variant="caption" fontFamily="monospace" color="#111827">{selectedRecord.payment_reference || 'N/A'}</Typography>
                 </Box>
               </Box>
             </DialogContent>
             <DialogActions sx={{ px: 3, py: 2 }}>
-              <Button onClick={() => setSelectedRecord(null)} variant="outlined" sx={{ textTransform: 'none', borderRadius: 2 }}>
+              <Button
+                onClick={() => setSelectedRecord(null)}
+                variant="outlined"
+                sx={{
+                  borderColor: '#E5E7EB',
+                  color: '#374151',
+                  textTransform: 'none',
+                  borderRadius: '8px',
+                  fontWeight: 600
+                }}
+              >
                 Close
               </Button>
               <Button
@@ -506,9 +585,16 @@ export default function AdminPayments() {
                   handleSyncPayment(selectedRecord.subscription_id);
                   setSelectedRecord(null);
                 }}
-                variant="contained"
+                disableElevation
                 startIcon={<RefreshIcon />}
-                sx={{ bgcolor: '#4F46E5', textTransform: 'none', borderRadius: 2, fontWeight: 700 }}
+                sx={{
+                  bgcolor: '#5B5FEC',
+                  color: '#FFFFFF',
+                  textTransform: 'none',
+                  borderRadius: '8px',
+                  fontWeight: 600,
+                  '&:hover': { bgcolor: '#4F52D4' }
+                }}
               >
                 Sync with Paystack
               </Button>
