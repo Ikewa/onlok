@@ -10,10 +10,12 @@ import CancelOutlinedIcon from '@mui/icons-material/CancelOutlined';
 import ArrowForwardOutlinedIcon from '@mui/icons-material/ArrowForwardOutlined';
 import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
 import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { OnlokBadge, resolveVendorBadgeTier } from '../components/OnlokBadge';
 import { useAuth } from '../context/AuthContext';
 import { getMySubscription, getManageSubscriptionLink, cancelSubscription, type UserSubscriptionInfo } from '../api/subscriptions';
+import { syncPaymentStatus } from '../api/payment';
 import toast from 'react-hot-toast';
 
 const PLANS: Record<string, { monthly: number; annual: number }> = {
@@ -30,6 +32,7 @@ export default function VendorSubscriptionPage() {
   const [loading, setLoading] = useState(true);
   const [manageLoading, setManageLoading] = useState(false);
   const [cancelLoading, setCancelLoading] = useState(false);
+  const [syncLoading, setSyncLoading] = useState(false);
   const [confirmCancelOpen, setConfirmCancelOpen] = useState(false);
 
   const fetchSubscription = async () => {
@@ -41,6 +44,25 @@ export default function VendorSubscriptionPage() {
       console.error('Failed to fetch subscription:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSyncPayment = async () => {
+    setSyncLoading(true);
+    try {
+      const res = await syncPaymentStatus();
+      if (res.verified) {
+        toast.success(res.message || 'Payment synced successfully!');
+        await fetchSubscription();
+        if (typeof refreshUser === 'function') await refreshUser();
+      } else {
+        toast.error(res.message || 'No pending payment found to sync.');
+      }
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.response?.data?.message || 'Failed to sync payment status.');
+    } finally {
+      setSyncLoading(false);
     }
   };
 
@@ -281,25 +303,46 @@ export default function VendorSubscriptionPage() {
                 Update your debit card or billing details directly on the secure Paystack customer portal.
               </Typography>
 
-              <Button
-                onClick={handleManageCard}
-                disabled={manageLoading}
-                variant="outlined"
-                endIcon={manageLoading ? <CircularProgress size={18} /> : <OpenInNewIcon sx={{ fontSize: 18 }} />}
-                sx={{
-                  width: '100%',
-                  borderColor: '#CBD5E1',
-                  color: '#0F172A',
-                  borderRadius: 2,
-                  py: 1.2,
-                  fontWeight: 600,
-                  fontSize: '0.9rem',
-                  textTransform: 'none',
-                  '&:hover': { bgcolor: '#F8FAFC', borderColor: '#94A3B8' }
-                }}
-              >
-                Update Card on Paystack
-              </Button>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                <Button
+                  onClick={handleManageCard}
+                  disabled={manageLoading || syncLoading}
+                  variant="outlined"
+                  endIcon={manageLoading ? <CircularProgress size={18} /> : <OpenInNewIcon sx={{ fontSize: 18 }} />}
+                  sx={{
+                    width: '100%',
+                    borderColor: '#CBD5E1',
+                    color: '#0F172A',
+                    borderRadius: 2,
+                    py: 1.2,
+                    fontWeight: 600,
+                    fontSize: '0.9rem',
+                    textTransform: 'none',
+                    '&:hover': { bgcolor: '#F8FAFC', borderColor: '#94A3B8' }
+                  }}
+                >
+                  Update Card on Paystack
+                </Button>
+
+                <Button
+                  onClick={handleSyncPayment}
+                  disabled={syncLoading || manageLoading}
+                  variant="text"
+                  startIcon={syncLoading ? <CircularProgress size={16} /> : <RefreshIcon sx={{ fontSize: 18 }} />}
+                  sx={{
+                    width: '100%',
+                    color: '#1A1FE8',
+                    borderRadius: 2,
+                    py: 1,
+                    fontWeight: 600,
+                    fontSize: '0.85rem',
+                    textTransform: 'none',
+                    '&:hover': { bgcolor: 'rgba(26, 31, 232, 0.04)' }
+                  }}
+                >
+                  {syncLoading ? 'Syncing with Paystack...' : 'Already Paid? Sync Payment Status'}
+                </Button>
+              </Box>
             </Paper>
 
             {/* Cancel Subscription Box */}

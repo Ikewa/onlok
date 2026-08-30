@@ -15,3 +15,8 @@ export const verifyPayment = async (reference: string): Promise<any> => {
   const { data } = await api.get(`/payments/verify/${reference}`);
   return data;
 };
+
+export const syncPaymentStatus = async (): Promise<{ status: boolean; verified: boolean; message: string; user?: any }> => {
+  const { data } = await api.get('/payments/sync-status');
+  return data;
+};

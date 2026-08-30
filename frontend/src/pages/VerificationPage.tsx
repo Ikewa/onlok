@@ -10,6 +10,7 @@ import HourglassEmptyOutlinedIcon from '@mui/icons-material/HourglassEmptyOutlin
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import EditIcon from '@mui/icons-material/Edit';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import { Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import { useAuth } from '../context/AuthContext';
@@ -18,7 +19,7 @@ import { compressImageFile } from '../utils/fileCompressor';
 import { uploadFileInChunks } from '../utils/chunkUploader';
 import type { VerificationRecord } from '../api/verifications';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { initializePayment } from '../api/payment';
+import { initializePayment, syncPaymentStatus } from '../api/payment';
 import toast from 'react-hot-toast';
 
 const fmt = (dateStr: string | null | undefined) => {
@@ -242,6 +243,33 @@ export default function VerificationPage() {
     }
   };
 
+  const [isSyncingPayment, setIsSyncingPayment] = useState(false);
+
+  const handleSyncPayment = async (isAuto = false) => {
+    if (!user) return;
+    setIsSyncingPayment(true);
+    try {
+      const res = await syncPaymentStatus();
+      if (res.verified && res.user) {
+        toast.success(res.message || 'Payment confirmed! Subscription activated.');
+        if (typeof login === 'function') {
+          login({ ...user, ...res.user, status: 'verified' });
+        }
+        const updatedRec = await getMyVerification();
+        setRecord(updatedRec);
+      } else if (!isAuto) {
+        toast.error(res.message || 'No completed payment found on Paystack for your account.');
+      }
+    } catch (err: any) {
+      console.error('Sync payment error:', err);
+      if (!isAuto) {
+        toast.error(err.response?.data?.message || err.message || 'Failed to sync payment status.');
+      }
+    } finally {
+      setIsSyncingPayment(false);
+    }
+  };
+
   const handlePay = async () => {
     if (!record || !user) return;
     setIsPaying(true);
@@ -309,6 +337,15 @@ export default function VerificationPage() {
             login({ ...user, status: 'suspended' });
           } else if (rec.status === 'pending' && user.status !== 'pending') {
             login({ ...user, status: 'pending' });
+          }
+        }
+
+        // Auto-check payment status from Paystack once per browser session
+        if (user && user.status !== 'verified') {
+          const sessionKey = `payment_autochecked_${user.id}`;
+          if (!sessionStorage.getItem(sessionKey)) {
+            sessionStorage.setItem(sessionKey, 'true');
+            handleSyncPayment(true);
           }
         }
       })
@@ -491,9 +528,20 @@ export default function VerificationPage() {
                   <Typography sx={{ color: '#1E40AF', fontSize: '0.9rem', maxWidth: 600, mb: 2 }}>
                     Your documents have been reviewed and you have been approved for a tier. Please complete your subscription payment to finalize the verification process.
                   </Typography>
-                  <Button variant="contained" disabled={isPaying} onClick={() => setPlanModalOpen(true)} sx={{ bgcolor: '#2563EB', '&:hover': { bgcolor: '#1D4ED8' }, textTransform: 'none', borderRadius: 2 }}>
-                    {isPaying ? <CircularProgress size={24} color="inherit" /> : 'Proceed to Payment'}
-                  </Button>
+                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems="center">
+                    <Button variant="contained" disabled={isPaying || isSyncingPayment} onClick={() => setPlanModalOpen(true)} sx={{ bgcolor: '#2563EB', '&:hover': { bgcolor: '#1D4ED8' }, textTransform: 'none', borderRadius: 2 }}>
+                      {isPaying ? <CircularProgress size={24} color="inherit" /> : 'Proceed to Payment'}
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      disabled={isSyncingPayment || isPaying}
+                      onClick={() => handleSyncPayment(false)}
+                      startIcon={isSyncingPayment ? <CircularProgress size={16} color="inherit" /> : <RefreshIcon />}
+                      sx={{ borderColor: '#2563EB', color: '#2563EB', '&:hover': { borderColor: '#1D4ED8', bgcolor: 'rgba(37,99,235,0.04)' }, textTransform: 'none', borderRadius: 2, fontWeight: 600 }}
+                    >
+                      {isSyncingPayment ? 'Checking Payment...' : 'Already Paid? Sync Payment'}
+                    </Button>
+                  </Stack>
                 </Box>
               </Box>
             )}

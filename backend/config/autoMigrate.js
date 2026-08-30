@@ -269,6 +269,7 @@ const COLUMN_MIGRATIONS = [
     { table: 'verifications', column: 'admin_notes', definition: 'TEXT NULL AFTER status' },
     { table: 'verifications', column: 'assigned_tier', definition: 'VARCHAR(50) NULL AFTER status' },
     { table: 'verifications', column: 'payment_status', definition: "ENUM('unpaid','paid') DEFAULT 'unpaid' AFTER assigned_tier" },
+    { table: 'verifications', column: 'payment_reference', definition: 'VARCHAR(255) NULL AFTER payment_status' },
     { table: 'verifications', column: 'flagged', definition: "ENUM('pending','tier_assigned','payment_received','approved','rejected','flagged','revoked') NULL AFTER admin_notes" },
 
     // ── ADD NEW COLUMNS BELOW THIS LINE ──────────────────────────

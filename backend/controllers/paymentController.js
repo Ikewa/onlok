@@ -85,10 +85,18 @@ const initializePayment = async (req, res) => {
             }
         );
 
+        const paystackData = response.data.data;
+        if (paystackData?.reference) {
+            await pool.query(
+                'UPDATE verifications SET payment_reference = ? WHERE user_id = ?',
+                [paystackData.reference, userId]
+            );
+        }
+
         res.status(200).json({
             status: true,
             message: 'Payment initialized successfully',
-            data: response.data.data
+            data: paystackData
         });
     } catch (error) {
         console.error('Initialize Payment Error:', error.response?.data || error.message);
@@ -232,10 +240,10 @@ const processSuccessfulSubscription = async ({ userId, tier, planName, billingCy
             [normalizedTier, subscriptionId, expirationDate, userId]
         );
 
-        // 3. Update Verifications table status to payment_received
+        // 3. Update Verifications table status to payment_received & clear pending reference
         await pool.query(
             `UPDATE verifications 
-             SET payment_status = 'paid', status = 'payment_received', assigned_tier = ? 
+             SET payment_status = 'paid', status = 'payment_received', assigned_tier = ?, payment_reference = NULL 
              WHERE user_id = ?`,
             [normalizedTier, userId]
         );
@@ -420,8 +428,138 @@ const paystackWebhook = async (req, res) => {
     }
 };
 
+// @desc    Sync / auto-check payment status from Paystack for logged-in user securely
+// @route   GET /api/payments/sync-status
+// @access  Private
+const syncUserPayment = async (req, res) => {
+    try {
+        const userId = req.user?.id;
+        if (!userId) {
+            return res.status(401).json({ status: false, message: 'Unauthorized' });
+        }
+
+        // 1. Check if user is already verified
+        const [userRows] = await pool.query('SELECT id, first_name, last_name, email, role, status, badge_type, vendor_id FROM users WHERE id = ?', [userId]);
+        const user = userRows[0];
+
+        if (user && user.status === 'verified') {
+            return res.status(200).json({
+                status: true,
+                verified: true,
+                message: 'Account is already verified',
+                user
+            });
+        }
+
+        // 2. Retrieve pending payment_reference from database
+        const [verifRows] = await pool.query(
+            'SELECT payment_reference FROM verifications WHERE user_id = ? AND payment_reference IS NOT NULL ORDER BY id DESC LIMIT 1',
+            [userId]
+        );
+
+        let pendingRef = verifRows[0]?.payment_reference;
+
+        const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
+        if (!PAYSTACK_SECRET) {
+            return res.status(500).json({ status: false, message: 'Paystack secret key is missing in server environment' });
+        }
+
+        // If no pending reference saved in DB, query Paystack transaction list by customer email as fallback
+        if (!pendingRef && user?.email) {
+            try {
+                const listRes = await axios.get(
+                    `https://api.paystack.co/transaction?customer=${encodeURIComponent(user.email)}&status=success&perPage=5`,
+                    {
+                        headers: { Authorization: `Bearer ${PAYSTACK_SECRET}` },
+                        timeout: 10000
+                    }
+                );
+
+                const txs = listRes.data?.data || [];
+                const matchedTx = txs.find(tx => String(tx.metadata?.user_id) === String(userId));
+                if (matchedTx) {
+                    pendingRef = matchedTx.reference;
+                }
+            } catch (listErr) {
+                console.warn('Sync Payment Warning: Failed to query transaction list from Paystack:', listErr.message);
+            }
+        }
+
+        if (!pendingRef) {
+            return res.status(200).json({
+                status: false,
+                verified: false,
+                message: 'No pending payment reference found for your account.'
+            });
+        }
+
+        // 3. Verify exact reference with Paystack
+        const response = await axios.get(
+            `https://api.paystack.co/transaction/verify/${encodeURIComponent(pendingRef)}`,
+            {
+                headers: { Authorization: `Bearer ${PAYSTACK_SECRET}` },
+                timeout: 15000
+            }
+        );
+
+        const data = response.data?.data;
+        if (data && data.status === 'success') {
+            // Security check: verify metadata user_id or email match
+            const metadataUserId = data.metadata?.user_id;
+            const customerEmail = data.customer?.email?.toLowerCase();
+            const isUserMatch = (metadataUserId && String(metadataUserId) === String(userId)) || (customerEmail && customerEmail === user.email.toLowerCase());
+
+            if (!isUserMatch) {
+                console.warn(`Sync Payment Security Warning: Reference "${pendingRef}" belongs to different user. Aborting.`);
+                return res.status(403).json({ status: false, message: 'Payment reference does not match your account.' });
+            }
+
+            const { metadata, amount, customer, authorization, plan, subscription_code } = data;
+            const tier = metadata?.tier || 'bronze';
+            const planName = metadata?.plan || 'Verified Vendor';
+            const billingCycle = metadata?.billing_cycle || 'annually';
+            const referrerId = metadata?.referrer_id || null;
+            const amountPaid = metadata?.amount || (amount / 100);
+
+            await processSuccessfulSubscription({
+                userId,
+                tier,
+                planName,
+                billingCycle,
+                amountPaid,
+                referrerId,
+                paystackSubCode: subscription_code || null,
+                paystackPlanCode: plan?.plan_code || null,
+                paystackAuthCode: authorization?.authorization_code || null,
+                customerCode: customer?.customer_code || null
+            });
+
+            const [updatedUserRows] = await pool.query('SELECT id, first_name, last_name, email, role, status, badge_type, vendor_id FROM users WHERE id = ?', [userId]);
+
+            return res.status(200).json({
+                status: true,
+                verified: true,
+                message: 'Payment verified and account activated!',
+                provisioned: true,
+                user: updatedUserRows[0] || null
+            });
+        } else {
+            return res.status(200).json({
+                status: false,
+                verified: false,
+                message: 'Payment has not been completed on Paystack yet.',
+                data
+            });
+        }
+    } catch (error) {
+        console.error('Sync User Payment Error:', error.response?.data || error.message);
+        return res.status(500).json({ status: false, message: 'Failed to sync payment status with Paystack.', error: error.message });
+    }
+};
+
 module.exports = {
     initializePayment,
     verifyPayment,
+    syncUserPayment,
     paystackWebhook
 };
