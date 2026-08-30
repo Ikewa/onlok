@@ -9,6 +9,7 @@ const { generateVendorId } = require('../utils/generateId');
 const { generateQRCode } = require('../utils/qrCodeGenerator');
 const { sendEmail } = require('../utils/emailService');
 const logger = require('../utils/logger');
+const { processSuccessfulSubscription } = require('./paymentController');
 
 // @desc    Auth admin & get token
 // @route   POST /api/admin/login
@@ -1500,8 +1501,6 @@ const syncAllPaymentsAdmin = async (req, res) => {
 
         const txs = response.data?.data || [];
         let syncedCount = 0;
-
-        const { processSuccessfulSubscription } = require('./paymentController');
 
         for (const tx of txs) {
             const customerEmail = tx.customer?.email?.toLowerCase();

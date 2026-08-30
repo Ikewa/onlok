@@ -588,5 +588,6 @@ module.exports = {
     initializePayment,
     verifyPayment,
     syncUserPayment,
-    paystackWebhook
+    paystackWebhook,
+    processSuccessfulSubscription
 };
