@@ -20,9 +20,9 @@ const backfillLegacyPaystackTransactions = async () => {
             LEFT JOIN verifications v ON v.user_id = u.id
             LEFT JOIN subscriptions s ON s.user_id = u.id
             WHERE u.email IS NOT NULL 
-              AND (v.payment_reference IS NULL OR s.paystack_subscription_code IS NULL OR u.status = 'verified')
+              AND (v.payment_reference IS NULL OR s.paystack_subscription_code IS NULL OR u.status != 'verified' OR v.payment_status != 'paid')
             ORDER BY u.id DESC
-            LIMIT 50
+            LIMIT 100
         `);
 
         if (usersToBackfill.length === 0) {
