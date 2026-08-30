@@ -1221,7 +1221,7 @@ const syncWithdrawalStatusAdmin = async (req, res) => {
     }
 };
 
-// @desc    Get all payments & subscriptions for admin dashboard with search & metrics
+// @desc    GET paginated list of vendor payments and subscription records
 // @route   GET /api/admin/payments
 // @access  Private (Admin only)
 const getPaymentsAdmin = async (req, res) => {
@@ -1232,24 +1232,24 @@ const getPaymentsAdmin = async (req, res) => {
 
         const { q, status, tier } = req.query;
 
-        // Base query conditions
-        const conditions = [];
+        // Base query conditions (Include all vendors or accounts with verifications / subscriptions)
+        const conditions = ["(u.role = 'vendor' OR s.id IS NOT NULL OR v.payment_reference IS NOT NULL)"];
         const params = [];
 
         if (q && q.trim()) {
             const searchTerm = `%${q.trim()}%`;
-            conditions.push('(u.vendor_id LIKE ? OR u.first_name LIKE ? OR u.last_name LIKE ? OR u.email LIKE ? OR s.paystack_subscription_code LIKE ? OR s.paystack_plan_code LIKE ?)');
-            params.push(searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm);
+            conditions.push('(u.vendor_id LIKE ? OR u.first_name LIKE ? OR u.last_name LIKE ? OR u.email LIKE ? OR s.paystack_subscription_code LIKE ? OR s.paystack_plan_code LIKE ? OR v.payment_reference LIKE ?)');
+            params.push(searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm);
         }
 
         if (status && status !== 'all') {
-            conditions.push('s.status = ?');
-            params.push(status);
+            conditions.push('(s.status = ? OR (s.status IS NULL AND ? = "pending"))');
+            params.push(status, status);
         }
 
         if (tier && tier !== 'all') {
-            conditions.push('s.tier = ?');
-            params.push(tier.toLowerCase());
+            conditions.push('(s.tier = ? OR (s.tier IS NULL AND LOWER(v.assigned_tier) = ?))');
+            params.push(tier.toLowerCase(), tier.toLowerCase());
         }
 
         const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
@@ -1257,20 +1257,24 @@ const getPaymentsAdmin = async (req, res) => {
         // Aggregate Summary Metrics
         const [metricsRows] = await pool.query(`
             SELECT 
-                COALESCE(SUM(amount), 0)                                      AS total_volume,
-                COALESCE(SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END), 0)    AS active_count,
-                COALESCE(SUM(CASE WHEN status = 'attention' THEN 1 ELSE 0 END), 0) AS attention_count,
-                COALESCE(SUM(CASE WHEN status IN ('cancelled', 'expired') THEN 1 ELSE 0 END), 0) AS inactive_count
-            FROM subscriptions
+                COALESCE(SUM(COALESCE(s.amount, 10000)), 0)                                                    AS total_volume,
+                COALESCE(SUM(CASE WHEN s.status = 'active' OR u.status = 'verified' THEN 1 ELSE 0 END), 0)    AS active_count,
+                COALESCE(SUM(CASE WHEN s.status = 'attention' THEN 1 ELSE 0 END), 0)                           AS attention_count,
+                COALESCE(SUM(CASE WHEN s.status IN ('cancelled', 'expired') THEN 1 ELSE 0 END), 0)             AS inactive_count
+            FROM users u
+            LEFT JOIN subscriptions s ON s.user_id = u.id
+            LEFT JOIN verifications v ON v.id = (SELECT id FROM verifications WHERE user_id = u.id ORDER BY id DESC LIMIT 1)
+            WHERE u.role = 'vendor' OR s.id IS NOT NULL OR v.payment_reference IS NOT NULL
         `);
 
         const metrics = metricsRows[0] || { total_volume: 0, active_count: 0, attention_count: 0, inactive_count: 0 };
 
         // Total matching count for pagination
         const [countRows] = await pool.query(
-            `SELECT COUNT(*) AS total 
-             FROM subscriptions s
-             JOIN users u ON s.user_id = u.id
+            `SELECT COUNT(DISTINCT u.id) AS total 
+             FROM users u
+             LEFT JOIN subscriptions s ON s.user_id = u.id
+             LEFT JOIN verifications v ON v.id = (SELECT id FROM verifications WHERE user_id = u.id ORDER BY id DESC LIMIT 1)
              ${whereClause}`,
             params
         );
@@ -1279,19 +1283,19 @@ const getPaymentsAdmin = async (req, res) => {
         // Fetch paginated subscriptions with user & verification data
         const [rows] = await pool.query(
             `SELECT 
-                s.id AS subscription_id,
-                s.user_id,
-                s.tier,
-                s.plan_name,
-                s.billing_cycle,
-                s.amount,
-                s.status,
+                COALESCE(s.id, 0) AS subscription_id,
+                u.id AS user_id,
+                COALESCE(s.tier, v.assigned_tier, u.badge_type, 'bronze') AS tier,
+                COALESCE(s.plan_name, 'Verified Vendor') AS plan_name,
+                COALESCE(s.billing_cycle, 'annually') AS billing_cycle,
+                COALESCE(s.amount, 10000) AS amount,
+                COALESCE(s.status, CASE WHEN u.status = 'verified' OR v.payment_status = 'paid' THEN 'active' ELSE 'pending' END) AS status,
                 s.paystack_subscription_code,
                 s.paystack_plan_code,
                 s.paystack_authorization_code,
                 s.paystack_customer_code,
                 s.next_payment_date,
-                s.created_at,
+                COALESCE(s.created_at, v.submitted_at, u.created_at) AS created_at,
                 s.updated_at,
                 u.vendor_id,
                 u.first_name,
@@ -1301,11 +1305,11 @@ const getPaymentsAdmin = async (req, res) => {
                 u.status AS user_status,
                 u.profile_picture_url,
                 v.payment_reference
-             FROM subscriptions s
-             JOIN users u ON s.user_id = u.id
-             LEFT JOIN verifications v ON v.id = (SELECT id FROM verifications WHERE user_id = u.id ORDER BY submitted_at DESC LIMIT 1)
+             FROM users u
+             LEFT JOIN subscriptions s ON s.user_id = u.id
+             LEFT JOIN verifications v ON v.id = (SELECT id FROM verifications WHERE user_id = u.id ORDER BY id DESC LIMIT 1)
              ${whereClause}
-             ORDER BY s.created_at DESC
+             ORDER BY COALESCE(s.created_at, v.submitted_at, u.created_at) DESC
              LIMIT ? OFFSET ?`,
             [...params, limit, offset]
         );
@@ -1437,6 +1441,79 @@ const syncPaymentAdmin = async (req, res) => {
     }
 };
 
+// @desc    Admin bulk sync payment status for all vendor accounts with Paystack
+// @route   POST /api/admin/payments/sync-all
+// @access  Private (Admin only)
+const syncAllPaymentsAdmin = async (req, res) => {
+    try {
+        const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
+        if (!PAYSTACK_SECRET) {
+            return res.status(500).json({ message: 'PAYSTACK_SECRET_KEY missing in server environment' });
+        }
+
+        // 1. Fetch recent successful transactions from Paystack API
+        const response = await axios.get(
+            'https://api.paystack.co/transaction?status=success&perPage=100',
+            { headers: { Authorization: `Bearer ${PAYSTACK_SECRET}` }, timeout: 15000 }
+        );
+
+        const txs = response.data?.data || [];
+        let syncedCount = 0;
+
+        const { processSuccessfulSubscription } = require('./paymentController');
+
+        for (const tx of txs) {
+            const customerEmail = tx.customer?.email?.toLowerCase();
+            let userId = tx.metadata?.user_id;
+
+            if (!userId && customerEmail) {
+                const [uRows] = await pool.query('SELECT id FROM users WHERE LOWER(email) = ?', [customerEmail]);
+                if (uRows.length > 0) {
+                    userId = uRows[0].id;
+                }
+            }
+
+            if (userId) {
+                const planName = tx.metadata?.plan || 'Verified Vendor';
+                const tier = tx.metadata?.tier || 'bronze';
+                const billingCycle = tx.metadata?.billing_cycle || 'annually';
+                const referrerId = tx.metadata?.referrer_id || null;
+                const amountPaid = tx.metadata?.amount || (tx.amount / 100);
+
+                await processSuccessfulSubscription({
+                    userId,
+                    tier,
+                    planName,
+                    billingCycle,
+                    amountPaid,
+                    referrerId,
+                    paystackSubCode: tx.subscription_code || null,
+                    paystackPlanCode: tx.plan?.plan_code || null,
+                    paystackAuthCode: tx.authorization?.authorization_code || null,
+                    customerCode: tx.customer?.customer_code || null,
+                    paymentReference: tx.reference || null
+                });
+                syncedCount++;
+            }
+        }
+
+        await pool.query(
+            'INSERT INTO audit_logs (user_id, action, severity, details) VALUES (?, ?, ?, ?)',
+            [req.user.id, 'Sync All Payments Admin', 'MEDIUM', `Admin triggered global Paystack sync. Synced ${syncedCount} payment(s).`]
+        );
+
+        return res.status(200).json({
+            status: true,
+            message: `Paystack sync completed! Synced ${syncedCount} transaction(s) from Paystack.`,
+            syncedCount
+        });
+
+    } catch (error) {
+        logger.error('Admin Bulk Sync Payment Error', { error });
+        res.status(500).json({ message: 'Failed to sync payments with Paystack', error: error.message });
+    }
+};
+
 module.exports = {
     adminLogin,
     getVerificationQueue,
@@ -1457,5 +1534,6 @@ module.exports = {
     syncWithdrawalStatusAdmin,
     getWebsiteHits,
     getPaymentsAdmin,
-    syncPaymentAdmin
+    syncPaymentAdmin,
+    syncAllPaymentsAdmin
 };

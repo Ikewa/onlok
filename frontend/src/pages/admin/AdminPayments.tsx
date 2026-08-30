@@ -13,13 +13,14 @@ import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
 import CancelOutlinedIcon from '@mui/icons-material/CancelOutlined';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import { getPaymentsAdmin, syncPaymentAdmin, type AdminPaymentRecord } from '../../api/admin';
+import { getPaymentsAdmin, syncPaymentAdmin, syncAllPaymentsAdmin, type AdminPaymentRecord } from '../../api/admin';
 import toast from 'react-hot-toast';
 
 export default function AdminPayments() {
   const [records, setRecords] = useState<AdminPaymentRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncingId, setSyncingId] = useState<number | null>(null);
+  const [globalSyncing, setGlobalSyncing] = useState(false);
 
   // Search & Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -94,6 +95,21 @@ export default function AdminPayments() {
     }
   };
 
+  const handleSyncAllPayments = async () => {
+    setGlobalSyncing(true);
+    const toastId = toast.loading('Syncing all payments from Paystack API...');
+    try {
+      const res = await syncAllPaymentsAdmin();
+      toast.success(res.message || 'Paystack sync completed successfully!', { id: toastId });
+      fetchPayments();
+    } catch (err: any) {
+      console.error('Global sync error:', err);
+      toast.error(err.response?.data?.message || 'Failed to sync with Paystack', { id: toastId });
+    } finally {
+      setGlobalSyncing(false);
+    }
+  };
+
   const copyToClipboard = (text?: string | null) => {
     if (!text) return;
     navigator.clipboard.writeText(text);
@@ -152,25 +168,47 @@ export default function AdminPayments() {
           </Typography>
         </Box>
 
-        <Button
-          variant="outlined"
-          onClick={() => fetchPayments()}
-          startIcon={<RefreshIcon sx={{ fontSize: 18 }} />}
-          sx={{
-            borderColor: '#E5E7EB',
-            color: '#374151',
-            textTransform: 'none',
-            borderRadius: '8px',
-            fontWeight: 600,
-            fontSize: '0.85rem',
-            px: 2,
-            py: 0.8,
-            bgcolor: '#FFFFFF',
-            '&:hover': { bgcolor: '#F9FAFB', borderColor: '#D1D5DB' }
-          }}
-        >
-          Refresh Data
-        </Button>
+        <Stack direction="row" spacing={1.5}>
+          <Button
+            variant="outlined"
+            onClick={() => fetchPayments()}
+            startIcon={<RefreshIcon sx={{ fontSize: 18 }} />}
+            sx={{
+              borderColor: '#E5E7EB',
+              color: '#374151',
+              textTransform: 'none',
+              borderRadius: '8px',
+              fontWeight: 600,
+              fontSize: '0.85rem',
+              px: 2,
+              py: 0.8,
+              bgcolor: '#FFFFFF',
+              '&:hover': { bgcolor: '#F9FAFB', borderColor: '#D1D5DB' }
+            }}
+          >
+            Refresh Data
+          </Button>
+          <Button
+            variant="contained"
+            disabled={globalSyncing}
+            onClick={handleSyncAllPayments}
+            startIcon={globalSyncing ? <CircularProgress size={16} sx={{ color: '#FFFFFF' }} /> : <RefreshIcon sx={{ fontSize: 18 }} />}
+            sx={{
+              bgcolor: '#5B5FEC',
+              color: '#FFFFFF',
+              textTransform: 'none',
+              borderRadius: '8px',
+              fontWeight: 600,
+              fontSize: '0.85rem',
+              px: 2.5,
+              py: 0.8,
+              boxShadow: 'none',
+              '&:hover': { bgcolor: '#4F52D4', boxShadow: 'none' }
+            }}
+          >
+            {globalSyncing ? 'Syncing Paystack...' : 'Sync All with Paystack'}
+          </Button>
+        </Stack>
       </Box>
 
       {/* Metrics Summary Cards */}

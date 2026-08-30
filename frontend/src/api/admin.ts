@@ -372,3 +372,8 @@ export const syncPaymentAdmin = async (id: number): Promise<{ status: boolean; m
   const { data } = await api.post(`/admin/payments/${id}/sync`);
   return data;
 };
+
+export const syncAllPaymentsAdmin = async (): Promise<{ status: boolean; message: string; syncedCount: number }> => {
+  const { data } = await api.post('/admin/payments/sync-all');
+  return data;
+};

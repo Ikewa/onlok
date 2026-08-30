@@ -241,14 +241,23 @@ const processSuccessfulSubscription = async ({ userId, tier, planName, billingCy
             [normalizedTier, subscriptionId, expirationDate, userId]
         );
 
-        // 3. Update Verifications table status to payment_received & retain payment_reference for auditing
-        await pool.query(
-            `UPDATE verifications 
-             SET payment_status = 'paid', status = 'payment_received', assigned_tier = ?,
-                 payment_reference = COALESCE(?, payment_reference)
-             WHERE user_id = ?`,
-            [normalizedTier, paymentReference || null, userId]
-        );
+        // 3. Upsert Verifications table status to payment_received & retain payment_reference for auditing
+        const [existingVerif] = await pool.query('SELECT id FROM verifications WHERE user_id = ?', [userId]);
+        if (existingVerif.length > 0) {
+            await pool.query(
+                `UPDATE verifications 
+                 SET payment_status = 'paid', status = 'payment_received', assigned_tier = ?,
+                     payment_reference = COALESCE(?, payment_reference)
+                 WHERE user_id = ?`,
+                [normalizedTier, paymentReference || null, userId]
+            );
+        } else {
+            await pool.query(
+                `INSERT INTO verifications (user_id, status, payment_status, assigned_tier, payment_reference)
+                 VALUES (?, 'payment_received', 'paid', ?, ?)`,
+                [userId, normalizedTier, paymentReference || null]
+            );
+        }
 
         // 4. Upsert Badge in badges table
         const [existingBadge] = await pool.query('SELECT id FROM badges WHERE user_id = ?', [userId]);
@@ -353,25 +362,38 @@ const paystackWebhook = async (req, res) => {
 
             if (event.event === 'charge.success') {
                 const { reference, metadata, amount, customer, authorization, plan, subscription_code } = event.data;
-                const userId = metadata?.user_id;
+                let userId = metadata?.user_id;
                 const planName = metadata?.plan || 'Verified Vendor';
                 const tier = metadata?.tier || 'bronze';
                 const billingCycle = metadata?.billing_cycle || 'annually';
                 const referrerId = metadata?.referrer_id;
                 const amountPaid = metadata?.amount || (amount / 100);
 
-                await processSuccessfulSubscription({
-                    userId,
-                    tier,
-                    planName,
-                    billingCycle,
-                    amountPaid,
-                    referrerId,
-                    paystackSubCode: subscription_code || null,
-                    paystackPlanCode: plan?.plan_code || null,
-                    paystackAuthCode: authorization?.authorization_code || null,
-                    customerCode: customer?.customer_code || null
-                });
+                // Fallback: If metadata.user_id is missing, look up user by customer email
+                if (!userId && customer?.email) {
+                    const [uRows] = await pool.query('SELECT id FROM users WHERE LOWER(email) = LOWER(?)', [customer.email]);
+                    if (uRows.length > 0) {
+                        userId = uRows[0].id;
+                    }
+                }
+
+                if (userId) {
+                    await processSuccessfulSubscription({
+                        userId,
+                        tier,
+                        planName,
+                        billingCycle,
+                        amountPaid,
+                        referrerId,
+                        paystackSubCode: subscription_code || null,
+                        paystackPlanCode: plan?.plan_code || null,
+                        paystackAuthCode: authorization?.authorization_code || null,
+                        customerCode: customer?.customer_code || null,
+                        paymentReference: reference || null
+                    });
+                } else {
+                    logger.error(`Paystack Webhook: Received charge.success for ref "${reference}" but could not determine user for email "${customer?.email}"`);
+                }
 
             } else if (event.event === 'subscription.create') {
                 const { subscription_code, email_token, customer, next_payment_date } = event.data;

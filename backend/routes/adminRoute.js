@@ -20,7 +20,8 @@ const {
     syncWithdrawalStatusAdmin,
     getWebsiteHits,
     getPaymentsAdmin,
-    syncPaymentAdmin
+    syncPaymentAdmin,
+    syncAllPaymentsAdmin
 } = require('../controllers/adminController');
 const { protect, adminOnly } = require('../middlewares/authMiddleware');
 
@@ -39,6 +40,7 @@ router.put('/verifications/:id/status', updateVerificationStatus);
 
 // Payments & Subscriptions
 router.get('/payments', getPaymentsAdmin);
+router.post('/payments/sync-all', syncAllPaymentsAdmin);
 router.post('/payments/:id/sync', syncPaymentAdmin);
 
 // Dashboard & User Management
