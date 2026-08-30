@@ -1336,29 +1336,48 @@ const getPaymentsAdmin = async (req, res) => {
 // @desc    Admin manual sync payment / subscription status with Paystack
 // @route   POST /api/admin/payments/:id/sync
 // @access  Private (Admin only)
+// @desc    Admin manual sync payment / subscription status with Paystack
+// @route   POST /api/admin/payments/:id/sync
+// @access  Private (Admin only)
 const syncPaymentAdmin = async (req, res) => {
     try {
-        const subId = parseInt(req.params.id, 10);
-        if (!subId) {
-            return res.status(400).json({ message: 'Invalid subscription ID' });
+        const rawId = req.params.id;
+        const targetId = parseInt(rawId, 10);
+        if (!targetId || isNaN(targetId)) {
+            return res.status(400).json({ message: 'Invalid subscription or user ID specified' });
         }
 
-        const [subs] = await pool.query(
-            'SELECT s.*, u.email FROM subscriptions s JOIN users u ON s.user_id = u.id WHERE s.id = ?',
-            [subId]
+        // 1. Try finding subscription by subscription_id first
+        let [subs] = await pool.query(
+            'SELECT s.*, u.email, u.first_name, u.last_name, u.vendor_id FROM subscriptions s JOIN users u ON s.user_id = u.id WHERE s.id = ?',
+            [targetId]
         );
 
+        // 2. If not found by subscription_id, check if targetId matches a user_id
         if (subs.length === 0) {
-            return res.status(404).json({ message: 'Subscription not found' });
+            const [userSubs] = await pool.query(
+                'SELECT s.*, u.id AS user_id, u.email, u.first_name, u.last_name, u.vendor_id FROM users u LEFT JOIN subscriptions s ON s.user_id = u.id WHERE u.id = ?',
+                [targetId]
+            );
+            if (userSubs.length > 0 && userSubs[0].email) {
+                subs = [userSubs[0]];
+            }
+        }
+
+        if (subs.length === 0) {
+            return res.status(404).json({ message: 'Subscription or user record not found' });
         }
 
         const sub = subs[0];
+        const subId = sub.id; // Could be null if user has no subscription row yet
+        const userId = sub.user_id || targetId;
+
         const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
         if (!PAYSTACK_SECRET) {
             return res.status(500).json({ message: 'PAYSTACK_SECRET_KEY missing in server environment' });
         }
 
-        let updatedStatus = sub.status;
+        let updatedStatus = sub.status || 'pending';
         let paystackDetails = null;
 
         if (sub.paystack_subscription_code) {
@@ -1373,10 +1392,10 @@ const syncPaymentAdmin = async (req, res) => {
                     updatedStatus = psStatus === 'active' ? 'active' : psStatus === 'disabled' ? 'cancelled' : 'attention';
                 }
             } catch (pErr) {
-                logger.warn(`Admin Payment Sync Warning for sub #${subId}`, { error: pErr });
+                logger.warn(`Admin Payment Sync Warning for sub #${subId || userId}`, { error: pErr });
             }
         } else if (sub.email) {
-            // Legacy subscription without saved code: Query Paystack transaction list by email
+            // Query Paystack transaction list by email
             try {
                 const response = await axios.get(
                     `https://api.paystack.co/transaction?customer=${encodeURIComponent(sub.email)}&status=success&perPage=50`,
@@ -1384,53 +1403,72 @@ const syncPaymentAdmin = async (req, res) => {
                 );
                 const txs = response.data?.data || [];
                 const matchedTx = txs.find(tx => 
-                    String(tx.metadata?.user_id) === String(sub.user_id) ||
+                    String(tx.metadata?.user_id) === String(userId) ||
                     (tx.customer?.email && tx.customer.email.toLowerCase() === sub.email.toLowerCase())
                 );
                 if (matchedTx) {
                     paystackDetails = matchedTx;
                     updatedStatus = 'active';
-                    await pool.query(
-                        `UPDATE subscriptions 
-                         SET paystack_subscription_code = COALESCE(?, paystack_subscription_code),
-                             paystack_plan_code = COALESCE(?, paystack_plan_code),
-                             status = 'active'
-                         WHERE id = ?`,
-                        [matchedTx.subscription_code || null, matchedTx.plan?.plan_code || null, subId]
-                    );
+
+                    const normalizedTier = (matchedTx.metadata?.tier || sub.tier || 'bronze').toLowerCase();
+                    const cycle = (matchedTx.metadata?.billing_cycle || sub.billing_cycle || 'annually').toLowerCase();
+                    const amountPaid = matchedTx.amount ? matchedTx.amount / 100 : sub.amount || 10000;
+
+                    if (subId) {
+                        await pool.query(
+                            `UPDATE subscriptions 
+                             SET paystack_subscription_code = COALESCE(?, paystack_subscription_code),
+                                 paystack_plan_code = COALESCE(?, paystack_plan_code),
+                                 status = 'active'
+                             WHERE id = ?`,
+                            [matchedTx.subscription_code || null, matchedTx.plan?.plan_code || null, subId]
+                        );
+                    } else {
+                        await pool.query(
+                            `INSERT INTO subscriptions (user_id, tier, plan_name, billing_cycle, amount, status, paystack_subscription_code, paystack_plan_code)
+                             VALUES (?, ?, ?, ?, ?, 'active', ?, ?)`,
+                            [userId, normalizedTier, matchedTx.metadata?.plan || 'Verified Vendor', cycle, amountPaid, matchedTx.subscription_code || null, matchedTx.plan?.plan_code || null]
+                        );
+                    }
+
                     await pool.query(
                         `UPDATE verifications 
                          SET payment_reference = COALESCE(payment_reference, ?),
                              payment_status = 'paid',
                              status = CASE WHEN status = 'pending' THEN 'payment_received' ELSE status END
                          WHERE user_id = ?`,
-                        [matchedTx.reference, sub.user_id]
+                        [matchedTx.reference, userId]
                     );
                 }
             } catch (pErr) {
-                logger.warn(`Admin Legacy Payment Sync Warning for sub #${subId}`, { error: pErr });
+                logger.warn(`Admin Legacy Payment Sync Warning for user #${userId}`, { error: pErr });
             }
         }
 
-        await pool.query('UPDATE subscriptions SET status = ? WHERE id = ?', [updatedStatus, subId]);
+        if (subId) {
+            await pool.query('UPDATE subscriptions SET status = ? WHERE id = ?', [updatedStatus, subId]);
+        }
         if (updatedStatus === 'active') {
-            await pool.query('UPDATE users SET status = "verified" WHERE id = ?', [sub.user_id]);
-            await pool.query('UPDATE verifications SET payment_status = "paid", status = "payment_received" WHERE user_id = ?', [sub.user_id]);
+            await pool.query('UPDATE users SET status = "verified" WHERE id = ?', [userId]);
+            await pool.query('UPDATE verifications SET payment_status = "paid", status = "payment_received" WHERE user_id = ?', [userId]);
         }
 
         await pool.query(
             'INSERT INTO audit_logs (user_id, action, severity, details) VALUES (?, ?, ?, ?)',
-            [req.user.id, 'Sync Payment Admin', 'LOW', `Admin synced payment #${subId} (Status: ${updatedStatus})`]
+            [req.user.id, 'Sync Payment Admin', 'LOW', `Admin synced payment for target #${targetId} (Status: ${updatedStatus})`]
         );
 
         const [updatedRows] = await pool.query(
-            'SELECT s.*, u.vendor_id, u.first_name, u.last_name, u.email FROM subscriptions s JOIN users u ON s.user_id = u.id WHERE s.id = ?',
-            [subId]
+            `SELECT s.*, u.vendor_id, u.first_name, u.last_name, u.email 
+             FROM users u 
+             LEFT JOIN subscriptions s ON s.user_id = u.id 
+             WHERE u.id = ?`,
+            [userId]
         );
 
         res.status(200).json({
             status: true,
-            message: `Subscription #${subId} synced successfully (Status: ${updatedStatus.toUpperCase()})`,
+            message: `Payment record synced successfully (Status: ${updatedStatus.toUpperCase()})`,
             subscription: updatedRows[0],
             paystackDetails
         });

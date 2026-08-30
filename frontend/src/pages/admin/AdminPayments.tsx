@@ -490,8 +490,8 @@ export default function AdminPayments() {
                             <Button
                               size="small"
                               variant="outlined"
-                              disabled={syncingId === rec.subscription_id}
-                              onClick={() => handleSyncPayment(rec.subscription_id)}
+                              disabled={syncingId === (rec.subscription_id || rec.user_id)}
+                              onClick={() => handleSyncPayment(rec.subscription_id || rec.user_id)}
                               startIcon={syncingId === rec.subscription_id ? <CircularProgress size={14} sx={{ color: '#5B5FEC' }} /> : <RefreshIcon fontSize="small" />}
                               sx={{
                                 textTransform: 'none',
@@ -636,7 +636,7 @@ export default function AdminPayments() {
               </Button>
               <Button
                 onClick={() => {
-                  handleSyncPayment(selectedRecord.subscription_id);
+                  handleSyncPayment(selectedRecord.subscription_id || selectedRecord.user_id);
                   setSelectedRecord(null);
                 }}
                 disableElevation
