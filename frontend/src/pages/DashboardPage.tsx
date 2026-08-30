@@ -36,7 +36,7 @@ const getSocialUrl = (platform: 'twitter' | 'instagram' | 'facebook' | 'tiktok' 
   switch (platform) {
     case 'whatsapp': {
       const cleanPhone = cleanVal.replace(/\D/g, '');
-      return cleanPhone ? `https://wa.me/${cleanPhone}` : null;
+      return cleanPhone ? `https://wa.me/+234${cleanPhone}` : null;
     }
     case 'twitter': {
       const handle = cleanVal.replace(/^@/, '');
