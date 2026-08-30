@@ -136,7 +136,7 @@ export default function ReferralsPage() {
     }
   }, [accountNumber, selectedBankCode]);
 
-  const referralLink = `https://onlok.net/register?ref=${user?.vendor_id ?? user?.id}`;
+  const referralLink = `https://app.onlok.net/register?ref=${user?.vendor_id ?? user?.id}`;
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(referralLink);
