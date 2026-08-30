@@ -316,3 +316,59 @@ export const addAdminReportNote = async (
   const { data } = await api.post(`/reports/${reportId}/notes`, { note });
   return data;
 };
+
+// ── Payments & Transactions Admin API ─────────────────────────────────────────
+
+export interface AdminPaymentRecord {
+  subscription_id: number;
+  user_id: number;
+  tier: string;
+  plan_name: string;
+  billing_cycle: string;
+  amount: number;
+  status: string;
+  paystack_subscription_code: string | null;
+  paystack_plan_code: string | null;
+  paystack_authorization_code: string | null;
+  paystack_customer_code: string | null;
+  next_payment_date: string | null;
+  created_at: string;
+  updated_at: string;
+  vendor_id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  business_name?: string;
+  user_status?: string;
+  profile_picture_url?: string;
+  payment_reference?: string;
+}
+
+export interface AdminPaymentsResponse {
+  results: AdminPaymentRecord[];
+  total: number;
+  page: number;
+  limit: number;
+  metrics: {
+    totalVolume: number;
+    activeCount: number;
+    attentionCount: number;
+    inactiveCount: number;
+  };
+}
+
+export const getPaymentsAdmin = async (params: {
+  page?: number;
+  limit?: number;
+  q?: string;
+  status?: string;
+  tier?: string;
+}): Promise<AdminPaymentsResponse> => {
+  const { data } = await api.get('/admin/payments', { params });
+  return data;
+};
+
+export const syncPaymentAdmin = async (id: number): Promise<{ status: boolean; message: string; subscription?: AdminPaymentRecord }> => {
+  const { data } = await api.post(`/admin/payments/${id}/sync`);
+  return data;
+};

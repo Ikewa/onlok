@@ -5,12 +5,14 @@ import QueueIcon from '@mui/icons-material/FormatListBulleted';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import SettingsIcon from '@mui/icons-material/Settings';
 import AccountBalanceWalletOutlinedIcon from '@mui/icons-material/AccountBalanceWalletOutlined';
+import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
 import PeopleOutlinedIcon from '@mui/icons-material/PeopleOutlined';
 import { useAuth } from '../context/AuthContext';
 
 const navItems = [
   { text: 'Dashboard', icon: <DashboardIcon />, path: '/admin/dashboard' },
   { text: 'Verification Queue', icon: <QueueIcon />, path: '/admin/verifications' },
+  { text: 'Payments & Transactions', icon: <ReceiptLongIcon />, path: '/admin/payments' },
   { text: 'Referrals & Payouts', icon: <AccountBalanceWalletOutlinedIcon />, path: '/admin/referrals' },
   { text: 'Complaints & Reports', icon: <WarningAmberIcon />, path: '/admin/complaints' },
   { text: 'Alerts & Risk', icon: <WarningAmberIcon />, path: '/admin/alerts' },

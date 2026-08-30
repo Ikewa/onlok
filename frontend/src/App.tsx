@@ -43,6 +43,7 @@ import AdminComplaints from './pages/admin/AdminComplaints';
 import AdminComplaintDetail from './pages/admin/AdminComplaintDetail';
 import AdminSettings from './pages/admin/AdminSettings';
 import AdminReferrals from './pages/admin/AdminReferrals';
+import AdminPayments from './pages/admin/AdminPayments';
 import { Navigate } from 'react-router-dom';
 
 export default function App() {
@@ -96,6 +97,7 @@ export default function App() {
               <Route path="/admin" element={<Navigate to="/admin/verifications" replace />} />
               <Route path="/admin/verifications" element={<AdminVerificationQueue />} />
               <Route path="/admin/verifications/:id" element={<AdminVerificationReview />} />
+              <Route path="/admin/payments" element={<AdminPayments />} />
               <Route path="/admin/dashboard" element={<AdminDashboard />} />
               <Route path="/admin/alerts" element={<AdminAlerts />} />
               <Route path="/admin/complaints" element={<AdminComplaints />} />

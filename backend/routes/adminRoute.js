@@ -18,7 +18,9 @@ const {
     rejectWithdrawalAdmin,
     rejectBulkWithdrawalsAdmin,
     syncWithdrawalStatusAdmin,
-    getWebsiteHits
+    getWebsiteHits,
+    getPaymentsAdmin,
+    syncPaymentAdmin
 } = require('../controllers/adminController');
 const { protect, adminOnly } = require('../middlewares/authMiddleware');
 
@@ -34,6 +36,10 @@ router.use(adminOnly);
 router.get('/verifications', getVerificationQueue);
 router.get('/verifications/:id', getVerificationDetails);
 router.put('/verifications/:id/status', updateVerificationStatus);
+
+// Payments & Subscriptions
+router.get('/payments', getPaymentsAdmin);
+router.post('/payments/:id/sync', syncPaymentAdmin);
 
 // Dashboard & User Management
 router.get('/dashboard', getDashboardMetrics);

@@ -1221,6 +1221,187 @@ const syncWithdrawalStatusAdmin = async (req, res) => {
     }
 };
 
+// @desc    Get all payments & subscriptions for admin dashboard with search & metrics
+// @route   GET /api/admin/payments
+// @access  Private (Admin only)
+const getPaymentsAdmin = async (req, res) => {
+    try {
+        const page  = Math.max(1, parseInt(req.query.page, 10) || 1);
+        const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
+        const offset = (page - 1) * limit;
+
+        const { q, status, tier } = req.query;
+
+        // Base query conditions
+        const conditions = [];
+        const params = [];
+
+        if (q && q.trim()) {
+            const searchTerm = `%${q.trim()}%`;
+            conditions.push('(u.vendor_id LIKE ? OR u.first_name LIKE ? OR u.last_name LIKE ? OR u.email LIKE ? OR s.paystack_subscription_code LIKE ? OR s.paystack_plan_code LIKE ?)');
+            params.push(searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm);
+        }
+
+        if (status && status !== 'all') {
+            conditions.push('s.status = ?');
+            params.push(status);
+        }
+
+        if (tier && tier !== 'all') {
+            conditions.push('s.tier = ?');
+            params.push(tier.toLowerCase());
+        }
+
+        const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+        // Aggregate Summary Metrics
+        const [metricsRows] = await pool.query(`
+            SELECT 
+                COALESCE(SUM(amount), 0)                                      AS total_volume,
+                COALESCE(SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END), 0)    AS active_count,
+                COALESCE(SUM(CASE WHEN status = 'attention' THEN 1 ELSE 0 END), 0) AS attention_count,
+                COALESCE(SUM(CASE WHEN status IN ('cancelled', 'expired') THEN 1 ELSE 0 END), 0) AS inactive_count
+            FROM subscriptions
+        `);
+
+        const metrics = metricsRows[0] || { total_volume: 0, active_count: 0, attention_count: 0, inactive_count: 0 };
+
+        // Total matching count for pagination
+        const [countRows] = await pool.query(
+            `SELECT COUNT(*) AS total 
+             FROM subscriptions s
+             JOIN users u ON s.user_id = u.id
+             ${whereClause}`,
+            params
+        );
+        const total = countRows[0]?.total || 0;
+
+        // Fetch paginated subscriptions with user & verification data
+        const [rows] = await pool.query(
+            `SELECT 
+                s.id AS subscription_id,
+                s.user_id,
+                s.tier,
+                s.plan_name,
+                s.billing_cycle,
+                s.amount,
+                s.status,
+                s.paystack_subscription_code,
+                s.paystack_plan_code,
+                s.paystack_authorization_code,
+                s.paystack_customer_code,
+                s.next_payment_date,
+                s.created_at,
+                s.updated_at,
+                u.vendor_id,
+                u.first_name,
+                u.last_name,
+                u.email,
+                u.business_name,
+                u.status AS user_status,
+                u.profile_picture_url,
+                v.payment_reference
+             FROM subscriptions s
+             JOIN users u ON s.user_id = u.id
+             LEFT JOIN verifications v ON v.user_id = u.id
+             ${whereClause}
+             ORDER BY s.created_at DESC
+             LIMIT ? OFFSET ?`,
+            [...params, limit, offset]
+        );
+
+        res.status(200).json({
+            results: rows,
+            total,
+            page,
+            limit,
+            metrics: {
+                totalVolume: Number(metrics.total_volume) || 0,
+                activeCount: Number(metrics.active_count) || 0,
+                attentionCount: Number(metrics.attention_count) || 0,
+                inactiveCount: Number(metrics.inactive_count) || 0
+            }
+        });
+
+    } catch (error) {
+        logger.error('Admin Payments Fetch Error', { error });
+        res.status(500).json({ message: 'Server error fetching payments list' });
+    }
+};
+
+// @desc    Admin manual sync payment / subscription status with Paystack
+// @route   POST /api/admin/payments/:id/sync
+// @access  Private (Admin only)
+const syncPaymentAdmin = async (req, res) => {
+    try {
+        const subId = parseInt(req.params.id, 10);
+        if (!subId) {
+            return res.status(400).json({ message: 'Invalid subscription ID' });
+        }
+
+        const [subs] = await pool.query(
+            'SELECT s.*, u.email FROM subscriptions s JOIN users u ON s.user_id = u.id WHERE s.id = ?',
+            [subId]
+        );
+
+        if (subs.length === 0) {
+            return res.status(404).json({ message: 'Subscription not found' });
+        }
+
+        const sub = subs[0];
+        const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
+        if (!PAYSTACK_SECRET) {
+            return res.status(500).json({ message: 'PAYSTACK_SECRET_KEY missing in server environment' });
+        }
+
+        let updatedStatus = sub.status;
+        let paystackDetails = null;
+
+        if (sub.paystack_subscription_code) {
+            try {
+                const response = await axios.get(
+                    `https://api.paystack.co/subscription/${encodeURIComponent(sub.paystack_subscription_code)}`,
+                    { headers: { Authorization: `Bearer ${PAYSTACK_SECRET}` } }
+                );
+                paystackDetails = response.data?.data;
+                if (paystackDetails) {
+                    const psStatus = paystackDetails.status;
+                    updatedStatus = psStatus === 'active' ? 'active' : psStatus === 'disabled' ? 'cancelled' : 'attention';
+                }
+            } catch (pErr) {
+                logger.warn(`Admin Payment Sync Warning for sub #${subId}`, { error: pErr });
+            }
+        }
+
+        await pool.query('UPDATE subscriptions SET status = ? WHERE id = ?', [updatedStatus, subId]);
+        if (updatedStatus === 'active') {
+            await pool.query('UPDATE users SET status = "verified" WHERE id = ?', [sub.user_id]);
+            await pool.query('UPDATE verifications SET payment_status = "paid", status = "payment_received" WHERE user_id = ?', [sub.user_id]);
+        }
+
+        await pool.query(
+            'INSERT INTO audit_logs (user_id, action, severity, details) VALUES (?, ?, ?, ?)',
+            [req.user.id, 'Sync Payment Admin', 'LOW', `Admin synced payment #${subId} (Status: ${updatedStatus})`]
+        );
+
+        const [updatedRows] = await pool.query(
+            'SELECT s.*, u.vendor_id, u.first_name, u.last_name, u.email FROM subscriptions s JOIN users u ON s.user_id = u.id WHERE s.id = ?',
+            [subId]
+        );
+
+        res.status(200).json({
+            status: true,
+            message: `Subscription #${subId} synced successfully (Status: ${updatedStatus.toUpperCase()})`,
+            subscription: updatedRows[0],
+            paystackDetails
+        });
+
+    } catch (error) {
+        logger.error('Sync Payment Admin Error', { error });
+        res.status(500).json({ message: 'Failed to sync payment status with Paystack', error: error.message });
+    }
+};
+
 module.exports = {
     adminLogin,
     getVerificationQueue,
@@ -1239,5 +1420,7 @@ module.exports = {
     rejectWithdrawalAdmin,
     rejectBulkWithdrawalsAdmin,
     syncWithdrawalStatusAdmin,
-    getWebsiteHits
+    getWebsiteHits,
+    getPaymentsAdmin,
+    syncPaymentAdmin
 };
