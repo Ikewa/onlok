@@ -1303,7 +1303,7 @@ const getPaymentsAdmin = async (req, res) => {
                 v.payment_reference
              FROM subscriptions s
              JOIN users u ON s.user_id = u.id
-             LEFT JOIN verifications v ON v.user_id = u.id
+             LEFT JOIN verifications v ON v.id = (SELECT id FROM verifications WHERE user_id = u.id ORDER BY submitted_at DESC LIMIT 1)
              ${whereClause}
              ORDER BY s.created_at DESC
              LIMIT ? OFFSET ?`,

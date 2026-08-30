@@ -302,10 +302,10 @@ export default function AdminPayments() {
                   </TableCell>
                 </TableRow>
               ) : (
-                records.map((rec) => {
+                records.map((rec, idx) => {
                   const badgeTier = resolveVendorBadgeTier(rec.tier);
                   return (
-                    <TableRow key={rec.subscription_id} hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+                    <TableRow key={`${rec.subscription_id}-${rec.user_id}-${idx}`} hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
                       {/* Vendor Info */}
                       <TableCell>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>

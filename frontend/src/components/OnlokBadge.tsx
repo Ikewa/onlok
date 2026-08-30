@@ -36,7 +36,8 @@ interface OnlokBadgeProps {
 }
 
 function OnlokBadgeImage({ tier, size = 120, vendorId, businessName }: { tier: BadgeTier; size?: number; vendorId?: string; businessName?: string }) {
-  const p = T[tier];
+  const safeTier: BadgeTier = (tier && T[tier]) ? tier : 'bronze';
+  const p = T[safeTier];
 
   return (
     <Box sx={{ position: 'relative', width: size, height: size, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
@@ -48,7 +49,7 @@ function OnlokBadgeImage({ tier, size = 120, vendorId, businessName }: { tier: B
               <>
                 {/* The curve: arches upwards in the middle.
                     Adjust the Q (quadratic bezier) control point to change the curve's height. */}
-                <path id={`ribbon-curve-${tier}`} d="M 18 62 Q 50 54 82 62" fill="transparent" />
+                <path id={`ribbon-curve-${safeTier}`} d="M 18 62 Q 50 54 82 62" fill="transparent" />
                 <text 
                   fill={p.textColor} 
                   fontSize="7.0" 
@@ -56,7 +57,7 @@ function OnlokBadgeImage({ tier, size = 120, vendorId, businessName }: { tier: B
                   fontFamily="Inter, sans-serif" 
                   letterSpacing="0.05em"
                 >
-                  <textPath href={`#ribbon-curve-${tier}`} startOffset="50%" textAnchor="middle">
+                  <textPath href={`#ribbon-curve-${safeTier}`} startOffset="50%" textAnchor="middle">
                     {vendorId}
                   </textPath>
                 </text>
@@ -85,7 +86,8 @@ function OnlokBadgeImage({ tier, size = 120, vendorId, businessName }: { tier: B
 }
 
 export function OnlokBadge({ tier, size = 120, showLabel = false, tooltip = true, vendorId, businessName, sx = {}, onClick }: OnlokBadgeProps) {
-  const p = T[tier];
+  const safeTier: BadgeTier = (tier && T[tier]) ? tier : 'bronze';
+  const p = T[safeTier];
   
   const badge = (
     <Box onClick={onClick} sx={{
@@ -95,7 +97,7 @@ export function OnlokBadge({ tier, size = 120, showLabel = false, tooltip = true
       '&:hover': onClick ? { transform: 'scale(1.07)' } : {},
       ...sx,
     }}>
-      <OnlokBadgeImage tier={tier} size={size} vendorId={vendorId} businessName={businessName} />
+      <OnlokBadgeImage tier={safeTier} size={size} vendorId={vendorId} businessName={businessName} />
       {showLabel && (
         <Typography sx={{ mt: 0.8, fontSize: size * 0.11, fontWeight: 800, color: p.chipColor, letterSpacing: '0.04em' }}>
           {p.label}
@@ -124,6 +126,7 @@ interface BadgeStickerOverlayProps {
 
 export function BadgeStickerOverlay({ tier, size = 52, vendorId, position = 'bottom-right' }: BadgeStickerOverlayProps) {
   if (!tier) return null;
+  const safeTier: BadgeTier = (tier && T[tier]) ? tier : 'bronze';
   const pos: Record<string, object> = {
     'top-right':    { top: -size * 0.28, right: -size * 0.28 },
     'top-left':     { top: -size * 0.28, left: -size * 0.28 },
@@ -132,7 +135,7 @@ export function BadgeStickerOverlay({ tier, size = 52, vendorId, position = 'bot
   };
   return (
     <Box sx={{ position: 'absolute', zIndex: 10, pointerEvents: 'none', ...pos[position] }}>
-      <OnlokBadgeImage tier={tier} size={size} vendorId={vendorId} />
+      <OnlokBadgeImage tier={safeTier} size={size} vendorId={vendorId} />
     </Box>
   );
 }
@@ -157,8 +160,12 @@ export interface BadgeResolveInputs {
 /**
  * Resolves a unified BadgeTier ('gold' | 'silver' | 'bronze') from various vendor data sources.
  */
-export function resolveVendorBadgeTier(inputs?: BadgeResolveInputs | null): BadgeTier {
+export function resolveVendorBadgeTier(inputs?: BadgeResolveInputs | string | null): BadgeTier {
   if (!inputs) return 'bronze';
+
+  if (typeof inputs === 'string') {
+    return getTierFromBadgeType(inputs) || 'bronze';
+  }
 
   // 1. Check array of badges first if available
   if (inputs.badges && Array.isArray(inputs.badges) && inputs.badges.length > 0) {

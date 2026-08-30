@@ -143,14 +143,14 @@ export default function AdminVerificationQueue() {
                   </TableCell>
                 </TableRow>
               ) : (
-                verifications.map((v) => {
+                verifications.map((v, idx) => {
                   const initials = `${v.first_name?.[0] || ''}${v.last_name?.[0] || ''}`.toUpperCase();
                   const normalizedStatus = (v.status || '').trim().toLowerCase();
                   const statStyle = STATUS_STYLES[normalizedStatus] || DEFAULT_STATUS_STYLE;
                   
                   return (
                     <TableRow 
-                      key={v.verification_id} 
+                      key={`verif-${v.verification_id}-${v.user_id}-${idx}`} 
                       hover
                       onClick={() => handleRowClick(v.verification_id)}
                       sx={{ cursor: 'pointer', '&:hover': { bgcolor: '#F9FAFB' }, borderBottom: '1px solid #F3F4F6' }}
