@@ -1,3 +1,4 @@
+const axios = require('axios');
 const pool = require('../config/db');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
@@ -1514,18 +1515,15 @@ const syncAllPaymentsAdmin = async (req, res) => {
             }
 
             if (userId) {
-                const planName = tx.metadata?.plan || 'Verified Vendor';
-                const tier = tx.metadata?.tier || 'bronze';
-                const billingCycle = tx.metadata?.billing_cycle || 'annually';
+                const planDetails = paystackPlanService.inferPlanAndTierFromTransaction(tx);
                 const referrerId = tx.metadata?.referrer_id || null;
-                const amountPaid = tx.metadata?.amount || (tx.amount / 100);
 
                 await processSuccessfulSubscription({
                     userId,
-                    tier,
-                    planName,
-                    billingCycle,
-                    amountPaid,
+                    tier: planDetails.tier,
+                    planName: planDetails.planName,
+                    billingCycle: planDetails.cycle,
+                    amountPaid: planDetails.amount,
                     referrerId,
                     paystackSubCode: tx.subscription_code || null,
                     paystackPlanCode: tx.plan?.plan_code || null,
