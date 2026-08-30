@@ -61,12 +61,24 @@ const getSocialUrl = (platform: 'twitter' | 'instagram' | 'facebook' | 'tiktok' 
 export default function DashboardPage() {
   const { user, updateUser } = useAuth();
   const navigate = useNavigate();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [isPaying, setIsPaying] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   useEffect(() => {
+    if (user?.subscription_expires_at) {
+      const expiresAt = new Date(user.subscription_expires_at);
+      if (expiresAt < new Date()) {
+        navigate('/vendor-subscription');
+        return;
+      }
+    }
+
     getDashboard()
       .then((res) => {
         setData(res);
@@ -79,7 +91,7 @@ export default function DashboardPage() {
         setError('Failed to load dashboard. Please refresh.');
         setLoading(false);
       });
-  }, []);
+  }, [user, navigate, updateUser]);
 
   if (user && user.status !== 'verified') {
     return <Navigate to="/dashboard/verification" replace />;
@@ -88,6 +100,8 @@ export default function DashboardPage() {
   if (data && data.verification && data.verification.status !== 'approved') {
     return <Navigate to="/dashboard/verification" replace />;
   }
+
+  const showContent = !isMobile || isExpanded;
 
   const getCountryFromVendorId = (vendorId?: string | null) => {
     if (!vendorId) return null;
@@ -125,42 +139,6 @@ export default function DashboardPage() {
       setIsPaying(false);
     }
   };
-
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const [isExpanded, setIsExpanded] = useState(false);
-  const showContent = !isMobile || isExpanded;
-
-  useEffect(() => {
-    if (user?.subscription_expires_at) {
-      const expiresAt = new Date(user.subscription_expires_at);
-      if (expiresAt < new Date()) {
-        navigate('/vendor-subscription');
-        return;
-      }
-    }
-
-    getDashboard()
-      .then((res) => {
-        setData(res);
-        setLoading(false);
-      })
-      .catch(() => {
-        setError('Failed to load dashboard. Please refresh.');
-        setLoading(false);
-      });
-    // Fetch current location
-    fetch('https://ipapi.co/json/')
-      .then(res => res.json())
-      .then(data => {
-        if (data.city && data.country_name) {
-          setLocationStr(`${data.city}, ${data.country_name}`);
-        } else {
-          setLocationStr('Unknown Location');
-        }
-      })
-      .catch(() => setLocationStr('Location Unavailable'));
-  }, [user, navigate]);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
