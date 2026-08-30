@@ -12,9 +12,7 @@ import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
 import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
 import CancelOutlinedIcon from '@mui/icons-material/CancelOutlined';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
-import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import { getPaymentsAdmin, syncPaymentAdmin, type AdminPaymentRecord } from '../../api/admin';
-import { OnlokBadge, resolveVendorBadgeTier } from '../../components/OnlokBadge';
 import toast from 'react-hot-toast';
 
 export default function AdminPayments() {
@@ -302,43 +300,55 @@ export default function AdminPayments() {
                   </TableCell>
                 </TableRow>
               ) : (
-                records.map((rec, idx) => {
-                  const badgeTier = resolveVendorBadgeTier(rec.tier);
-                  return (
-                    <TableRow key={`${rec.subscription_id}-${rec.user_id}-${idx}`} hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
-                      {/* Vendor Info */}
-                      <TableCell>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                          <Avatar
-                            src={rec.profile_picture_url || undefined}
-                            sx={{ width: 38, height: 38, bgcolor: '#4F46E5', fontWeight: 700, fontSize: '0.85rem' }}
-                          >
-                            {rec.first_name?.[0] || 'V'}
-                          </Avatar>
-                          <Box>
-                            <Typography variant="body2" fontWeight={700} color="#0F172A">
-                              {rec.first_name} {rec.last_name}
-                            </Typography>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <Chip
-                                label={rec.vendor_id || `ID-${rec.user_id}`}
-                                size="small"
-                                sx={{ height: 20, fontSize: '0.72rem', fontWeight: 700, bgcolor: '#EEF2FF', color: '#4338CA' }}
-                              />
-                              <Typography variant="caption" color="#64748B">{rec.email}</Typography>
-                            </Box>
+                records.map((rec, idx) => (
+                  <TableRow key={`${rec.subscription_id}-${rec.user_id}-${idx}`} hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+                    {/* Vendor Info */}
+                    <TableCell>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <Avatar
+                          src={rec.profile_picture_url || undefined}
+                          sx={{ width: 38, height: 38, bgcolor: '#4F46E5', fontWeight: 700, fontSize: '0.85rem' }}
+                        >
+                          {rec.first_name?.[0] || 'V'}
+                        </Avatar>
+                        <Box>
+                          <Typography variant="body2" fontWeight={700} color="#0F172A">
+                            {rec.first_name} {rec.last_name}
+                          </Typography>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Chip
+                              label={rec.vendor_id || `ID-${rec.user_id}`}
+                              size="small"
+                              sx={{ height: 20, fontSize: '0.72rem', fontWeight: 700, bgcolor: '#EEF2FF', color: '#4338CA' }}
+                            />
+                            <Typography variant="caption" color="#64748B">{rec.email}</Typography>
                           </Box>
                         </Box>
-                      </TableCell>
+                      </Box>
+                    </TableCell>
 
-                      {/* Plan & Tier */}
-                      <TableCell>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <OnlokBadge badge_type={badgeTier} size="small" />
-                          <Typography variant="body2" fontWeight={600} color="#334155">
-                            {rec.plan_name || 'Verified Vendor'}
-                          </Typography>
-                        </Box>
+                    {/* Plan & Tier */}
+                    <TableCell>
+                        <Typography variant="body2" fontWeight={700} color="#0F172A">
+                          {rec.plan_name || 'Verified Vendor'}
+                        </Typography>
+                        <Chip
+                          label={(rec.tier || 'bronze').toUpperCase()}
+                          size="small"
+                          sx={{
+                            height: 20,
+                            fontSize: '0.7rem',
+                            fontWeight: 700,
+                            borderRadius: 1,
+                            mt: 0.3,
+                            bgcolor: (rec.tier || '').toLowerCase() === 'gold' ? '#FEF3C7'
+                                   : (rec.tier || '').toLowerCase() === 'silver' ? '#F1F5F9'
+                                   : '#FFEDD5',
+                            color: (rec.tier || '').toLowerCase() === 'gold' ? '#B45309'
+                                 : (rec.tier || '').toLowerCase() === 'silver' ? '#475569'
+                                 : '#9A3412'
+                          }}
+                        />
                       </TableCell>
 
                       {/* Amount & Cycle */}
@@ -406,9 +416,8 @@ export default function AdminPayments() {
                         </Stack>
                       </TableCell>
                     </TableRow>
-                  );
-                })
-              )}
+                  ))
+                )}
             </TableBody>
           </Table>
         </TableContainer>
