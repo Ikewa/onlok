@@ -1371,6 +1371,41 @@ const syncPaymentAdmin = async (req, res) => {
             } catch (pErr) {
                 logger.warn(`Admin Payment Sync Warning for sub #${subId}`, { error: pErr });
             }
+        } else if (sub.email) {
+            // Legacy subscription without saved code: Query Paystack transaction list by email
+            try {
+                const response = await axios.get(
+                    `https://api.paystack.co/transaction?customer=${encodeURIComponent(sub.email)}&status=success&perPage=50`,
+                    { headers: { Authorization: `Bearer ${PAYSTACK_SECRET}` }, timeout: 10000 }
+                );
+                const txs = response.data?.data || [];
+                const matchedTx = txs.find(tx => 
+                    String(tx.metadata?.user_id) === String(sub.user_id) ||
+                    (tx.customer?.email && tx.customer.email.toLowerCase() === sub.email.toLowerCase())
+                );
+                if (matchedTx) {
+                    paystackDetails = matchedTx;
+                    updatedStatus = 'active';
+                    await pool.query(
+                        `UPDATE subscriptions 
+                         SET paystack_subscription_code = COALESCE(?, paystack_subscription_code),
+                             paystack_plan_code = COALESCE(?, paystack_plan_code),
+                             status = 'active'
+                         WHERE id = ?`,
+                        [matchedTx.subscription_code || null, matchedTx.plan?.plan_code || null, subId]
+                    );
+                    await pool.query(
+                        `UPDATE verifications 
+                         SET payment_reference = COALESCE(payment_reference, ?),
+                             payment_status = 'paid',
+                             status = CASE WHEN status = 'pending' THEN 'payment_received' ELSE status END
+                         WHERE user_id = ?`,
+                        [matchedTx.reference, sub.user_id]
+                    );
+                }
+            } catch (pErr) {
+                logger.warn(`Admin Legacy Payment Sync Warning for sub #${subId}`, { error: pErr });
+            }
         }
 
         await pool.query('UPDATE subscriptions SET status = ? WHERE id = ?', [updatedStatus, subId]);

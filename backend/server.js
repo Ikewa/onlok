@@ -182,6 +182,14 @@ runMigrations();
 const { startCronJobs } = require('./utils/cronJobs');
 startCronJobs();
 
+// Trigger backfill routine for legacy Paystack transactions asynchronously
+const { backfillLegacyPaystackTransactions } = require('./utils/paystackBackfill');
+setTimeout(() => {
+    backfillLegacyPaystackTransactions().catch(err => {
+        logger.warn('Legacy Paystack backfill error:', { error: err });
+    });
+}, 3000);
+
 // Start the server
 const port = process.env.PORT || 5000;
 app.listen(port, '0.0.0.0', () => {

@@ -188,7 +188,7 @@ const verifyPayment = async (req, res) => {
 };
 
 // Helper: Provision user tier, badge, subscription record & referral reward safely (Idempotent)
-const processSuccessfulSubscription = async ({ userId, tier, planName, billingCycle, amountPaid, referrerId, paystackSubCode, paystackPlanCode, paystackAuthCode, customerCode }) => {
+const processSuccessfulSubscription = async ({ userId, tier, planName, billingCycle, amountPaid, referrerId, paystackSubCode, paystackPlanCode, paystackAuthCode, customerCode, paymentReference }) => {
     if (!userId) {
         logger.error('Process Subscription Error: Aborting because userId is empty/undefined');
         return;
@@ -244,9 +244,10 @@ const processSuccessfulSubscription = async ({ userId, tier, planName, billingCy
         // 3. Update Verifications table status to payment_received & retain payment_reference for auditing
         await pool.query(
             `UPDATE verifications 
-             SET payment_status = 'paid', status = 'payment_received', assigned_tier = ? 
+             SET payment_status = 'paid', status = 'payment_received', assigned_tier = ?,
+                 payment_reference = COALESCE(?, payment_reference)
              WHERE user_id = ?`,
-            [normalizedTier, userId]
+            [normalizedTier, paymentReference || null, userId]
         );
 
         // 4. Upsert Badge in badges table
@@ -439,33 +440,32 @@ const syncUserPayment = async (req, res) => {
             return res.status(401).json({ status: false, message: 'Unauthorized' });
         }
 
-        // 1. Check if user is already verified
+        // 1. Fetch user & stored payment reference
         const [userRows] = await pool.query('SELECT id, first_name, last_name, email, role, status, badge_type, vendor_id FROM users WHERE id = ?', [userId]);
         const user = userRows[0];
 
-        if (user && user.status === 'verified') {
-            return res.status(200).json({
-                status: true,
-                verified: true,
-                message: 'Account is already verified',
-                user
-            });
-        }
-
-        // 2. Retrieve pending payment_reference from database
         const [verifRows] = await pool.query(
             'SELECT payment_reference FROM verifications WHERE user_id = ? AND payment_reference IS NOT NULL ORDER BY id DESC LIMIT 1',
             [userId]
         );
-
         let pendingRef = verifRows[0]?.payment_reference;
+
+        // If user is verified AND already has a payment_reference recorded, return early
+        if (user && user.status === 'verified' && pendingRef) {
+            return res.status(200).json({
+                status: true,
+                verified: true,
+                message: 'Account is verified with recorded payment reference.',
+                user
+            });
+        }
 
         const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
         if (!PAYSTACK_SECRET) {
             return res.status(500).json({ status: false, message: 'Paystack secret key is missing in server environment' });
         }
 
-        // If no pending reference saved in DB, query Paystack transaction list by customer email as fallback
+        // If no reference saved in DB, query Paystack transaction list by customer email as fallback
         if (!pendingRef && user?.email) {
             try {
                 const listRes = await axios.get(
@@ -493,7 +493,7 @@ const syncUserPayment = async (req, res) => {
             return res.status(200).json({
                 status: false,
                 verified: false,
-                message: 'No pending payment reference found for your account.'
+                message: 'No pending or historical payment reference found on Paystack for your account.'
             });
         }
 
@@ -535,7 +535,8 @@ const syncUserPayment = async (req, res) => {
                 paystackSubCode: subscription_code || null,
                 paystackPlanCode: plan?.plan_code || null,
                 paystackAuthCode: authorization?.authorization_code || null,
-                customerCode: customer?.customer_code || null
+                customerCode: customer?.customer_code || null,
+                paymentReference: pendingRef
             });
 
             const [updatedUserRows] = await pool.query('SELECT id, first_name, last_name, email, role, status, badge_type, vendor_id FROM users WHERE id = ?', [userId]);
