@@ -28,15 +28,47 @@ import { OnlokBadge, resolveVendorBadgeTier } from '../components/OnlokBadge';
 import { QRCode } from 'react-qr-code';
 import TutorialModal from '../components/TutorialModal';
 
-const getSocialUrl = (platform: 'twitter' | 'instagram' | 'facebook' | 'tiktok' | 'whatsapp', val?: string | null) => {
+const getSocialUrl = (
+  platform: 'twitter' | 'instagram' | 'facebook' | 'tiktok' | 'whatsapp',
+  val?: string | null,
+  vendorIdOrCountry?: string | null
+) => {
   if (!val || !val.trim()) return null;
   const cleanVal = val.trim();
-  if (cleanVal.startsWith('http')) return cleanVal;
+  if (cleanVal.startsWith('http://') || cleanVal.startsWith('https://')) {
+    if (platform === 'whatsapp') {
+      return cleanVal.replace(/wa\.me\/\+/, 'wa.me/');
+    }
+    return cleanVal;
+  }
 
   switch (platform) {
     case 'whatsapp': {
-      const cleanPhone = cleanVal.replace(/\D/g, '');
-      return cleanPhone ? `https://wa.me/+234${cleanPhone}` : null;
+      const hadPlus = cleanVal.startsWith('+');
+      const digitsOnly = cleanVal.replace(/\D/g, '');
+      if (!digitsOnly) return null;
+
+      if (hadPlus) {
+        return `https://wa.me/${digitsOnly}`;
+      }
+
+      const knownPrefixes = ['234', '233', '254', '27', '44', '1'];
+      if (digitsOnly.length >= 11 && knownPrefixes.some(p => digitsOnly.startsWith(p))) {
+        return `https://wa.me/${digitsOnly}`;
+      }
+
+      const localDigits = digitsOnly.replace(/^0+/, '');
+      let countryCode = '234';
+      if (vendorIdOrCountry) {
+        const str = vendorIdOrCountry.toUpperCase();
+        if (str.includes('GH') || str.includes('GHANA')) countryCode = '233';
+        else if (str.includes('KE') || str.includes('KENYA')) countryCode = '254';
+        else if (str.includes('ZA') || str.includes('SOUTH AFRICA')) countryCode = '27';
+        else if (str.includes('US') || str.includes('USA') || str.includes('UNITED STATES')) countryCode = '1';
+        else if (str.includes('GB') || str.includes('UK') || str.includes('UNITED KINGDOM')) countryCode = '44';
+      }
+
+      return `https://wa.me/${countryCode}${localDigits}`;
     }
     case 'twitter': {
       const handle = cleanVal.replace(/^@/, '');
@@ -344,7 +376,7 @@ export default function DashboardPage() {
                   
                   {/* WhatsApp */}
                   {(() => {
-                    const waUrl = getSocialUrl('whatsapp', dashUser?.phone_number);
+                    const waUrl = getSocialUrl('whatsapp', dashUser?.phone_number, dashUser?.vendor_id || dashUser?.country);
                     return (
                       <Box
                         component={waUrl ? 'a' : 'div'}

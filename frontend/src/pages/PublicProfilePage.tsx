@@ -64,15 +64,47 @@ const getCountryFromVendorId = (vendorId?: string) => {
   return null;
 };
 
-const getSocialUrl = (platform: 'twitter' | 'instagram' | 'facebook' | 'tiktok' | 'whatsapp', val?: string | null) => {
+const getSocialUrl = (
+  platform: 'twitter' | 'instagram' | 'facebook' | 'tiktok' | 'whatsapp',
+  val?: string | null,
+  vendorIdOrCountry?: string | null
+) => {
   if (!val || !val.trim()) return null;
   const cleanVal = val.trim();
-  if (cleanVal.startsWith('http')) return cleanVal;
+  if (cleanVal.startsWith('http://') || cleanVal.startsWith('https://')) {
+    if (platform === 'whatsapp') {
+      return cleanVal.replace(/wa\.me\/\+/, 'wa.me/');
+    }
+    return cleanVal;
+  }
 
   switch (platform) {
     case 'whatsapp': {
-      const cleanPhone = cleanVal.replace(/\D/g, '');
-      return cleanPhone ? `https://wa.me/+234${cleanPhone}` : null;
+      const hadPlus = cleanVal.startsWith('+');
+      const digitsOnly = cleanVal.replace(/\D/g, '');
+      if (!digitsOnly) return null;
+
+      if (hadPlus) {
+        return `https://wa.me/${digitsOnly}`;
+      }
+
+      const knownPrefixes = ['234', '233', '254', '27', '44', '1'];
+      if (digitsOnly.length >= 11 && knownPrefixes.some(p => digitsOnly.startsWith(p))) {
+        return `https://wa.me/${digitsOnly}`;
+      }
+
+      const localDigits = digitsOnly.replace(/^0+/, '');
+      let countryCode = '234';
+      if (vendorIdOrCountry) {
+        const str = vendorIdOrCountry.toUpperCase();
+        if (str.includes('GH') || str.includes('GHANA')) countryCode = '233';
+        else if (str.includes('KE') || str.includes('KENYA')) countryCode = '254';
+        else if (str.includes('ZA') || str.includes('SOUTH AFRICA')) countryCode = '27';
+        else if (str.includes('US') || str.includes('USA') || str.includes('UNITED STATES')) countryCode = '1';
+        else if (str.includes('GB') || str.includes('UK') || str.includes('UNITED KINGDOM')) countryCode = '44';
+      }
+
+      return `https://wa.me/${countryCode}${localDigits}`;
     }
     case 'twitter': {
       const handle = cleanVal.replace(/^@/, '');
@@ -301,7 +333,7 @@ export default function PublicProfilePage() {
       label: 'WhatsApp',
       sub: 'Chat to order',
       icon: <WhatsAppIcon sx={{ color: '#25D366', fontSize: 30 }} />,
-      href: vendor?.phone_number ? getSocialUrl('whatsapp', vendor.phone_number) : null,
+      href: vendor?.phone_number ? getSocialUrl('whatsapp', vendor.phone_number, vendor.vendor_id || vendor.country) : null,
     },
     {
       label: 'Instagram',
@@ -644,7 +676,7 @@ export default function PublicProfilePage() {
           <Typography sx={{ fontSize: '0.78rem', color: '#64748B', mb: 2 }}>Reach Out To Us On Our Verified Channels To Place Order And Make Enquiry</Typography>
           <Box sx={{ display: 'flex', gap: 2 }}>
             <Box sx={{ flex: 1 }}>
-              <SocialRow icon={<WhatsAppIcon sx={{ color: '#25D366', fontSize: 30 }} />} label="Whatsapp" sub="Chat To Order" url={getSocialUrl('whatsapp', vendor?.phone_number)} disabled={effectiveStatus === 'revoked'} />
+              <SocialRow icon={<WhatsAppIcon sx={{ color: '#25D366', fontSize: 30 }} />} label="Whatsapp" sub="Chat To Order" url={getSocialUrl('whatsapp', vendor?.phone_number, vendor?.vendor_id || vendor?.country)} disabled={effectiveStatus === 'revoked'} />
               <Divider sx={{ borderColor: '#F1F5F9', my: 0.5 }} />
               <SocialRow icon={<InstagramIcon sx={{ color: '#E1306C', fontSize: 30 }} />} label="Instagram" sub="View And DM Us" url={getSocialUrl('instagram', vendor?.instagram_handle)} disabled={effectiveStatus === 'revoked'} />
               <Divider sx={{ borderColor: '#F1F5F9', my: 0.5 }} />
