@@ -11,13 +11,12 @@ const crypto = require('crypto');
 const logger = require('./utils/logger');
 require('dotenv').config();
 
+const { requestContextMiddleware } = require('./middlewares/requestContextMiddleware');
+
 const app = express();
 
-// Assign a unique Trace ID to every request
-app.use((req, res, next) => {
-    req.id = crypto.randomUUID();
-    next();
-});
+// Trace ID & Request Context Tracing
+app.use(requestContextMiddleware);
 
 // Middlewares
 app.use(helmet({ crossOriginResourcePolicy: false }));
@@ -44,11 +43,20 @@ app.use(express.json({
     }
 }));
 
-// Use Morgan for structured HTTP logging
-morgan.token('traceId', (req) => req.id);
-app.use(morgan(':method :url :status :res[content-length] - :response-time ms | traceId=:traceId', {
-    stream: { write: (message) => logger.info(message.trim(), { type: 'http' }) }
-}));
+// Structured HTTP Request Logging
+app.use((req, res, next) => {
+    const start = Date.now();
+    res.on('finish', () => {
+        const duration = Date.now() - start;
+        const level = res.statusCode >= 500 ? 'error' : res.statusCode >= 400 ? 'warn' : 'info';
+        logger[level](`HTTP ${req.method} ${req.originalUrl || req.url} ${res.statusCode} (${duration}ms)`, {
+            type: 'http_request',
+            statusCode: res.statusCode,
+            durationMs: duration
+        });
+    });
+    next();
+});
 
 
 // Website hit tracking middleware
@@ -142,18 +150,29 @@ app.get(/.*/, (req, res) => {
 
 // Global Error Handler
 app.use((err, req, res, next) => {
-    logger.error(`Unhandled Error: ${err.message}`, {
-        traceId: req.id,
-        stack: err.stack,
-        url: req.originalUrl,
-        method: req.method
+    const statusCode = err.status || err.statusCode || 500;
+    logger.error(`Unhandled Express Error: ${err.message}`, {
+        error: err,
+        statusCode,
+        query: req.query,
+        params: req.params,
+        body: req.body
     });
     
-    res.status(err.status || 500).json({
+    res.status(statusCode).json({
         status: 'error',
-        message: 'Internal Server Error',
+        message: err.message || 'Internal Server Error',
         traceId: req.id
     });
+});
+
+// Process-level Error Safety
+process.on('uncaughtException', (err) => {
+    logger.error(`CRITICAL: Uncaught Exception: ${err.message}`, { error: err });
+});
+
+process.on('unhandledRejection', (reason) => {
+    logger.error(`CRITICAL: Unhandled Promise Rejection`, { error: reason });
 });
 
 // Auto-migrate: create tables, add missing columns, seed admin
@@ -166,5 +185,5 @@ startCronJobs();
 // Start the server
 const port = process.env.PORT || 5000;
 app.listen(port, '0.0.0.0', () => {
-    console.log(`✅ ONLOK PRODUCTION SERVER IS LIVE ON PORT ${port} ✅`);
+    logger.info(`ONLOK PRODUCTION SERVER IS LIVE ON PORT ${port}`);
 });

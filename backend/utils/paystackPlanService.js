@@ -1,5 +1,6 @@
 const axios = require('axios');
 const pool = require('../config/db');
+const logger = require('./logger');
 
 const getPaystackSecret = () => process.env.PAYSTACK_SECRET_KEY;
 
@@ -55,7 +56,7 @@ const SUBSCRIPTION_TIERS = {
 };
 
 /**
- * Map plan tier string (e.g. 'Bronze', 'Silver', 'Gold', 'Verified Vendor', etc.) and billing cycle to tier object
+ * Map plan tier string and billing cycle to tier object
  */
 const resolveTierConfig = (planOrTierInput, billingCycle = 'annually') => {
     const inputStr = (planOrTierInput || '').toLowerCase();
@@ -102,7 +103,7 @@ const createPaystackPlan = async ({ name, amount, interval, description }) => {
         'https://api.paystack.co/plan',
         {
             name,
-            amount: Math.round(amount * 100), // convert NGN to kobo
+            amount: Math.round(amount * 100),
             interval,
             description,
             currency: 'NGN'
@@ -142,7 +143,7 @@ const getOrCreatePlanCode = async (planOrTierInput, billingCycle = 'annually') =
             return { plan_code: found.plan_code, config };
         }
     } catch (err) {
-        console.warn('[PaystackPlanService] Error searching Paystack plans:', err.message);
+        logger.warn('PaystackPlanService: Warning searching Paystack existing plans', { error: err, configKey: config.key });
     }
 
     // 3. Create plan on Paystack
@@ -157,7 +158,7 @@ const getOrCreatePlanCode = async (planOrTierInput, billingCycle = 'annually') =
         await pool.query('REPLACE INTO admin_settings (setting_key, setting_value) VALUES (?, ?)', [settingKey, planCode]);
         return { plan_code: planCode, config };
     } catch (err) {
-        console.error('[PaystackPlanService] Plan creation failed:', err.response?.data || err.message);
+        logger.error('PaystackPlanService: Plan creation failed', { error: err, configKey: config.key });
         throw new Error(`Failed to initialize Paystack plan for ${config.plan_name}`);
     }
 };

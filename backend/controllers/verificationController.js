@@ -5,6 +5,7 @@ const pool = require('../config/db');
 const { validateDocument, validateVideo } = require('../utils/fileValidator');
 const { UPLOAD_DIR, TEMP_DIR } = require('../middlewares/uploadMiddleware');
 const { sendEmail } = require('../utils/emailService');
+const logger = require('../utils/logger');
 
 // In-memory or file-backed upload sessions
 const CHUNK_SIZE = 2 * 1024 * 1024; // 2 MB per chunk
@@ -26,8 +27,8 @@ const uploadSingleDocument = async (req, res) => {
             size: req.file.size
         });
     } catch (error) {
-        console.error('Upload Single Document Error:', error);
-        return res.status(500).json({ message: 'Error uploading document' });
+        logger.error('Upload Single Document Error', { error });
+        res.status(500).json({ message: error.message || 'Failed to process document upload.' });
     }
 };
 
@@ -87,8 +88,8 @@ const initChunkUpload = async (req, res) => {
             message: 'Chunked upload session initialized'
         });
     } catch (error) {
-        console.error('Init Chunk Upload Error:', error);
-        return res.status(500).json({ message: 'Error initializing chunked upload' });
+        logger.error('Init Chunk Upload Error', { error });
+        res.status(500).json({ message: error.message || 'Failed to initialize video upload.' });
     }
 };
 
@@ -130,8 +131,8 @@ const uploadChunk = async (req, res) => {
             totalReceived: session.receivedChunks.size
         });
     } catch (error) {
-        console.error('Upload Chunk Error:', error);
-        return res.status(500).json({ message: 'Error receiving file chunk' });
+        logger.error('Upload Chunk Error', { error });
+        res.status(500).json({ message: error.message || 'Failed to upload video chunk.' });
     }
 };
 
@@ -182,7 +183,7 @@ const completeChunkUpload = async (req, res) => {
             fs.rmSync(sessionDir, { recursive: true, force: true });
             activeSessions.delete(uploadId);
         } catch (cleanupErr) {
-            console.warn('Failed to clean up temp chunk dir:', cleanupErr);
+            logger.warn('Failed to clean up temp chunk dir', { error: cleanupErr });
         }
 
         const stats = fs.statSync(finalFilePath);
@@ -195,8 +196,8 @@ const completeChunkUpload = async (req, res) => {
             size: stats.size
         });
     } catch (error) {
-        console.error('Complete Chunk Upload Error:', error);
-        return res.status(500).json({ message: 'Error finalizing chunked upload' });
+        logger.error('Complete Chunk Upload Error', { error });
+        res.status(500).json({ message: error.message || 'Failed to finalize video upload.' });
     }
 };
 
@@ -301,8 +302,8 @@ const submitVerification = async (req, res) => {
             verification_id: verificationId
         });
     } catch (error) {
-        console.error('Verification Submit Error:', error);
-        return res.status(500).json({ message: 'Server error processing verification' });
+        logger.error('Verification Submit Error', { error });
+        res.status(500).json({ message: 'Server error submitting verification', error: error.message });
     }
 };
 
@@ -328,8 +329,8 @@ const getMyVerification = async (req, res) => {
 
         return res.status(200).json(rows[0]);
     } catch (error) {
-        console.error('Get Verification Error:', error);
-        return res.status(500).json({ message: 'Server error fetching verification' });
+        logger.error('Get Verification Error', { error });
+        res.status(500).json({ message: 'Server error fetching verification' });
     }
 };
 
@@ -397,8 +398,8 @@ const resubmitDocuments = async (req, res) => {
             verification_id: currentRec.id
         });
     } catch (error) {
-        console.error('Verification Resubmit Error:', error);
-        return res.status(500).json({ message: 'Server error resubmitting documents' });
+        logger.error('Verification Resubmit Error', { error });
+        res.status(500).json({ message: error.message || 'Failed to resubmit verification documents.' });
     }
 };
 

@@ -1,6 +1,7 @@
 const pool = require('../config/db');
 const paystackService = require('../utils/paystackService');
 const crypto = require('crypto');
+const logger = require('../utils/logger');
 
 // @desc    Get list of supported banks in Nigeria
 // @route   GET /api/withdrawals/banks
@@ -10,7 +11,7 @@ const getBanksList = async (req, res) => {
         const banksData = await paystackService.getBanks('NGN');
         res.status(200).json(banksData);
     } catch (error) {
-        console.error('Fetch Banks Error:', error.response?.data || error.message);
+        logger.error('Fetch Banks Error', { error });
         res.status(500).json({ message: 'Failed to fetch bank list', error: error.message });
     }
 };
@@ -28,7 +29,7 @@ const verifyBankAccount = async (req, res) => {
         const result = await paystackService.resolveAccountNumber(account_number, bank_code);
         res.status(200).json(result);
     } catch (error) {
-        console.error('Verify Account Error:', error.response?.data || error.message);
+        logger.error('Verify Account Error', { error });
         const msg = error.response?.data?.message || 'Could not resolve account details. Please check account number and bank.';
         res.status(400).json({ message: msg });
     }
@@ -47,7 +48,6 @@ const requestWithdrawal = async (req, res) => {
             return res.status(400).json({ message: 'Minimum withdrawal amount is ₦5,000' });
         }
 
-        // 1. Automatically move pending > 7 days to available
         await pool.query(`
             UPDATE referrals 
             SET status = 'available' 
@@ -77,10 +77,8 @@ const requestWithdrawal = async (req, res) => {
         let finalAccountNumber = account_number;
         let finalAccountName = account_name;
 
-        // If bank details provided, create Paystack recipient
         if (finalAccountNumber && finalBankCode) {
             try {
-                // If account name is missing, attempt to resolve it
                 if (!finalAccountName) {
                     const resolved = await paystackService.resolveAccountNumber(finalAccountNumber, finalBankCode);
                     finalAccountName = resolved.data.account_name;
@@ -94,20 +92,18 @@ const requestWithdrawal = async (req, res) => {
                 });
                 recipientCode = recipientRes.data.recipient_code;
 
-                // Save or update user bank details for future requests
                 await pool.query(`
                     UPDATE users 
                     SET bank_code = ?, bank_name = ?, account_number = ?, account_name = ?, paystack_recipient_code = ?
                     WHERE id = ?
                 `, [finalBankCode, finalBankName || '', finalAccountNumber, finalAccountName || '', recipientCode, userId]);
             } catch (recipientErr) {
-                console.error('Error creating recipient on Paystack:', recipientErr.response?.data || recipientErr.message);
+                logger.error('Error creating recipient on Paystack', { error: recipientErr });
                 return res.status(400).json({
                     message: recipientErr.response?.data?.message || 'Failed to verify recipient bank details with Paystack.'
                 });
             }
         } else {
-            // Check if user has saved recipient code
             const [users] = await pool.query('SELECT bank_code, bank_name, account_number, account_name, paystack_recipient_code FROM users WHERE id = ?', [userId]);
             if (users.length > 0 && users[0].paystack_recipient_code) {
                 recipientCode = users[0].paystack_recipient_code;
@@ -122,10 +118,8 @@ const requestWithdrawal = async (req, res) => {
             ? `${finalAccountNumber}\n${finalBankName}${finalAccountName ? ` (${finalAccountName})` : ''}` 
             : (payment_method || 'Bank Transfer');
 
-        // Unique transfer reference for Paystack reconciliation and idempotency
         const transferReference = `wd_ref_${userId}_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
 
-        // Create the withdrawal request in 'pending' status
         await pool.query(`
             INSERT INTO withdrawals (
                 user_id, amount, status, payment_method, account_details,
@@ -138,13 +132,15 @@ const requestWithdrawal = async (req, res) => {
             recipientCode || null, transferReference
         ]);
 
+        logger.info(`Withdrawal request submitted for user #${userId}`, { userId, amount: numAmount, transferReference });
+
         res.status(201).json({
             message: 'Withdrawal request submitted successfully',
             transfer_reference: transferReference
         });
 
     } catch (error) {
-        console.error('Withdrawal Request Error:', error);
+        logger.error('Withdrawal Request Error', { error });
         res.status(500).json({ message: 'Server error processing withdrawal request' });
     }
 };

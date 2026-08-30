@@ -1,5 +1,5 @@
-
 const axios = require('axios');
+const logger = require('./logger');
 
 const getPaystackSecret = () => process.env.PAYSTACK_SECRET_KEY;
 
@@ -39,25 +39,21 @@ const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
 /**
  * Fetch list of supported banks in Nigeria (or given currency) from Paystack
- * Includes in-memory caching and fallback to static bank list on DNS/network errors.
  */
 const getBanks = async (currency = 'NGN') => {
-    // 1. Return fresh cached data if available
     if (bankCache.data && (Date.now() - bankCache.timestamp < CACHE_TTL)) {
         return bankCache.data;
     }
 
     const secret = getPaystackSecret();
     if (!secret) {
-        console.warn('Paystack Service Warning: PAYSTACK_SECRET_KEY missing, using fallback bank list');
+        logger.warn('Paystack Service Warning: PAYSTACK_SECRET_KEY missing in environment, using fallback bank list');
         return { status: true, message: 'Banks retrieved (fallback)', data: FALLBACK_BANKS_NGN };
     }
 
     try {
         const response = await axios.get(`https://api.paystack.co/bank?currency=${currency}`, {
-            headers: {
-                Authorization: `Bearer ${secret}`
-            },
+            headers: { Authorization: `Bearer ${secret}` },
             timeout: 8000
         });
 
@@ -67,15 +63,13 @@ const getBanks = async (currency = 'NGN') => {
             return response.data;
         }
     } catch (error) {
-        console.warn(`Paystack Service Warning: Bank list fetch failed (${error.code || error.message}). Using fallback list.`);
+        logger.warn(`Paystack Service Warning: Bank list fetch failed. Using fallback list.`, { error, currency });
     }
 
-    // 2. Return stale cached data if API call failed
     if (bankCache.data) {
         return bankCache.data;
     }
 
-    // 3. Fallback static list
     return {
         status: true,
         message: 'Banks retrieved (offline fallback)',
@@ -89,20 +83,20 @@ const getBanks = async (currency = 'NGN') => {
 const resolveAccountNumber = async (accountNumber, bankCode) => {
     const secret = getPaystackSecret();
     if (!secret) {
+        logger.error('Paystack Service Error: PAYSTACK_SECRET_KEY environment variable is missing');
         throw new Error('PAYSTACK_SECRET_KEY environment variable is not configured');
     }
     try {
         const response = await axios.get(
             `https://api.paystack.co/bank/resolve?account_number=${encodeURIComponent(accountNumber)}&bank_code=${encodeURIComponent(bankCode)}`,
             {
-                headers: {
-                    Authorization: `Bearer ${secret}`
-                },
+                headers: { Authorization: `Bearer ${secret}` },
                 timeout: 10000
             }
         );
         return response.data;
     } catch (error) {
+        logger.error(`Paystack Service Error: Account resolution failed for bankCode ${bankCode}`, { error, accountNumber, bankCode });
         if (error.code === 'EAI_AGAIN' || error.code === 'ENOTFOUND' || error.code === 'ETIMEDOUT') {
             throw new Error('Network connection issue connecting to Paystack for account resolution. Please check internet connection.');
         }
@@ -118,24 +112,20 @@ const createTransferRecipient = async ({ name, account_number, bank_code, curren
     if (!secret) {
         throw new Error('PAYSTACK_SECRET_KEY environment variable is not configured');
     }
-    const response = await axios.post(
-        'https://api.paystack.co/transferrecipient',
-        {
-            type: 'nuban',
-            name,
-            account_number,
-            bank_code,
-            currency
-        },
-        {
-            headers: {
-                Authorization: `Bearer ${secret}`,
-                'Content-Type': 'application/json'
-            },
-            timeout: 10000
-        }
-    );
-    return response.data;
+    try {
+        const response = await axios.post(
+            'https://api.paystack.co/transferrecipient',
+            { type: 'nuban', name, account_number, bank_code, currency },
+            {
+                headers: { Authorization: `Bearer ${secret}`, 'Content-Type': 'application/json' },
+                timeout: 10000
+            }
+        );
+        return response.data;
+    } catch (error) {
+        logger.error('Paystack Service Error: Failed to create transfer recipient', { error, name, bank_code });
+        throw error;
+    }
 };
 
 /**
@@ -146,24 +136,26 @@ const initiateSingleTransfer = async ({ amount, recipient, reference, reason = '
     if (!secret) {
         throw new Error('PAYSTACK_SECRET_KEY environment variable is not configured');
     }
-    const response = await axios.post(
-        'https://api.paystack.co/transfer',
-        {
-            source: 'balance',
-            amount: Math.round(amount * 100), // convert Naira to Kobo
-            recipient,
-            reference,
-            reason
-        },
-        {
-            headers: {
-                Authorization: `Bearer ${secret}`,
-                'Content-Type': 'application/json'
+    try {
+        const response = await axios.post(
+            'https://api.paystack.co/transfer',
+            {
+                source: 'balance',
+                amount: Math.round(amount * 100),
+                recipient,
+                reference,
+                reason
             },
-            timeout: 15000
-        }
-    );
-    return response.data;
+            {
+                headers: { Authorization: `Bearer ${secret}`, 'Content-Type': 'application/json' },
+                timeout: 15000
+            }
+        );
+        return response.data;
+    } catch (error) {
+        logger.error(`Paystack Service Error: Single transfer failed for ref "${reference}"`, { error, amount, recipient, reference });
+        throw error;
+    }
 };
 
 /**
@@ -181,22 +173,20 @@ const initiateBulkTransfer = async (transfers) => {
         reason: item.reason || 'Referral Payout'
     }));
 
-    const response = await axios.post(
-        'https://api.paystack.co/transfer/bulk',
-        {
-            currency: 'NGN',
-            source: 'balance',
-            transfers: formattedTransfers
-        },
-        {
-            headers: {
-                Authorization: `Bearer ${secret}`,
-                'Content-Type': 'application/json'
-            },
-            timeout: 15000
-        }
-    );
-    return response.data;
+    try {
+        const response = await axios.post(
+            'https://api.paystack.co/transfer/bulk',
+            { currency: 'NGN', source: 'balance', transfers: formattedTransfers },
+            {
+                headers: { Authorization: `Bearer ${secret}`, 'Content-Type': 'application/json' },
+                timeout: 15000
+            }
+        );
+        return response.data;
+    } catch (error) {
+        logger.error('Paystack Service Error: Bulk transfer failed', { error, count: transfers.length });
+        throw error;
+    }
 };
 
 /**
@@ -207,13 +197,16 @@ const verifyTransfer = async (reference) => {
     if (!secret) {
         throw new Error('PAYSTACK_SECRET_KEY environment variable is not configured');
     }
-    const response = await axios.get(`https://api.paystack.co/transfer/verify/${encodeURIComponent(reference)}`, {
-        headers: {
-            Authorization: `Bearer ${secret}`
-        },
-        timeout: 10000
-    });
-    return response.data;
+    try {
+        const response = await axios.get(`https://api.paystack.co/transfer/verify/${encodeURIComponent(reference)}`, {
+            headers: { Authorization: `Bearer ${secret}` },
+            timeout: 10000
+        });
+        return response.data;
+    } catch (error) {
+        logger.error(`Paystack Service Error: Transfer verification failed for ref "${reference}"`, { error, reference });
+        throw error;
+    }
 };
 
 module.exports = {

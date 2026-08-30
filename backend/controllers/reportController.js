@@ -1,11 +1,12 @@
 const pool = require('../config/db');
+const logger = require('../utils/logger');
 
-// ── Allowed value constants (single source of truth) ────────────────────────
+// Allowed value constants (single source of truth)
 const ALLOWED_CATEGORIES = ['fraud', 'impersonation', 'harassment', 'inaccurate_information', 'others'];
 const ALLOWED_STATUSES   = ['pending', 'reviewed', 'dismissed'];
 const ALLOWED_PRIORITIES = ['low', 'medium', 'high'];
 
-// ── Helper: parse evidence_files JSON safely ─────────────────────────────────
+// Helper: parse evidence_files JSON safely
 const parseEvidenceFiles = (report) => {
     if (report.evidence_files && typeof report.evidence_files === 'string') {
         try {
@@ -17,13 +18,13 @@ const parseEvidenceFiles = (report) => {
     return report;
 };
 
-// ── Helper: validate a positive integer ID from route param ──────────────────
+// Helper: validate a positive integer ID from route param
 const parsePositiveInt = (value) => {
     const n = parseInt(value, 10);
     return Number.isInteger(n) && n > 0 ? n : null;
 };
 
-// ── Helper: insert a timeline event (fire-and-forget safe) ───────────────────
+// Helper: insert a timeline event (fire-and-forget safe)
 const addTimelineEvent = async (reportId, eventType, description) => {
     try {
         await pool.execute(
@@ -31,19 +32,17 @@ const addTimelineEvent = async (reportId, eventType, description) => {
             [reportId, eventType, description]
         );
     } catch (err) {
-        // Non-fatal — log but don't propagate
-        console.error('[Timeline] Failed to insert event:', err.message);
+        logger.warn('[Timeline] Failed to insert event', { error: err, reportId, eventType });
     }
 };
 
 // @desc    Submit a report against a vendor
 // @route   POST /api/reports
-// @access  Public (anonymous-safe — reporter_id optional)
+// @access  Public
 const submitReport = async (req, res) => {
     try {
         const { reported_vendor_id, category, context, contact_email, phone_number, is_whatsapp } = req.body;
 
-        // Validate required fields
         if (!reported_vendor_id || !category || !context) {
             return res.status(400).json({ message: 'Vendor/Order ID, category, and context are required.' });
         }
@@ -52,16 +51,13 @@ const submitReport = async (req, res) => {
             return res.status(400).json({ message: `Category must be one of: ${ALLOWED_CATEGORIES.join(', ')}` });
         }
 
-        // reporter_id is optional (null if not authenticated / anonymous)
         const reporter_id = req.user ? req.user.id : null;
 
-        // Handle uploaded files
         let evidence_files = null;
         if (req.files && req.files.length > 0) {
             evidence_files = JSON.stringify(req.files.map(f => `/uploads/reports/${f.filename}`));
         }
 
-        // Generate a reference number
         const reference_number = `TP-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
         const query = `
@@ -80,7 +76,6 @@ const submitReport = async (req, res) => {
             evidence_files
         ]);
 
-        // Seed the first timeline event for every new report
         await addTimelineEvent(
             result.insertId,
             'case_opened',
@@ -94,7 +89,7 @@ const submitReport = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Report Submit Error:', error);
+        logger.error('Report Submit Error', { error });
         res.status(500).json({ message: 'Server error submitting report' });
     }
 };
@@ -110,7 +105,6 @@ const getReports = async (req, res) => {
 
         const { status, category, priority } = req.query;
 
-        // Build WHERE clauses dynamically — only add if valid values provided
         const conditions = [];
         const params     = [];
 
@@ -131,14 +125,12 @@ const getReports = async (req, res) => {
 
         const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
-        // Count total matching rows (for pagination metadata)
         const [countRows] = await pool.query(
             `SELECT COUNT(*) AS total FROM reports r ${whereClause}`,
             params
         );
         const total = countRows[0].total;
 
-        // Fetch paginated results
         const [reports] = await pool.query(
             `SELECT r.id, r.reference_number, r.reported_vendor_id, r.contact_email,
                     r.phone_number, r.is_whatsapp, r.category, r.context,
@@ -157,7 +149,7 @@ const getReports = async (req, res) => {
         res.status(200).json({ results: reports, total, page, limit });
 
     } catch (error) {
-        console.error('Get Reports Error:', error);
+        logger.error('Get Reports Error', { error });
         res.status(500).json({ message: 'Server error fetching reports' });
     }
 };
@@ -172,7 +164,6 @@ const getReportById = async (req, res) => {
             return res.status(400).json({ message: 'Invalid report ID.' });
         }
 
-        // Fetch core report row
         const [rows] = await pool.execute(
             `SELECT r.id, r.reference_number, r.reported_vendor_id, r.contact_email,
                     r.phone_number, r.is_whatsapp, r.category, r.context,
@@ -190,7 +181,6 @@ const getReportById = async (req, res) => {
 
         const report = parseEvidenceFiles(rows[0]);
 
-        // Fetch internal admin notes (newest first)
         const [notes] = await pool.execute(
             `SELECT rn.id, rn.note, rn.created_at,
                     u.first_name AS admin_first_name, u.last_name AS admin_last_name
@@ -201,7 +191,6 @@ const getReportById = async (req, res) => {
             [id]
         );
 
-        // Fetch timeline events (oldest first for chronological display)
         const [timeline] = await pool.execute(
             `SELECT id, event_type, description, created_at
              FROM report_timeline
@@ -213,7 +202,7 @@ const getReportById = async (req, res) => {
         res.status(200).json({ ...report, notes, timeline });
 
     } catch (error) {
-        console.error('Get Report By ID Error:', error);
+        logger.error('Get Report By ID Error', { error });
         res.status(500).json({ message: 'Server error fetching report' });
     }
 };
@@ -236,7 +225,6 @@ const getReportStats = async (req, res) => {
 
         const stats = rows[0];
 
-        // Ensure numeric types (MySQL returns strings for SUM)
         res.status(200).json({
             total:               Number(stats.total)               || 0,
             pending:             Number(stats.pending)             || 0,
@@ -247,7 +235,7 @@ const getReportStats = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Get Report Stats Error:', error);
+        logger.error('Get Report Stats Error', { error });
         res.status(500).json({ message: 'Server error fetching report stats' });
     }
 };
@@ -264,7 +252,6 @@ const updateReport = async (req, res) => {
 
         const { status, priority, assigned_to } = req.body;
 
-        // At least one field must be provided
         if (!status && !priority && assigned_to === undefined) {
             return res.status(400).json({ message: 'Provide at least one of: status, priority, assigned_to.' });
         }
@@ -277,12 +264,10 @@ const updateReport = async (req, res) => {
             return res.status(400).json({ message: `Priority must be one of: ${ALLOWED_PRIORITIES.join(', ')}` });
         }
 
-        // Sanitise assigned_to — strip to plain text, cap at 200 chars
         const sanitisedAssignedTo = assigned_to !== undefined
             ? (String(assigned_to).replace(/<[^>]*>/g, '').trim().slice(0, 200) || null)
             : undefined;
 
-        // Build SET clause dynamically
         const setClauses = [];
         const params     = [];
 
@@ -312,7 +297,6 @@ const updateReport = async (req, res) => {
             return res.status(404).json({ message: 'Report not found.' });
         }
 
-        // Auto-write timeline events for meaningful status transitions
         const adminName = req.user
             ? `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() || 'Admin'
             : 'Admin';
@@ -336,7 +320,7 @@ const updateReport = async (req, res) => {
         res.status(200).json({ message: 'Report updated successfully.' });
 
     } catch (error) {
-        console.error('Update Report Error:', error);
+        logger.error('Update Report Error', { error });
         res.status(500).json({ message: 'Server error updating report' });
     }
 };
@@ -356,13 +340,11 @@ const addReportNote = async (req, res) => {
             return res.status(400).json({ message: 'Note text is required.' });
         }
 
-        // Strip HTML tags and enforce length cap — defence in depth
         const note = rawNote.replace(/<[^>]*>/g, '').trim().slice(0, 5000);
         if (note.length === 0) {
             return res.status(400).json({ message: 'Note cannot be empty.' });
         }
 
-        // Verify report exists
         const [check] = await pool.execute('SELECT id FROM reports WHERE id = ?', [id]);
         if (check.length === 0) {
             return res.status(404).json({ message: 'Report not found.' });
@@ -375,11 +357,9 @@ const addReportNote = async (req, res) => {
             [id, adminId, note]
         );
 
-        // Add a timeline event for the note
         const adminName = `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() || 'Admin';
         await addTimelineEvent(id, 'note_added', `Internal note added by ${adminName}.`);
 
-        // Return the newly created note with admin details
         const [rows] = await pool.execute(
             `SELECT rn.id, rn.note, rn.created_at,
                     u.first_name AS admin_first_name, u.last_name AS admin_last_name
@@ -392,7 +372,7 @@ const addReportNote = async (req, res) => {
         res.status(201).json(rows[0]);
 
     } catch (error) {
-        console.error('Add Report Note Error:', error);
+        logger.error('Add Report Note Error', { error });
         res.status(500).json({ message: 'Server error adding note' });
     }
 };

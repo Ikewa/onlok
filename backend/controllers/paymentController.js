@@ -5,6 +5,7 @@ const paystackPlanService = require('../utils/paystackPlanService');
 const { generateVendorId } = require('../utils/generateId');
 const { generateQRCode } = require('../utils/qrCodeGenerator');
 const { sendEmail } = require('../utils/emailService');
+const logger = require('../utils/logger');
 
 // @desc    Initialize a 3-Tier subscription payment session
 // @route   POST /api/payments/initialize
@@ -16,7 +17,7 @@ const initializePayment = async (req, res) => {
         const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
 
         if (!PAYSTACK_SECRET) {
-            console.error('Initialize Payment Error: PAYSTACK_SECRET_KEY is missing in server environment');
+            logger.error('Initialize Payment Error: PAYSTACK_SECRET_KEY is missing in server environment');
             return res.status(500).json({ message: 'Paystack secret key is missing in server environment' });
         }
 
@@ -48,7 +49,7 @@ const initializePayment = async (req, res) => {
             planCode = planResult.plan_code;
             tierConfig = planResult.config;
         } catch (planErr) {
-            console.warn('Initialize Payment Warning: Could not retrieve Paystack plan_code, proceeding with direct charge:', planErr.message);
+            logger.warn('Initialize Payment Warning: Could not retrieve Paystack plan_code, proceeding with direct charge', { error: planErr });
         }
 
         const finalAmount = tierConfig ? tierConfig.amount : (amount || 10000);
@@ -99,7 +100,7 @@ const initializePayment = async (req, res) => {
             data: paystackData
         });
     } catch (error) {
-        console.error('Initialize Payment Error:', error.response?.data || error.message);
+        logger.error('Initialize Payment Error', { error });
         const errorMsg = error.response?.data?.message || error.message || 'Failed to initialize payment';
         res.status(500).json({ message: 'Failed to initialize payment', error: errorMsg, details: error.response?.data });
     }
@@ -138,7 +139,7 @@ const verifyPayment = async (req, res) => {
             const amountPaid   = metadata?.amount        || (amount / 100);
 
             if (!userId) {
-                console.error(`Verify Payment Error: Could not determine userId for ref "${reference}"`);
+                logger.error(`Verify Payment Error: Could not determine userId for ref "${reference}"`, { reference });
                 return res.status(400).json({ status: false, message: 'User ID missing in transaction metadata' });
             }
 
@@ -170,7 +171,7 @@ const verifyPayment = async (req, res) => {
         }
 
     } catch (error) {
-        console.error(`Verify Payment Error for ref "${reference}":`, error.response?.data || error.message || error);
+        logger.error(`Verify Payment Error for ref "${reference}"`, { error, reference });
         const paystackStatus = error.response?.status;
         const isTimeout = error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT';
         const isPaystackDown = isTimeout || (paystackStatus && paystackStatus >= 500);
@@ -189,7 +190,7 @@ const verifyPayment = async (req, res) => {
 // Helper: Provision user tier, badge, subscription record & referral reward safely (Idempotent)
 const processSuccessfulSubscription = async ({ userId, tier, planName, billingCycle, amountPaid, referrerId, paystackSubCode, paystackPlanCode, paystackAuthCode, customerCode }) => {
     if (!userId) {
-        console.error(`Process Subscription Error: Aborting because userId is empty/undefined`);
+        logger.error('Process Subscription Error: Aborting because userId is empty/undefined');
         return;
     }
 
@@ -274,7 +275,7 @@ const processSuccessfulSubscription = async ({ userId, tier, planName, billingCy
             try {
                 qrCodeUrl = await generateQRCode(profileLink);
             } catch (qrErr) {
-                console.warn(`Process Subscription Warning: QR code generation failed for user #${userId}:`, qrErr.message);
+                logger.warn(`Process Subscription Warning: QR code generation failed for user #${userId}`, { error: qrErr, userId });
             }
             await pool.query(
                 'INSERT IGNORE INTO vendor_profiles (user_id, profile_link, qr_code_url) VALUES (?, ?, ?)',
@@ -330,11 +331,11 @@ const processSuccessfulSubscription = async ({ userId, tier, planName, billingCy
             `;
             await sendEmail(userInfo.email, 'Your Onlok Subscription is Active', confirmHtml);
         } catch (emailErr) {
-            console.warn('Process Subscription Warning: Confirmation email failed:', emailErr.message);
+            logger.warn('Process Subscription Warning: Confirmation email failed', { error: emailErr, userId });
         }
 
     } catch (procError) {
-        console.error(`Process Subscription Exception for user #${userId}:`, procError);
+        logger.error(`Process Subscription Exception for user #${userId}`, { error: procError, userId });
         throw procError;
     }
 };
@@ -419,11 +420,11 @@ const paystackWebhook = async (req, res) => {
                 );
             }
         } else {
-            console.warn('Paystack Webhook Warning: Signature mismatch — event ignored.');
+            logger.warn('Paystack Webhook Warning: Signature mismatch — event ignored');
         }
         res.sendStatus(200);
     } catch (error) {
-        console.error('Paystack Webhook Error:', error);
+        logger.error('Paystack Webhook Error', { error });
         res.sendStatus(500);
     }
 };
@@ -481,7 +482,7 @@ const syncUserPayment = async (req, res) => {
                     pendingRef = matchedTx.reference;
                 }
             } catch (listErr) {
-                console.warn('Sync Payment Warning: Failed to query transaction list from Paystack:', listErr.message);
+                logger.warn('Sync Payment Warning: Failed to query transaction list from Paystack', { error: listErr });
             }
         }
 
@@ -510,7 +511,7 @@ const syncUserPayment = async (req, res) => {
             const isUserMatch = (metadataUserId && String(metadataUserId) === String(userId)) || (customerEmail && customerEmail === user.email.toLowerCase());
 
             if (!isUserMatch) {
-                console.warn(`Sync Payment Security Warning: Reference "${pendingRef}" belongs to different user. Aborting.`);
+                logger.warn(`Sync Payment Security Warning: Reference "${pendingRef}" belongs to different user. Aborting.`, { pendingRef, userId });
                 return res.status(403).json({ status: false, message: 'Payment reference does not match your account.' });
             }
 
@@ -552,7 +553,7 @@ const syncUserPayment = async (req, res) => {
             });
         }
     } catch (error) {
-        console.error('Sync User Payment Error:', error.response?.data || error.message);
+        logger.error('Sync User Payment Error', { error });
         return res.status(500).json({ status: false, message: 'Failed to sync payment status with Paystack.', error: error.message });
     }
 };

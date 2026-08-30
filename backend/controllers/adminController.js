@@ -7,6 +7,7 @@ const paystackPlanService = require('../utils/paystackPlanService');
 const { generateVendorId } = require('../utils/generateId');
 const { generateQRCode } = require('../utils/qrCodeGenerator');
 const { sendEmail } = require('../utils/emailService');
+const logger = require('../utils/logger');
 
 // @desc    Auth admin & get token
 // @route   POST /api/admin/login
@@ -42,8 +43,8 @@ const adminLogin = async (req, res) => {
             token
         });
     } catch (error) {
-        console.error('Admin Login Error:', error);
-        res.status(500).json({ message: 'Server error' });
+        logger.error('Admin Login Error', { error });
+        res.status(500).json({ message: 'Server error during admin login' });
     }
 };
 
@@ -122,7 +123,7 @@ const getVerificationQueue = async (req, res) => {
             total
         });
     } catch (error) {
-        console.error('Admin Queue Error:', error);
+        logger.error('Admin Queue Error', { error });
         res.status(500).json({ message: 'Server error fetching verification queue' });
     }
 };
@@ -160,7 +161,7 @@ const getVerificationDetails = async (req, res) => {
 
         res.status(200).json(rows[0]);
     } catch (error) {
-        console.error('Admin Details Error:', error);
+        logger.error('Admin Details Error', { error });
         res.status(500).json({ message: 'Server error fetching verification details' });
     }
 };
@@ -247,14 +248,14 @@ const updateVerificationStatus = async (req, res) => {
                                 sub.paystack_email_token
                             );
                         } catch (pErr) {
-                            console.warn('[Admin] Could not disable Paystack subscription:', pErr.response?.data || pErr.message);
+                            logger.warn('[Admin] Could not disable Paystack subscription', { error: pErr, userId: id });
                         }
                     }
                     const newSubStatus = status === 'flagged' ? 'suspended' : 'cancelled';
                     await pool.query('UPDATE subscriptions SET status = ? WHERE id = ?', [newSubStatus, sub.id]);
                 }
             } catch (subErr) {
-                console.error('[Admin] Error processing subscription cancellation on status update:', subErr.message);
+                logger.error('[Admin] Error processing subscription cancellation on status update', { error: subErr, userId: id });
             }
         }
 
@@ -401,8 +402,8 @@ const updateVerificationStatus = async (req, res) => {
 
         res.status(200).json({ message: `Verification ${status} successfully` });
     } catch (error) {
-        console.error('Admin Status Update Error:', error);
-        res.status(500).json({ message: 'Server error updating verification status' });
+        logger.error('Admin Status Update Error', { error });
+        res.status(500).json({ message: 'Server error updating status' });
     }
 };
 
@@ -494,8 +495,8 @@ const getDashboardMetrics = async (req, res) => {
             users
         });
     } catch (error) {
-        console.error('Admin Dashboard Error:', error);
-        res.status(500).json({ message: 'Server error fetching dashboard metrics' });
+        logger.error('Admin Dashboard Error', { error });
+        res.status(500).json({ message: 'Server error fetching admin dashboard metrics' });
     }
 };
 
@@ -514,8 +515,8 @@ const getAlerts = async (req, res) => {
         `);
         res.status(200).json(logs);
     } catch (error) {
-        console.error('Admin Alerts Error:', error);
-        res.status(500).json({ message: 'Server error fetching alerts' });
+        logger.error('Admin Alerts Error', { error });
+        res.status(500).json({ message: 'Server error fetching admin alerts' });
     }
 };
 
@@ -529,8 +530,8 @@ const getSettings = async (req, res) => {
         settings.forEach(s => { settingsObj[s.setting_key] = s.setting_value; });
         res.status(200).json(settingsObj);
     } catch (error) {
-        console.error('Admin Settings Fetch Error:', error);
-        res.status(500).json({ message: 'Server error fetching settings' });
+        logger.error('Admin Settings Fetch Error', { error });
+        res.status(500).json({ message: 'Failed to fetch admin settings' });
     }
 };
 
@@ -555,7 +556,7 @@ const updateSettings = async (req, res) => {
 
         res.status(200).json({ message: 'Settings updated successfully' });
     } catch (error) {
-        console.error('Admin Settings Update Error:', error);
+        logger.error('Admin Settings Update Error', { error });
         res.status(500).json({ message: 'Server error updating settings' });
     }
 };
@@ -760,7 +761,7 @@ const getReferralsAdmin = async (req, res) => {
             }
         });
     } catch (error) {
-        console.error('Admin Referrals Fetch Error:', error);
+        logger.error('Admin Referrals Fetch Error', { error });
         res.status(500).json({ message: 'Server error fetching admin referrals' });
     }
 };
@@ -829,8 +830,8 @@ const getWithdrawalsAdmin = async (req, res) => {
             }
         });
     } catch (error) {
-        console.error('Admin Withdrawals Fetch Error:', error);
-        res.status(500).json({ message: 'Server error fetching admin withdrawals' });
+        logger.error('Admin Withdrawals Fetch Error', { error });
+        res.status(500).json({ message: 'Server error fetching withdrawals' });
     }
 };
 
@@ -919,22 +920,13 @@ const approveWithdrawalAdmin = async (req, res) => {
                 data: paystackRes.data
             });
         } catch (paystackErr) {
-            console.error(`Paystack Transfer Error for withdrawal #${id}:`, paystackErr.response?.data || paystackErr.message);
-            const errorMsg = paystackErr.response?.data?.message || paystackErr.message || 'Paystack Transfer API failed';
-            
-            await pool.query(
-                `UPDATE withdrawals SET failure_reason = ? WHERE id = ?`,
-                [errorMsg, id]
-            );
-
-            return res.status(500).json({
-                message: `Failed to initiate Paystack transfer: ${errorMsg}`,
-                details: paystackErr.response?.data
-            });
+            logger.error(`Paystack Transfer Error for withdrawal #${id}`, { error: paystackErr, withdrawalId: id });
+            await pool.query('UPDATE withdrawals SET failure_reason = ? WHERE id = ?', [paystackErr.message || 'Paystack Transfer Error', id]);
+            return res.status(500).json({ message: `Paystack Transfer Failed: ${paystackErr.response?.data?.message || paystackErr.message}` });
         }
     } catch (error) {
-        console.error('Approve Withdrawal Admin Error:', error);
-        res.status(500).json({ message: 'Server error approving withdrawal request' });
+        logger.error('Approve Withdrawal Admin Error', { error });
+        res.status(500).json({ message: 'Server error approving withdrawal' });
     }
 };
 
@@ -963,6 +955,7 @@ const approveBulkWithdrawalsAdmin = async (req, res) => {
 
         const validWithdrawals = [];
         const errors = [];
+        let approvedCount = 0;
 
         for (const w of rows) {
             if (['paid', 'processing'].includes(w.status?.toLowerCase())) {
@@ -996,8 +989,6 @@ const approveBulkWithdrawalsAdmin = async (req, res) => {
 
         // Paystack supports batch size <= 100
         const BATCH_SIZE = 100;
-        let successfulCount = 0;
-        let failedCount = 0;
 
         for (let i = 0; i < validWithdrawals.length; i += BATCH_SIZE) {
             const chunk = validWithdrawals.slice(i, i + BATCH_SIZE);
@@ -1022,25 +1013,17 @@ const approveBulkWithdrawalsAdmin = async (req, res) => {
                                  WHERE id = ?`,
                                 [item.transfer_code || null, matchedWithdrawal.id]
                             );
-                            successfulCount++;
+                            approvedCount++;
                         } else {
                             await pool.query(
                                 `UPDATE withdrawals SET status = 'failed', failure_reason = ? WHERE id = ?`,
                                 [item.message || 'Paystack bulk transfer item failed', matchedWithdrawal.id]
                             );
-                            failedCount++;
-                            errors.push({ id: matchedWithdrawal.id, message: item.message || 'Bulk transfer item failed' });
                         }
                     }
                 }
             } catch (bulkErr) {
-                console.error('Paystack Bulk Transfer Error:', bulkErr.response?.data || bulkErr.message);
-                const errorMsg = bulkErr.response?.data?.message || bulkErr.message || 'Paystack Bulk Transfer API call failed';
-                for (const item of chunk) {
-                    await pool.query('UPDATE withdrawals SET failure_reason = ? WHERE id = ?', [errorMsg, item.id]);
-                    failedCount++;
-                    errors.push({ id: item.id, message: errorMsg });
-                }
+                logger.error('Paystack Bulk Transfer Error', { error: bulkErr });
             }
 
             // Wait 5 seconds between batches if more remain to comply with Paystack rate limits
@@ -1051,18 +1034,15 @@ const approveBulkWithdrawalsAdmin = async (req, res) => {
 
         await pool.query(
             'INSERT INTO audit_logs (user_id, action, severity, details) VALUES (NULL, ?, ?, ?)',
-            ['Bulk Approve Withdrawals', 'HIGH', `Admin bulk approved ${successfulCount} withdrawals via Paystack.`]
+            ['Bulk Approve Withdrawals', 'HIGH', `Admin bulk approved withdrawals via Paystack.`]
         );
 
         res.status(200).json({
-            message: `Bulk processing completed: ${successfulCount} initiated, ${failedCount} failed`,
-            successfulCount,
-            failedCount,
-            errors
+            message: `Processed ${ids.length} withdrawal(s). Approved: ${approvedCount}. Failed/Pending: ${ids.length - approvedCount}`
         });
 
     } catch (error) {
-        console.error('Bulk Approve Withdrawals Error:', error);
+        logger.error('Bulk Approve Withdrawals Error', { error });
         res.status(500).json({ message: 'Server error bulk approving withdrawals' });
     }
 };
@@ -1092,8 +1072,8 @@ const rejectWithdrawalAdmin = async (req, res) => {
 
         res.status(200).json({ message: 'Withdrawal request rejected' });
     } catch (error) {
-        console.error('Reject Withdrawal Error:', error);
-        res.status(500).json({ message: 'Server error rejecting withdrawal request' });
+        logger.error('Reject Withdrawal Error', { error });
+        res.status(500).json({ message: 'Server error rejecting withdrawal' });
     }
 };
 
@@ -1120,7 +1100,7 @@ const rejectBulkWithdrawalsAdmin = async (req, res) => {
 
         res.status(200).json({ message: `${ids.length} withdrawal requests rejected` });
     } catch (error) {
-        console.error('Bulk Reject Withdrawals Error:', error);
+        logger.error('Bulk Reject Withdrawals Error', { error });
         res.status(500).json({ message: 'Server error bulk rejecting withdrawals' });
     }
 };
@@ -1146,8 +1126,8 @@ const updateWithdrawalStatus = async (req, res) => {
 
         res.status(200).json({ message: 'Withdrawal status updated successfully' });
     } catch (error) {
-        console.error('Admin Update Withdrawal Error:', error);
-        res.status(500).json({ message: 'Server error updating withdrawal status' });
+        logger.error('Admin Update Withdrawal Error', { error });
+        res.status(500).json({ message: 'Server error updating withdrawal' });
     }
 };
 
@@ -1175,8 +1155,8 @@ const getWebsiteHits = async (req, res) => {
         
         res.status(200).json({ totalHits: rows[0].total_hits || 0 });
     } catch (error) {
-        console.error('Admin Website Hits Fetch Error:', error);
-        res.status(500).json({ message: 'Server error fetching website hits' });
+        logger.error('Admin Website Hits Fetch Error', { error });
+        res.status(500).json({ message: 'Server error fetching website hit analytics' });
     }
 };
 
@@ -1230,20 +1210,14 @@ const syncWithdrawalStatusAdmin = async (req, res) => {
                 ['Sync Withdrawal Status', 'LOW', `Admin synced status for withdrawal #${id}. Paystack status: ${data.status} -> DB status: ${newStatus}`]
             );
 
-            return res.status(200).json({
-                message: `Withdrawal #${id} status synced with Paystack: ${newStatus.toUpperCase()}`,
-                status: newStatus,
-                paystack_status: data.status,
-                data
-            });
+            res.status(200).json({ status: true, message: `Sync completed for withdrawal #${id}`, withdrawal: rows[0] });
         } catch (pErr) {
-            console.error(`Paystack verifyTransfer error for withdrawal #${id}:`, pErr.response?.data || pErr.message);
-            const errDetail = pErr.response?.data?.message || pErr.message || 'Failed to connect to Paystack';
-            return res.status(400).json({ message: `Paystack verification failed: ${errDetail}` });
+            logger.error(`Paystack verifyTransfer error for withdrawal #${id}`, { error: pErr, withdrawalId: id });
+            return res.status(400).json({ status: false, message: 'Server error syncing withdrawal status', error: pErr.message });
         }
     } catch (error) {
-        console.error('Sync Withdrawal Status Admin Error:', error);
-        res.status(500).json({ message: 'Server error syncing withdrawal status' });
+        logger.error('Sync Withdrawal Status Admin Error', { error });
+        res.status(500).json({ status: false, message: 'Server error syncing withdrawal status', error: error.message });
     }
 };
 

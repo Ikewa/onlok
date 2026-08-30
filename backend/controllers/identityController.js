@@ -1,8 +1,8 @@
 const axios = require('axios');
 const pool = require('../config/db');
+const logger = require('../utils/logger');
 
 const PREMBLY_SECRET = process.env.PREMBLY_SECRET_KEY;
-// Prembly API base url for Identitypass
 const PREMBLY_BASE_URL = 'https://api.prembly.com/identitypass/verification';
 
 // Verify NIN
@@ -16,7 +16,7 @@ const verifyNIN = async (req, res) => {
         }
 
         const response = await axios.post(
-            `${PREMBLY_BASE_URL}/nin_wo_face`, // NIN verification without face endpoint
+            `${PREMBLY_BASE_URL}/nin_wo_face`,
             { number: nin },
             {
                 headers: {
@@ -30,7 +30,6 @@ const verifyNIN = async (req, res) => {
         if (response.data.status === true) {
             const ninData = response.data.data;
             
-            // Mark user government ID as verified in our DB if they have a verification record
             const [verifications] = await pool.query('SELECT * FROM verifications WHERE user_id = ?', [userId]);
             if (verifications.length > 0) {
                 await pool.query('UPDATE verifications SET status = ? WHERE user_id = ?', ['approved', userId]);
@@ -41,7 +40,7 @@ const verifyNIN = async (req, res) => {
             res.status(400).json({ status: false, message: 'NIN Verification Failed', error: response.data.message });
         }
     } catch (error) {
-        console.error('NIN Verification Error:', error.response?.data || error.message);
+        logger.error('NIN Verification Error', { error });
         res.status(500).json({ message: 'Failed to verify NIN', error: error.response?.data || error.message });
     }
 };
@@ -73,7 +72,7 @@ const verifyCAC = async (req, res) => {
             res.status(400).json({ status: false, message: 'CAC Verification Failed', error: response.data.message });
         }
     } catch (error) {
-        console.error('CAC Verification Error:', error.response?.data || error.message);
+        logger.error('CAC Verification Error', { error });
         res.status(500).json({ message: 'Failed to verify CAC', error: error.response?.data || error.message });
     }
 };

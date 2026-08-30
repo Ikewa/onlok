@@ -1,5 +1,6 @@
 const pool = require('../config/db');
 const paystackPlanService = require('../utils/paystackPlanService');
+const logger = require('../utils/logger');
 
 // @desc    Get current user subscription and badge status
 // @route   GET /api/subscriptions/me
@@ -43,7 +44,7 @@ const getMySubscription = async (req, res) => {
             subscription: currentSub
         });
     } catch (error) {
-        console.error('Get Subscription Error:', error);
+        logger.error('Get Subscription Error', { error });
         res.status(500).json({ message: 'Server error fetching subscription details' });
     }
 };
@@ -66,7 +67,7 @@ const getManageSubscriptionLink = async (req, res) => {
         const link = await paystackPlanService.getSubscriptionManageLink(subs[0].paystack_subscription_code);
         res.status(200).json({ link });
     } catch (error) {
-        console.error('Get Manage Subscription Link Error:', error.response?.data || error.message);
+        logger.error('Get Manage Subscription Link Error', { error });
         res.status(500).json({ message: 'Failed to generate subscription management link' });
     }
 };
@@ -91,7 +92,7 @@ const cancelMySubscription = async (req, res) => {
             try {
                 await paystackPlanService.disablePaystackSubscription(sub.paystack_subscription_code, sub.paystack_email_token);
             } catch (pErr) {
-                console.warn('Paystack disable subscription error:', pErr.response?.data || pErr.message);
+                logger.warn('Paystack disable subscription warning', { error: pErr });
             }
         }
 
@@ -104,7 +105,7 @@ const cancelMySubscription = async (req, res) => {
 
         res.status(200).json({ message: 'Subscription cancelled successfully' });
     } catch (error) {
-        console.error('Cancel Subscription Error:', error);
+        logger.error('Cancel Subscription Error', { error });
         res.status(500).json({ message: 'Server error cancelling subscription' });
     }
 };

@@ -9,6 +9,7 @@ const { generateVendorId } = require('../utils/generateId');
 const { generateQRCode } = require('../utils/qrCodeGenerator');
 const crypto = require('crypto');
 const { sendEmail } = require('../utils/emailService');
+const logger = require('../utils/logger');
 
 // Generate JWT
 const generateToken = (id, role, vendor_id) => {
@@ -80,12 +81,8 @@ const registerUser = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Registration Error:', error);
-        res.status(500).json({
-            message: 'Server error during registration',
-            error: error.message,
-            stack: error.stack
-        });
+        logger.error('Registration Error', { error });
+        res.status(500).json({ message: 'Server error during registration', error: error.message });
     }
 };
 
@@ -128,8 +125,8 @@ const loginUser = async (req, res) => {
         }
 
     } catch (error) {
-        console.error('Login Error:', error);
-        res.status(500).json({ message: 'Server error during login' });
+        logger.error('Login Error', { error });
+        res.status(500).json({ message: 'Server error during login', error: error.message });
     }
 };
 
@@ -188,8 +185,8 @@ const getMe = async (req, res) => {
 
         res.status(200).json(rows[0]);
     } catch (error) {
-        console.error('Get Me Error:', error);
-        res.status(500).json({ message: 'Server error fetching profile' });
+        logger.error('Get Me Error', { error });
+        res.status(500).json({ message: 'Server error fetching profile', error: error.message });
     }
 };
 
@@ -201,8 +198,8 @@ const getUsers = async (req, res) => {
         const [rows] = await pool.query('SELECT id, vendor_id, first_name, last_name, business_name, email, phone_number, business_address, country, role, status, created_at FROM users');
         res.status(200).json(rows);
     } catch (error) {
-        console.error('Get Users Error:', error);
-        res.status(500).json({ message: 'Server error fetching users' });
+        logger.error('Get Users Error', { error });
+        res.status(500).json({ message: 'Server error fetching users', error: error.message });
     }
 };
 
@@ -263,8 +260,8 @@ const deleteUser = async (req, res) => {
 
         res.status(200).json({ message: 'User deleted successfully' });
     } catch (error) {
-        console.error('Delete Error:', error);
-        res.status(500).json({ message: 'Server error during deletion' });
+        logger.error('Delete Error', { error });
+        res.status(500).json({ message: 'Server error deleting account', error: error.message });
     }
 };
 
@@ -363,8 +360,8 @@ const getReferrals = async (req, res) => {
             withdrawals
         });
     } catch (error) {
-        console.error('Get Referrals Error:', error);
-        res.status(500).json({ message: 'Server error fetching referrals' });
+        logger.error('Get Referrals Error', { error });
+        res.status(500).json({ message: 'Failed to fetch referral performance metrics.' });
     }
 };
 
@@ -399,8 +396,12 @@ const safeDeleteOldAvatar = (oldUrl) => {
     // Final absolute-path check ensures we stay inside AVATAR_DIR
     if (!fullPath.startsWith(AVATAR_DIR)) return;
     fs.unlink(fullPath, (err) => {
-        if (err && err.code !== 'ENOENT') {
-            console.error('Failed to delete old avatar:', err.message);
+        try {
+            if (err && err.code !== 'ENOENT') {
+                logger.warn('Failed to delete old avatar file', { error: err });
+            }
+        } catch (err) {
+            logger.warn('Failed to delete old avatar file', { error: err });
         }
     });
 };
@@ -466,10 +467,8 @@ const uploadProfilePicture = async (req, res) => {
         res.status(200).json({ profile_picture_url: profilePictureUrl });
 
     } catch (error) {
-        // Clean up uploaded file on any unexpected error
-        if (uploadedFilePath) fs.unlink(uploadedFilePath, () => { });
-        console.error('Upload Profile Picture Error:', error);
-        res.status(500).json({ message: 'Server error uploading profile picture.' });
+        logger.error('Upload Profile Picture Error', { error });
+        res.status(500).json({ message: 'Server error uploading profile picture', error: error.message });
     }
 };
 
@@ -517,8 +516,8 @@ const forgotPassword = async (req, res) => {
 
         res.status(200).json({ message: 'If that email is in our system, a reset link has been sent.' });
     } catch (error) {
-        console.error('Forgot Password Error:', error);
-        res.status(500).json({ message: 'Server error handling forgot password.' });
+        logger.error('Forgot Password Error', { error });
+        res.status(500).json({ message: 'Failed to process forgot password request' });
     }
 };
 
@@ -558,8 +557,8 @@ const resetPassword = async (req, res) => {
 
         res.status(200).json({ message: 'Password has been successfully reset. You can now log in.' });
     } catch (error) {
-        console.error('Reset Password Error:', error);
-        res.status(500).json({ message: 'Server error resetting password.' });
+        logger.error('Reset Password Error', { error });
+        res.status(500).json({ message: 'Failed to reset password' });
     }
 };
 

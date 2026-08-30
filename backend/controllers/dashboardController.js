@@ -1,4 +1,5 @@
 const pool = require('../config/db');
+const logger = require('../utils/logger');
 
 // @desc    Get Vendor Dashboard Data (Status, Badges, Profile)
 // @route   GET /api/dashboard
@@ -20,7 +21,7 @@ const getVendorDashboard = async (req, res) => {
         }
         const user = users[0];
 
-        // Fetch Verification Status (Added admin_notes, assigned_tier, payment_status here!)
+        // Fetch Verification Status
         const [verifications] = await pool.query('SELECT id, status, admin_notes, assigned_tier, payment_status, submitted_at, reviewed_at FROM verifications WHERE user_id = ? ORDER BY submitted_at DESC LIMIT 1', [userId]);
         const verification = verifications.length > 0 ? verifications[0] : null;
 
@@ -36,13 +37,13 @@ const getVendorDashboard = async (req, res) => {
             verification,
             badges,
             profile,
-            notifications: [ // Dummy notifications for now
+            notifications: [
                 { id: 1, message: 'Welcome to Onlok!', read: false, date: new Date() }
             ]
         });
 
     } catch (error) {
-        console.error('Dashboard Fetch Error:', error);
+        logger.error('Dashboard Fetch Error', { error });
         res.status(500).json({ message: 'Server error fetching dashboard' });
     }
 };
@@ -61,7 +62,6 @@ const searchVendor = async (req, res) => {
         const { page, limit, startIndex } = req.pagination;
         const searchQuery = `%${q}%`;
 
-        // Try with tiktok_handle and profile_picture_url; if columns don't exist yet fall back
         let vendors;
         try {
             const query = `
@@ -75,7 +75,6 @@ const searchVendor = async (req, res) => {
             [vendors] = await pool.query(query, [searchQuery, searchQuery, limit, startIndex]);
         } catch (colErr) {
             if (colErr.code === 'ER_BAD_FIELD_ERROR') {
-                // Column(s) not yet migrated — retry without them
                 const fallback = `
                     SELECT id, vendor_id, first_name, last_name, business_name, status, created_at,
                            phone_number, twitter_handle, instagram_handle, facebook_handle
@@ -94,7 +93,6 @@ const searchVendor = async (req, res) => {
             return res.status(404).json({ message: 'No vendors found matching your query.' });
         }
 
-        // Fetch badges, reports count, and verification info for found vendors
         for (let vendor of vendors) {
             const [badges] = await pool.query('SELECT badge_type FROM badges WHERE user_id = ?', [vendor.id]);
             vendor.badges = badges.map(b => b.badge_type);
@@ -127,7 +125,7 @@ const searchVendor = async (req, res) => {
         res.status(200).json(vendors);
 
     } catch (error) {
-        console.error('Vendor Search Error:', error);
+        logger.error('Vendor Search Error', { error });
         res.status(500).json({ message: 'Server error searching for vendors', error: error.message });
     }
 };
