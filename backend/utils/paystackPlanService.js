@@ -196,10 +196,46 @@ const disablePaystackSubscription = async (code, token) => {
     return res.data;
 };
 
+/**
+ * Infer plan tier, billing cycle, plan name, and amount accurately from a Paystack transaction record
+ */
+const inferPlanAndTierFromTransaction = (matchedTx) => {
+    const rawAmount = matchedTx.amount ? Math.round(matchedTx.amount / 100) : 0;
+    const metaTier = matchedTx.metadata?.tier;
+    const metaCycle = matchedTx.metadata?.billing_cycle;
+    const planName = matchedTx.metadata?.plan || matchedTx.plan?.name;
+
+    // 1. Direct lookup by exact amount paid
+    if (rawAmount === 850)   return { tier: 'bronze', cycle: 'monthly', planName: 'Verified Vendor Plan', amount: 850 };
+    if (rawAmount === 10000) return { tier: 'bronze', cycle: 'annually', planName: 'Verified Vendor Plan', amount: 10000 };
+    if (rawAmount === 1500)  return { tier: 'silver', cycle: 'monthly', planName: 'Verified Professional Plan', amount: 1500 };
+    if (rawAmount === 15000) return { tier: 'silver', cycle: 'annually', planName: 'Verified Professional Plan', amount: 15000 };
+    if (rawAmount === 2500)  return { tier: 'gold',   cycle: 'monthly', planName: 'Premium Category Plan', amount: 2500 };
+    if (rawAmount === 25000) return { tier: 'gold',   cycle: 'annually', planName: 'Premium Category Plan', amount: 25000 };
+
+    // 2. Fallback matching by plan interval or metadata
+    const interval = (matchedTx.plan?.interval || metaCycle || 'annually').toLowerCase();
+    const cycle = (interval === 'monthly' || interval.includes('month')) ? 'monthly' : 'annually';
+
+    let tier = (metaTier || '').toLowerCase();
+    if (!tier || !['bronze', 'silver', 'gold'].includes(tier)) {
+        const name = (planName || '').toLowerCase();
+        if (name.includes('gold') || name.includes('premium')) tier = 'gold';
+        else if (name.includes('silver') || name.includes('professional')) tier = 'silver';
+        else tier = 'bronze';
+    }
+
+    const resolvedName = tier === 'gold' ? 'Premium Category Plan' : tier === 'silver' ? 'Verified Professional Plan' : 'Verified Vendor Plan';
+    const finalAmount = rawAmount || (tier === 'gold' ? (cycle === 'monthly' ? 2500 : 25000) : tier === 'silver' ? (cycle === 'monthly' ? 1500 : 15000) : (cycle === 'monthly' ? 850 : 10000));
+
+    return { tier, cycle, planName: resolvedName, amount: finalAmount };
+};
+
 module.exports = {
     SUBSCRIPTION_TIERS,
     resolveTierConfig,
     getOrCreatePlanCode,
     getSubscriptionManageLink,
-    disablePaystackSubscription
+    disablePaystackSubscription,
+    inferPlanAndTierFromTransaction
 };

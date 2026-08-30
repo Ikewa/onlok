@@ -445,10 +445,10 @@ export default function AdminPayments() {
                       {/* Amount & Cycle */}
                       <TableCell>
                         <Typography variant="body2" fontWeight={700} color="#111827" sx={{ fontSize: '0.88rem' }}>
-                          ₦{Number(rec.amount || 0).toLocaleString()}
+                          {rec.amount ? `₦${Number(rec.amount).toLocaleString()}` : '—'}
                         </Typography>
                         <Typography variant="caption" color="#6B7280" sx={{ textTransform: 'capitalize', fontSize: '0.78rem' }}>
-                          {rec.billing_cycle || 'Annual'} billing
+                          {rec.amount ? `${rec.billing_cycle || 'annual'} billing` : 'Unpaid'}
                         </Typography>
                       </TableCell>
 

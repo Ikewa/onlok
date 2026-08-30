@@ -1,6 +1,7 @@
 const axios = require('axios');
 const pool = require('../config/db');
 const logger = require('./logger');
+const { inferPlanAndTierFromTransaction } = require('./paystackPlanService');
 
 /**
  * Automatically backfills legacy transactions for users/verifications that paid 
@@ -62,38 +63,40 @@ const backfillLegacyPaystackTransactions = async () => {
                     const ref = matchedTx.reference;
                     const subCode = matchedTx.subscription_code || null;
                     const planCode = matchedTx.plan?.plan_code || null;
-                    const amountPaid = matchedTx.amount ? matchedTx.amount / 100 : null;
+                    const planDetails = inferPlanAndTierFromTransaction(matchedTx);
 
-                    // Update verifications reference if missing
+                    // Update verifications reference & assigned_tier
                     if (verification_id) {
                         await pool.query(
                             `UPDATE verifications 
                              SET payment_reference = COALESCE(payment_reference, ?), 
                                  payment_status = 'paid', 
+                                 assigned_tier = ?,
                                  status = CASE WHEN status = 'pending' THEN 'payment_received' ELSE status END
                              WHERE id = ?`,
-                            [ref, verification_id]
+                            [ref, planDetails.tier, verification_id]
                         );
                     }
 
-                    // Update subscriptions codes if missing
+                    // Upsert subscriptions row with exact tier, billing cycle & amount paid
                     if (subscription_id) {
                         await pool.query(
                             `UPDATE subscriptions 
-                             SET paystack_subscription_code = COALESCE(paystack_subscription_code, ?),
+                             SET tier = ?,
+                                 plan_name = ?,
+                                 billing_cycle = ?,
+                                 amount = ?,
+                                 paystack_subscription_code = COALESCE(paystack_subscription_code, ?),
                                  paystack_plan_code = COALESCE(paystack_plan_code, ?),
                                  status = 'active'
                              WHERE id = ?`,
-                            [subCode, planCode, subscription_id]
+                            [planDetails.tier, planDetails.planName, planDetails.cycle, planDetails.amount, subCode, planCode, subscription_id]
                         );
                     } else {
-                        // Create subscription row if missing
-                        const normalizedTier = (matchedTx.metadata?.tier || 'bronze').toLowerCase();
-                        const cycle = (matchedTx.metadata?.billing_cycle || 'annually').toLowerCase();
                         await pool.query(
                             `INSERT INTO subscriptions (user_id, tier, plan_name, billing_cycle, amount, status, paystack_subscription_code, paystack_plan_code)
                              VALUES (?, ?, ?, ?, ?, 'active', ?, ?)`,
-                            [user_id, normalizedTier, matchedTx.metadata?.plan || 'Verified Vendor', cycle, amountPaid || 10000, subCode, planCode]
+                            [user_id, planDetails.tier, planDetails.planName, planDetails.cycle, planDetails.amount, subCode, planCode]
                         );
                     }
 

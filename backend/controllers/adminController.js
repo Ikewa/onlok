@@ -1410,24 +1410,26 @@ const syncPaymentAdmin = async (req, res) => {
                     paystackDetails = matchedTx;
                     updatedStatus = 'active';
 
-                    const normalizedTier = (matchedTx.metadata?.tier || sub.tier || 'bronze').toLowerCase();
-                    const cycle = (matchedTx.metadata?.billing_cycle || sub.billing_cycle || 'annually').toLowerCase();
-                    const amountPaid = matchedTx.amount ? matchedTx.amount / 100 : sub.amount || 10000;
+                    const planDetails = paystackPlanService.inferPlanAndTierFromTransaction(matchedTx);
 
                     if (subId) {
                         await pool.query(
                             `UPDATE subscriptions 
-                             SET paystack_subscription_code = COALESCE(?, paystack_subscription_code),
+                             SET tier = ?,
+                                 plan_name = ?,
+                                 billing_cycle = ?,
+                                 amount = ?,
+                                 paystack_subscription_code = COALESCE(?, paystack_subscription_code),
                                  paystack_plan_code = COALESCE(?, paystack_plan_code),
                                  status = 'active'
                              WHERE id = ?`,
-                            [matchedTx.subscription_code || null, matchedTx.plan?.plan_code || null, subId]
+                            [planDetails.tier, planDetails.planName, planDetails.cycle, planDetails.amount, matchedTx.subscription_code || null, matchedTx.plan?.plan_code || null, subId]
                         );
                     } else {
                         await pool.query(
                             `INSERT INTO subscriptions (user_id, tier, plan_name, billing_cycle, amount, status, paystack_subscription_code, paystack_plan_code)
                              VALUES (?, ?, ?, ?, ?, 'active', ?, ?)`,
-                            [userId, normalizedTier, matchedTx.metadata?.plan || 'Verified Vendor', cycle, amountPaid, matchedTx.subscription_code || null, matchedTx.plan?.plan_code || null]
+                            [userId, planDetails.tier, planDetails.planName, planDetails.cycle, planDetails.amount, matchedTx.subscription_code || null, matchedTx.plan?.plan_code || null]
                         );
                     }
 
