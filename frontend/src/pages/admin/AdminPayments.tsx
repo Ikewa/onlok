@@ -472,9 +472,25 @@ export default function AdminPayments() {
                           </Tooltip>
 
                           <Tooltip title="View Transaction Details">
-                            <IconButton size="small" onClick={() => setSelectedRecord(rec)} sx={{ color: '#6B7280' }}>
-                              <InfoOutlinedIcon fontSize="small" />
-                            </IconButton>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              disabled={syncingId === rec.subscription_id}
+                              onClick={() => setSelectedRecord(rec)}
+                              sx={{
+                                textTransform: 'none',
+                                borderRadius: '6px',
+                                fontSize: '0.78rem',
+                                py: 0.4,
+                                px: 1.2,
+                                borderColor: '#E5E7EB',
+                                color: '#374151',
+                                fontWeight: 600,
+                                '&:hover': { bgcolor: '#F9FAFB', borderColor: '#D1D5DB' }
+                              }}
+                            >
+                              Details
+                            </Button>
                           </Tooltip>
                         </Stack>
                       </TableCell>
