@@ -45,7 +45,7 @@ export default function LandingPage() {
             >
               <Box 
                 component="img"
-                src="/logo.png"
+                src="/logo-landing.png"
                 alt="Onlok Logo"
                 sx={{ 
                   width: '180%', // Reduced zoom to show more of the logo

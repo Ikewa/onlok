@@ -71,7 +71,7 @@ export default function Navbar() {
                 >
                   <Box 
                     component="img"
-                    src="/logo.png"
+                    src={location.pathname === '/' ? "/logo-landing.png" : "/logo.png"}
                     alt="Onlok Logo"
                     sx={{ 
                       width: '180%', 
