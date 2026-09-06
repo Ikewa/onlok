@@ -346,13 +346,13 @@ export default function RegisterPage() {
       <Typography variant="h5" fontWeight={800} color="#0F172A" mb={0.5}>Personal Information</Typography>
       <Typography variant="body2" color="#64748B" mb={4}>Please provide your legal name exactly as it appears on your ID.</Typography>
 
-      <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} display="block">Full Legal Name</Typography>
+      <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} display="block">Full Legal Name <Box component="span" sx={{ color: '#EF4444' }}>*</Box></Typography>
       <TextField fullWidth value={fullNameInput} onChange={handleFullNameChange} placeholder="e.g., Sarah Chen" sx={{ mb: 3 }} InputProps={{ sx: { borderRadius: 2 } }} />
 
-      <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} display="block">Email Address</Typography>
+      <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} display="block">Email Address <Box component="span" sx={{ color: '#EF4444' }}>*</Box></Typography>
       <TextField fullWidth type="email" value={form.email} onChange={(e) => set('email', e.target.value)} placeholder="sarah@example.com" sx={{ mb: 3 }} InputProps={{ sx: { borderRadius: 2 } }} />
 
-      <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} display="block">Phone Number</Typography>
+      <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} display="block">Phone Number <Box component="span" sx={{ color: '#EF4444' }}>*</Box></Typography>
       <Stack direction="row" spacing={1} mb={4}>
         <FormControl sx={{ minWidth: 100 }}>
           <Select value={form.country_code} onChange={(e) => set('country_code', e.target.value)} sx={{ borderRadius: 2, bgcolor: '#F8FAFC' }}>
@@ -376,16 +376,39 @@ export default function RegisterPage() {
         </Stack>
       </Box>
 
-      <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} display="block">Create Password</Typography>
+      <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} display="block">Create Password <Box component="span" sx={{ color: '#EF4444' }}>*</Box></Typography>
       <TextField
         fullWidth
         variant="outlined"
         type={showPassword ? 'text' : 'password'}
         value={form.password}
         onChange={(e) => set('password', e.target.value)}
-        sx={{ mb: 3, '& .MuiOutlinedInput-root': { borderRadius: '30px' } }}
+        sx={{ mb: 1.5, '& .MuiOutlinedInput-root': { borderRadius: '30px' } }}
       />
-      <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} display="block">Confirm Password</Typography>
+      <Box sx={{ mb: 3, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+        {[
+          { label: '8+ chars', test: form.password.length >= 8 },
+          { label: 'Uppercase', test: /[A-Z]/.test(form.password) },
+          { label: 'Lowercase', test: /[a-z]/.test(form.password) },
+          { label: 'Number', test: /\d/.test(form.password) },
+          { label: 'Symbol', test: /[\W_]/.test(form.password) },
+        ].map((req, i) => (
+          <Chip
+            key={i}
+            label={req.label}
+            size="small"
+            icon={<CheckCircleIcon sx={{ fontSize: 16 }} />}
+            sx={{
+              bgcolor: req.test ? '#D1FAE5' : '#F1F5F9',
+              color: req.test ? '#059669' : '#94A3B8',
+              '& .MuiChip-icon': {
+                color: req.test ? '#10B981' : '#CBD5E1',
+              }
+            }}
+          />
+        ))}
+      </Box>
+      <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} display="block">Confirm Password <Box component="span" sx={{ color: '#EF4444' }}>*</Box></Typography>
       <TextField
         fullWidth
         variant="outlined"
@@ -415,7 +438,7 @@ export default function RegisterPage() {
       <Typography variant="h5" fontWeight={800} color="#0F172A" mb={0.5}>Business / Service Details</Typography>
       <Typography variant="body2" color="#64748B" mb={4}>Tell us about what you do so we can display it on your public profile.</Typography>
 
-      <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} display="block">Business Name or Professional Role</Typography>
+      <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} display="block">Business Name or Professional Role <Box component="span" sx={{ color: '#EF4444' }}>*</Box></Typography>
       <TextField fullWidth value={form.business_name} onChange={(e) => set('business_name', e.target.value)} placeholder="e.g., Chen Design Studio OR UX Designer" sx={{ mb: 3 }} InputProps={{ sx: { borderRadius: 2 } }} />
 
       <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} display="block">Business Address / Location</Typography>
@@ -439,7 +462,7 @@ export default function RegisterPage() {
 
     // Step 3: Documents
     <Box key="step3">
-      <Typography variant="h5" fontWeight={800} color="#0F172A" mb={0.5}>Identity Verification</Typography>
+      <Typography variant="h5" fontWeight={800} color="#0F172A" mb={0.5}>Identity Verification <Box component="span" sx={{ color: '#EF4444' }}>*</Box></Typography>
       <Typography variant="body2" color="#64748B" mb={4}>Upload a valid, unexpired government-issued ID.</Typography>
 
       <FileUploadDropzone
@@ -462,7 +485,7 @@ export default function RegisterPage() {
         icon={<InsertDriveFileOutlinedIcon />}
       />
 
-      <Typography variant="h6" fontWeight={800} color="#0F172A" mb={0.5} mt={2}>Business Registration</Typography>
+      <Typography variant="h6" fontWeight={800} color="#0F172A" mb={0.5} mt={2}>Business Registration <Box component="span" sx={{ color: '#EF4444' }}>*</Box></Typography>
       <Typography variant="body2" color="#64748B" mb={3}>Upload your CAC certificate or proof of business registration.</Typography>
 
       <FileUploadDropzone
@@ -485,7 +508,7 @@ export default function RegisterPage() {
         icon={<InsertDriveFileOutlinedIcon />}
       />
 
-      <Typography variant="h6" fontWeight={800} color="#0F172A" mb={0.5} mt={2}>Video Verification</Typography>
+      <Typography variant="h6" fontWeight={800} color="#0F172A" mb={0.5} mt={2}>Video Verification <Box component="span" sx={{ color: '#EF4444' }}>*</Box></Typography>
       <Typography variant="body2" color="#64748B" mb={3}>Upload a short 1-2 minute video of you and your business environment.</Typography>
 
       <FileUploadDropzone
