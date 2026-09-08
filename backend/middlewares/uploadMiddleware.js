@@ -4,9 +4,10 @@ const fs = require('fs');
 const { validateDocument, validateVideo } = require('../utils/fileValidator');
 
 // ─── Ensure upload subdirectories exist on startup ───────────────────────────
-const UPLOAD_DIR = path.join(__dirname, '../uploads');
-const AVATAR_DIR = path.join(__dirname, '../uploads/avatars');
-const TEMP_DIR = path.join(__dirname, '../uploads/temp');
+const STORAGE_PATH = process.env.STORAGE_PATH || path.join(__dirname, '../uploads');
+const UPLOAD_DIR = STORAGE_PATH;
+const AVATAR_DIR = path.join(STORAGE_PATH, 'avatars');
+const TEMP_DIR = path.join(STORAGE_PATH, 'temp');
 
 [UPLOAD_DIR, AVATAR_DIR, TEMP_DIR].forEach((dir) => {
     if (!fs.existsSync(dir)) {

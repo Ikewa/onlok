@@ -15,13 +15,14 @@ const adminOnly = (req, res, next) => {
 };
 
 // Configure Multer for evidence file uploads
-const uploadDir = path.join(__dirname, '../uploads/reports');
+const uploadDir = process.env.STORAGE_PATH || path.join(__dirname, '../uploads/reports');
 if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
 }
 
 const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
+    destination: (req, file, cb) => {
+        const uploadDir = process.env.STORAGE_PATH || path.join(__dirname, '../uploads');
         cb(null, uploadDir);
     },
     filename: function (req, file, cb) {
