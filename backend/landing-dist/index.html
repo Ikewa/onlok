@@ -34,6 +34,62 @@
   <meta property="twitter:image" content="https://onlok.net/og-image.png">
 
   <!-- Styles & Scripts -->
+  <style>
+    /* Moving Border Glow for Get Verified */
+    @keyframes spin-glow {
+      0% { transform: translate(-50%, -50%) rotate(0deg); }
+      100% { transform: translate(-50%, -50%) rotate(360deg); }
+    }
+    .animate-get-verified-glow {
+      position: relative;
+      overflow: hidden;
+      z-index: 1;
+      animation: none !important;
+    }
+    .animate-get-verified-glow::before {
+      content: '';
+      position: absolute;
+      top: 50%; left: 50%;
+      width: 250%; height: 500%;
+      background: conic-gradient(from 0deg, transparent 0%, transparent 60%, #00FFFF 80%, transparent 100%);
+      animation: spin-glow 2.5s linear infinite;
+      z-index: -2;
+    }
+    .animate-get-verified-glow::after {
+      content: '';
+      position: absolute;
+      inset: 2px;
+      background-color: inherit;
+      border-radius: calc(0.75rem - 2px);
+      z-index: -1;
+      transition: background-color 0.3s;
+    }
+    /* Hover support for the inner background */
+    .animate-get-verified-glow:hover::after {
+      background-color: #0025D4;
+    }
+
+    /* Diagonal Shimmer Flash for Login */
+    @keyframes diagonal-shimmer {
+      0% { transform: translateX(-200%) skewX(-45deg); }
+      15%, 100% { transform: translateX(300%) skewX(-45deg); }
+    }
+    .animate-login-flash {
+      position: relative;
+      overflow: hidden;
+      animation: none !important;
+    }
+    .animate-login-flash::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 0;
+      width: 40%; height: 100%;
+      background: linear-gradient(to right, rgba(0, 255, 255, 0) 0%, rgba(0, 255, 255, 0.4) 50%, rgba(0, 255, 255, 0) 100%);
+      animation: diagonal-shimmer 4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+      pointer-events: none;
+      z-index: 1;
+    }
+  </style>
 
   <!-- Schema.org Structured Data -->
   <script type="application/ld+json">
@@ -82,8 +138,8 @@
     ]
   }
   </script>
-  <script type="module" crossorigin src="/assets/index-DCyasnk5.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-CXwApq3V.css">
+  <script type="module" crossorigin src="/assets/index-Djwnpaz9.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-_R2qVrj6.css">
 </head>
 <body class="bg-[#F4F6FB] text-[#0F172A] antialiased selection:bg-[#0030FF] selection:text-white">
 
@@ -109,10 +165,10 @@
 
       <!-- Action Buttons -->
       <div class="hidden sm:flex items-center gap-4">
-        <a href="https://onlok.net/login" class="bg-white text-[#000968] hover:bg-slate-100 font-bold text-base px-5 py-2.5 rounded-xl transition-all shadow-md inline-flex items-center gap-2">
+        <a href="https://onlok.net/login" class="animate-login-flash bg-white text-[#000968] hover:bg-slate-100 font-bold text-base px-5 py-2.5 rounded-xl transition-all shadow-md inline-flex items-center gap-2">
           Login
         </a>
-        <a href="https://app.onlok.net/register" class="bg-[#0030FF] hover:bg-[#0025D4] text-white text-sm font-bold px-5 py-2.5 rounded-xl transition-all shadow-md shadow-blue-600/30 hover:shadow-blue-600/50 hover:scale-[1.02]">
+        <a href="https://app.onlok.net/register" class="animate-get-verified-glow bg-[#0030FF] hover:bg-[#0025D4] text-white text-sm font-bold px-5 py-2.5 rounded-xl transition-all shadow-md shadow-blue-600/30 hover:shadow-blue-600/50 hover:scale-[1.02]">
           Get Verified
         </a>
       </div>
@@ -148,8 +204,8 @@
     </div>
 
     <div class="flex flex-col gap-3 pt-6 border-t border-white/10">
-      <a href="https://onlok.net/login" class="w-full text-center py-3 text-[#000968] font-semibold rounded-xl bg-white">Login</a>
-      <a href="https://onlok.net/register" class="w-full text-center py-3 text-white font-bold rounded-xl bg-[#0030FF]">Get Verified</a>
+      <a href="https://onlok.net/login" class="animate-login-flash w-full text-center py-3 text-[#000968] font-semibold rounded-xl bg-white">Login</a>
+      <a href="https://onlok.net/register" class="animate-get-verified-glow w-full text-center py-3 text-white font-bold rounded-xl bg-[#0030FF]">Get Verified</a>
     </div>
   </div>
 
@@ -187,7 +243,7 @@
 
           <!-- Action Buttons -->
           <div class="flex flex-wrap items-center gap-4 w-full sm:w-auto mb-12">
-            <a href="https://app.onlok.net/register" class="bg-[#0030FF] hover:bg-[#0025D4] text-white font-bold text-base px-6 py-3.5 rounded-xl transition-all shadow-lg shadow-blue-600/40 hover:scale-105 inline-flex items-center gap-2">
+            <a href="https://app.onlok.net/register" class="animate-get-verified-glow bg-[#0030FF] hover:bg-[#0025D4] text-white font-bold text-base px-6 py-3.5 rounded-xl transition-all shadow-lg shadow-blue-600/40 hover:scale-105 inline-flex items-center gap-2">
               Get Verified
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
