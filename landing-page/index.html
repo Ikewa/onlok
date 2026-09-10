@@ -37,21 +37,59 @@
   <link href="/src/style.css" rel="stylesheet">
   <script type="module" src="/src/main.ts"></script>
   <style>
-    @keyframes get-verified-glow {
-      0% { box-shadow: 0 0 5px 2px rgba(0, 255, 255, 0.6), 0 0 10px 2px rgba(0, 255, 255, 0.4); transform: scale(1); }
-      50% { box-shadow: 0 0 20px 5px rgba(0, 255, 255, 1), 0 0 40px 10px rgba(0, 255, 255, 0.8); transform: scale(1.03); }
-      100% { box-shadow: 0 0 5px 2px rgba(0, 255, 255, 0.6), 0 0 10px 2px rgba(0, 255, 255, 0.4); transform: scale(1); }
+    /* Moving Border Glow for Get Verified */
+    @keyframes spin-glow {
+      0% { transform: translate(-50%, -50%) rotate(0deg); }
+      100% { transform: translate(-50%, -50%) rotate(360deg); }
     }
     .animate-get-verified-glow {
-      animation: get-verified-glow 2s infinite ease-in-out !important;
+      position: relative;
+      overflow: hidden;
+      z-index: 1;
+      animation: none !important;
     }
-    
-    @keyframes login-flash {
-      0%, 85%, 100% { background-color: white; color: #000968; transform: scale(1); }
-      90%, 95% { background-color: #00FFFF; color: #000968; transform: scale(1.08); box-shadow: 0 0 15px #00FFFF; }
+    .animate-get-verified-glow::before {
+      content: '';
+      position: absolute;
+      top: 50%; left: 50%;
+      width: 250%; height: 500%;
+      background: conic-gradient(from 0deg, transparent 0%, transparent 60%, #00FFFF 80%, transparent 100%);
+      animation: spin-glow 2.5s linear infinite;
+      z-index: -2;
+    }
+    .animate-get-verified-glow::after {
+      content: '';
+      position: absolute;
+      inset: 2px;
+      background-color: inherit;
+      border-radius: calc(0.75rem - 2px);
+      z-index: -1;
+      transition: background-color 0.3s;
+    }
+    /* Hover support for the inner background */
+    .animate-get-verified-glow:hover::after {
+      background-color: #0025D4;
+    }
+
+    /* Diagonal Shimmer Flash for Login */
+    @keyframes diagonal-shimmer {
+      0% { transform: translateX(-200%) skewX(-45deg); }
+      15%, 100% { transform: translateX(300%) skewX(-45deg); }
     }
     .animate-login-flash {
-      animation: login-flash 4s infinite !important;
+      position: relative;
+      overflow: hidden;
+      animation: none !important;
+    }
+    .animate-login-flash::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 0;
+      width: 40%; height: 100%;
+      background: linear-gradient(to right, rgba(0, 255, 255, 0) 0%, rgba(0, 255, 255, 0.4) 50%, rgba(0, 255, 255, 0) 100%);
+      animation: diagonal-shimmer 4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+      pointer-events: none;
+      z-index: 1;
     }
   </style>
 
