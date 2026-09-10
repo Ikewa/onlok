@@ -36,6 +36,24 @@
   <!-- Styles & Scripts -->
   <link href="/src/style.css" rel="stylesheet">
   <script type="module" src="/src/main.ts"></script>
+  <style>
+    @keyframes get-verified-glow {
+      0% { box-shadow: 0 0 5px rgba(0, 48, 255, 0.4); }
+      50% { box-shadow: 0 0 20px rgba(0, 48, 255, 0.8), 0 0 30px rgba(0, 48, 255, 0.6); }
+      100% { box-shadow: 0 0 5px rgba(0, 48, 255, 0.4); }
+    }
+    .animate-get-verified-glow {
+      animation: get-verified-glow 2s infinite ease-in-out;
+    }
+    
+    @keyframes login-flash {
+      0%, 90%, 100% { opacity: 1; background-color: white; color: #000968; }
+      95% { opacity: 0.8; background-color: #0030FF; color: white; }
+    }
+    .animate-login-flash {
+      animation: login-flash 4s infinite;
+    }
+  </style>
 
   <!-- Schema.org Structured Data -->
   <script type="application/ld+json">
@@ -109,10 +127,10 @@
 
       <!-- Action Buttons -->
       <div class="hidden sm:flex items-center gap-4">
-        <a href="https://onlok.net/login" class="bg-white text-[#000968] hover:bg-slate-100 font-bold text-base px-5 py-2.5 rounded-xl transition-all shadow-md inline-flex items-center gap-2">
+        <a href="https://onlok.net/login" class="animate-login-flash bg-white text-[#000968] hover:bg-slate-100 font-bold text-base px-5 py-2.5 rounded-xl transition-all shadow-md inline-flex items-center gap-2">
           Login
         </a>
-        <a href="https://app.onlok.net/register" class="bg-[#0030FF] hover:bg-[#0025D4] text-white text-sm font-bold px-5 py-2.5 rounded-xl transition-all shadow-md shadow-blue-600/30 hover:shadow-blue-600/50 hover:scale-[1.02]">
+        <a href="https://app.onlok.net/register" class="animate-get-verified-glow bg-[#0030FF] hover:bg-[#0025D4] text-white text-sm font-bold px-5 py-2.5 rounded-xl transition-all shadow-md shadow-blue-600/30 hover:shadow-blue-600/50 hover:scale-[1.02]">
           Get Verified
         </a>
       </div>
@@ -148,8 +166,8 @@
     </div>
 
     <div class="flex flex-col gap-3 pt-6 border-t border-white/10">
-      <a href="https://onlok.net/login" class="w-full text-center py-3 text-[#000968] font-semibold rounded-xl bg-white">Login</a>
-      <a href="https://onlok.net/register" class="w-full text-center py-3 text-white font-bold rounded-xl bg-[#0030FF]">Get Verified</a>
+      <a href="https://onlok.net/login" class="animate-login-flash w-full text-center py-3 text-[#000968] font-semibold rounded-xl bg-white">Login</a>
+      <a href="https://onlok.net/register" class="animate-get-verified-glow w-full text-center py-3 text-white font-bold rounded-xl bg-[#0030FF]">Get Verified</a>
     </div>
   </div>
 
@@ -187,7 +205,7 @@
 
           <!-- Action Buttons -->
           <div class="flex flex-wrap items-center gap-4 w-full sm:w-auto mb-12">
-            <a href="https://app.onlok.net/register" class="bg-[#0030FF] hover:bg-[#0025D4] text-white font-bold text-base px-6 py-3.5 rounded-xl transition-all shadow-lg shadow-blue-600/40 hover:scale-105 inline-flex items-center gap-2">
+            <a href="https://app.onlok.net/register" class="animate-get-verified-glow bg-[#0030FF] hover:bg-[#0025D4] text-white font-bold text-base px-6 py-3.5 rounded-xl transition-all shadow-lg shadow-blue-600/40 hover:scale-105 inline-flex items-center gap-2">
               Get Verified
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3"/>

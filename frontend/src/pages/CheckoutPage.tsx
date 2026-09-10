@@ -8,6 +8,7 @@ import LocationOnIcon from '@mui/icons-material/LocationOn';
 import SecurityIcon from '@mui/icons-material/Security';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { usePaystackPayment } from 'react-paystack';
 
 function OnlokLogo() {
   return (
@@ -40,7 +41,7 @@ const inputSx = {
 export default function CheckoutPage() {
   const navigate = useNavigate();
   const [form, setForm] = useState({
-    cardName: '', cardNumber: '', expiry: '', cvc: '',
+    email: '',
     street: '', city: '', postal: '',
   });
 
@@ -48,11 +49,34 @@ export default function CheckoutPage() {
     setForm(prev => ({ ...prev, [field]: e.target.value }));
   };
 
-  const handleSubmit = () => {
-    toast.success('Processing payment…');
+  const paystackConfig = {
+    reference: (new Date()).getTime().toString(),
+    email: form.email || 'vendor@example.com',
+    amount: 12000 * 100, // 12,000 NGN in kobo
+    publicKey: import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || 'pk_test_demo1234567890',
+    channels: ['card', 'bank', 'ussd', 'qr', 'mobile_money', 'bank_transfer'],
+  };
+
+  const initializePayment = usePaystackPayment(paystackConfig);
+
+  const onSuccess = (reference: any) => {
+    toast.success('Payment successful! Ref: ' + reference.reference);
     setTimeout(() => {
       navigate('/payment-success');
     }, 1000);
+  };
+
+  const onClose = () => {
+    toast.error('Payment cancelled');
+  };
+
+  const handleSubmit = () => {
+    if (!form.email) {
+      toast.error('Please enter your email address to continue.');
+      return;
+    }
+    // @ts-ignore
+    initializePayment(onSuccess, onClose);
   };
 
   const features = [
@@ -105,18 +129,7 @@ export default function CheckoutPage() {
                 <Typography sx={{ fontWeight: 800, fontSize: '1.1rem', color: '#0F172A' }}>Payment Information</Typography>
               </Box>
 
-              <TextField fullWidth label="CARDHOLDER NAME" placeholder="John Doe" value={form.cardName} onChange={handleChange('cardName')} sx={{ ...inputSx, mb: 2.5 }} size="small" />
-
-              <Box sx={{ mb: 2.5 }}>
-                <TextField fullWidth label="CARD NUMBER" placeholder="0000 0000 0000 0000" value={form.cardNumber} onChange={handleChange('cardNumber')} sx={inputSx} size="small"
-                  slotProps={{ input: { endAdornment: <CreditCardIcon sx={{ color: '#94A3B8', fontSize: 20 }} /> } }}
-                />
-              </Box>
-
-              <Box sx={{ display: 'flex', gap: 2, mb: 4 }}>
-                <TextField fullWidth label="EXPIRY DATE" placeholder="MM / YY" value={form.expiry} onChange={handleChange('expiry')} sx={inputSx} size="small" />
-                <TextField fullWidth label="CVC" placeholder="123" value={form.cvc} onChange={handleChange('cvc')} sx={inputSx} size="small" />
-              </Box>
+              <TextField fullWidth label="EMAIL ADDRESS" placeholder="user@example.com" type="email" value={form.email} onChange={handleChange('email')} sx={{ ...inputSx, mb: 4 }} size="small" />
 
               {/* Billing Address */}
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
@@ -139,7 +152,7 @@ export default function CheckoutPage() {
                 startIcon={<ShieldIcon />}
                 sx={{ bgcolor: '#1A1FE8', color: '#fff', borderRadius: 2, py: 1.8, fontWeight: 700, fontSize: '1.05rem', textTransform: 'none', mb: 1.5, '&:hover': { bgcolor: '#1318C0' } }}
               >
-                Complete Purchase
+                Pay with Paystack
               </Button>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.8 }}>
                 <LockIcon sx={{ fontSize: 14, color: '#94A3B8' }} />

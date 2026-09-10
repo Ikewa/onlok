@@ -9,7 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import { getVerificationQueue, type AdminVerification } from '../../api/admin';
 import toast from 'react-hot-toast';
 
-const STATUS_FILTERS = ['All', 'Pending', 'Tier_Assigned', 'Payment_Received', 'Approved', 'Rejected', 'Flagged'];
+const STATUS_FILTERS = ['All', 'Pending', 'Tier Assigned', 'Payment Received', 'Approved', 'Rejected', 'Flagged'];
 
 const STATUS_STYLES: Record<string, { bg: string; color: string }> = {
   pending:          { bg: '#FEF3C7', color: '#D97706' },
@@ -38,7 +38,8 @@ export default function AdminVerificationQueue() {
   const fetchQueue = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await getVerificationQueue(page + 1, rowsPerPage, status.toLowerCase(), search);
+      const backendStatus = status === 'All' ? 'all' : status.toLowerCase().replace(/ /g, '_');
+      const res = await getVerificationQueue(page + 1, rowsPerPage, backendStatus, search);
       setVerifications(res.results);
       setTotal(res.total);
     } catch (err) {
@@ -187,7 +188,7 @@ export default function AdminVerificationQueue() {
 
                       <TableCell>
                         <Chip 
-                          label={normalizedStatus.charAt(0).toUpperCase() + normalizedStatus.slice(1)} 
+                          label={normalizedStatus.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} 
                           size="small"
                           sx={{ 
                             bgcolor: statStyle.bg, 

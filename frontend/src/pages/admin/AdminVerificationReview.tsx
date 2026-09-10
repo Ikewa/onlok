@@ -46,6 +46,9 @@ export default function AdminVerificationReview() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Media Preview State
+  const [mediaPreview, setMediaPreview] = useState<{ url: string, type: 'image' | 'video' } | null>(null);
+
   // Prembly Search State
   const [searchType, setSearchType] = useState('nin');
   const [searchValue, setSearchValue] = useState('');
@@ -365,7 +368,7 @@ export default function AdminVerificationReview() {
                   {details.gov_id_url ? (
                     details.gov_id_url.endsWith('.pdf') ? 
                       <Typography variant="body2" color="#5B5FEC" component="a" href={getMediaUrl(details.gov_id_url)} target="_blank" sx={{ fontWeight: 600 }}>View PDF ID</Typography>
-                    : <Box component="img" src={getMediaUrl(details.gov_id_url)} sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    : <Box component="img" src={getMediaUrl(details.gov_id_url)} onClick={() => setMediaPreview({ url: getMediaUrl(details.gov_id_url), type: 'image' })} sx={{ width: '100%', height: '100%', objectFit: 'cover', cursor: 'pointer' }} />
                   ) : <Typography variant="caption" color="#9CA3AF">No ID uploaded</Typography>}
                 </Box>
                 <Select
@@ -416,7 +419,7 @@ export default function AdminVerificationReview() {
                   {details.cac_url ? (
                     details.cac_url.endsWith('.pdf') ? 
                       <Typography variant="body2" color="#5B5FEC" component="a" href={getMediaUrl(details.cac_url)} target="_blank" sx={{ fontWeight: 600 }}>View PDF CAC</Typography>
-                    : <Box component="img" src={getMediaUrl(details.cac_url)} sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    : <Box component="img" src={getMediaUrl(details.cac_url)} onClick={() => setMediaPreview({ url: getMediaUrl(details.cac_url), type: 'image' })} sx={{ width: '100%', height: '100%', objectFit: 'cover', cursor: 'pointer' }} />
                   ) : <Typography variant="caption" color="#9CA3AF">No CAC uploaded</Typography>}
                 </Box>
                 <Select
@@ -465,7 +468,7 @@ export default function AdminVerificationReview() {
                   }}
                 >
                   {details.video_url ? (
-                    <video controls src={getMediaUrl(details.video_url)} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                    <video controls src={getMediaUrl(details.video_url)} onClick={() => setMediaPreview({ url: getMediaUrl(details.video_url), type: 'video' })} style={{ width: '100%', height: '100%', objectFit: 'contain', cursor: 'pointer' }} />
                   ) : <Typography variant="caption" color="#9CA3AF">No video uploaded</Typography>}
                 </Box>
                 <Select
@@ -1068,6 +1071,24 @@ export default function AdminVerificationReview() {
             {isDeleting ? <CircularProgress size={20} color="inherit" /> : 'Yes, Delete'}
           </Button>
         </DialogActions>
+      </Dialog>
+
+      {/* Media Preview Dialog */}
+      <Dialog open={!!mediaPreview} onClose={() => setMediaPreview(null)} maxWidth="lg" fullWidth PaperProps={{ sx: { bgcolor: 'transparent', boxShadow: 'none' } }}>
+        <DialogContent sx={{ p: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh', position: 'relative' }}>
+          <Button
+            onClick={() => setMediaPreview(null)}
+            sx={{ position: 'absolute', top: 10, right: 10, color: 'white', bgcolor: 'rgba(0,0,0,0.5)', minWidth: 40, height: 40, borderRadius: '50%', '&:hover': { bgcolor: 'rgba(0,0,0,0.8)' } }}
+          >
+            <HighlightOffIcon />
+          </Button>
+          {mediaPreview?.type === 'image' && (
+            <img src={mediaPreview.url} alt="Preview" style={{ maxWidth: '100%', maxHeight: '90vh', objectFit: 'contain', borderRadius: '8px' }} />
+          )}
+          {mediaPreview?.type === 'video' && (
+            <video controls autoPlay src={mediaPreview.url} style={{ maxWidth: '100%', maxHeight: '90vh', borderRadius: '8px' }} />
+          )}
+        </DialogContent>
       </Dialog>
     </Box>
   );

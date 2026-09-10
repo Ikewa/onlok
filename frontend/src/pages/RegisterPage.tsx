@@ -139,10 +139,6 @@ export default function RegisterPage() {
         toast.error('Please select your Government ID.');
         return false;
       }
-      if (!form.cac_file && !form.cac_url) {
-        toast.error('Please select your CAC certificate.');
-        return false;
-      }
       if (!form.business_video_file && !form.business_video_url) {
         toast.error('Please select your business video.');
         return false;
@@ -408,7 +404,14 @@ export default function RegisterPage() {
           />
         ))}
       </Box>
-      <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} display="block">Confirm Password <Box component="span" sx={{ color: '#EF4444' }}>*</Box></Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+        <Typography variant="caption" fontWeight={700} color="#0F172A" display="block">Confirm Password <Box component="span" sx={{ color: '#EF4444' }}>*</Box></Typography>
+        {form.password && form.confirm_password && form.password === form.confirm_password && (
+          <Typography variant="caption" sx={{ color: '#10B981', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <CheckCircleIcon sx={{ fontSize: 14 }} /> Matches
+          </Typography>
+        )}
+      </Box>
       <TextField
         fullWidth
         variant="outlined"
@@ -445,7 +448,8 @@ export default function RegisterPage() {
       <TextField fullWidth value={form.business_address} onChange={(e) => set('business_address', e.target.value)} placeholder="e.g., 12 Marina Boulevard, Marina Bay, Singapore" sx={{ mb: 4 }} InputProps={{ sx: { borderRadius: 2 } }} />
 
       <Typography variant="h6" fontWeight={800} color="#0F172A" mb={0.5}>Social Media Presence</Typography>
-      <Typography variant="body2" color="#64748B" mb={3}>Used to understand your digital footprint and brand presence.</Typography>
+      <Typography variant="body2" color="#64748B" mb={1}>Used to understand your digital footprint and brand presence.</Typography>
+      <Typography variant="body2" color="#EF4444" fontWeight={600} mb={3}>* Please provide at least one social media link.</Typography>
 
       <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} display="block">X (formerly Twitter) Handle</Typography>
       <TextField fullWidth value={form.twitter_handle} onChange={(e) => set('twitter_handle', e.target.value)} placeholder="https://x.com/profile" sx={{ mb: 3 }} InputProps={{ sx: { borderRadius: 2 } }} />
@@ -485,8 +489,8 @@ export default function RegisterPage() {
         icon={<InsertDriveFileOutlinedIcon />}
       />
 
-      <Typography variant="h6" fontWeight={800} color="#0F172A" mb={0.5} mt={2}>Business Registration <Box component="span" sx={{ color: '#EF4444' }}>*</Box></Typography>
-      <Typography variant="body2" color="#64748B" mb={3}>Upload your CAC certificate or proof of business registration.</Typography>
+      <Typography variant="h6" fontWeight={800} color="#0F172A" mb={0.5} mt={2}>Business Registration</Typography>
+      <Typography variant="body2" color="#64748B" mb={3}>Upload your CAC certificate or proof of business registration (Optional).</Typography>
 
       <FileUploadDropzone
         file={form.cac_file}
