@@ -75,8 +75,7 @@ export default function CheckoutPage() {
       toast.error('Please enter your email address to continue.');
       return;
     }
-    // @ts-ignore
-    initializePayment(onSuccess, onClose);
+    initializePayment({ onSuccess, onClose });
   };
 
   const features = [
