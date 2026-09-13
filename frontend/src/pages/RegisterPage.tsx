@@ -449,7 +449,7 @@ export default function RegisterPage() {
 
       <Typography variant="h6" fontWeight={800} color="#0F172A" mb={0.5}>Social Media Presence</Typography>
       <Typography variant="body2" color="#64748B" mb={1}>Used to understand your digital footprint and brand presence.</Typography>
-      <Typography variant="body2" color="#EF4444" fontWeight={600} mb={3}>* Please provide at least one social media link.</Typography>
+      <Typography variant="body2" sx={{ color: '#1A1FE8', fontWeight: 800, mb: 3 }}>* Please provide at least one social media link.</Typography>
 
       <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} display="block">X (formerly Twitter) Handle</Typography>
       <TextField fullWidth value={form.twitter_handle} onChange={(e) => set('twitter_handle', e.target.value)} placeholder="https://x.com/profile" sx={{ mb: 3 }} InputProps={{ sx: { borderRadius: 2 } }} />
