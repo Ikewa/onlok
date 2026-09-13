@@ -563,25 +563,6 @@ const updateSettings = async (req, res) => {
     }
 };
 
-// @desc    Get mock users
-// @route   GET /api/admin/mock-users
-// @access  Public (Temporary)
-const getMockUsers = (req, res) => {
-    try {
-        const fs = require('fs');
-        const path = require('path');
-        const mockDataPath = path.join(__dirname, '..', 'mock_users.json');
-        if (fs.existsSync(mockDataPath)) {
-            const data = fs.readFileSync(mockDataPath, 'utf8');
-            res.status(200).json(JSON.parse(data));
-        } else {
-            res.status(404).json({ message: 'Mock data not found' });
-        }
-    } catch (error) {
-        res.status(500).json({ message: 'Error reading mock data' });
-    }
-};
-
 // @desc    Get all referrals and global stats
 // @route   GET /api/admin/referrals
 // @access  Private/Admin
@@ -1560,7 +1541,6 @@ module.exports = {
     getAlerts,
     getSettings,
     updateSettings,
-    getMockUsers,
     getReferralsAdmin,
     getWithdrawalsAdmin,
     updateWithdrawalStatus,

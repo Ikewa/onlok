@@ -9,7 +9,6 @@ const {
     getAlerts,
     getSettings,
     updateSettings,
-    getMockUsers,
     getReferralsAdmin,
     getWithdrawalsAdmin,
     updateWithdrawalStatus,
@@ -27,7 +26,6 @@ const { protect, adminOnly } = require('../middlewares/authMiddleware');
 
 // Public admin routes
 router.post('/login', adminLogin);
-router.get('/mock-users', getMockUsers);
 
 // All admin routes below are protected and require admin role
 router.use(protect);
