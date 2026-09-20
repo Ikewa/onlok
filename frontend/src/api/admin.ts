@@ -140,22 +140,7 @@ export interface ReportFilters {
   limit?: number;
 }
 
-// ── Map mock user → AdminVerification shape ─────────────────────────────────
-const mapMockUser = (u: any): AdminVerification => ({
-  verification_id: u.id,
-  status: u.status === 'suspended' ? 'flagged'
-        : u.status === 'verified'  ? 'approved'
-        : u.status,
-  submitted_at: u.created_at,
-  reviewed_at: null,
-  user_id: u.id,
-  first_name: u.first_name,
-  last_name: u.last_name,
-  email: u.email,
-  vendor_id: u.vendor_id,
-  business_name: u.business_name,
-  type: 'Business',
-});
+
 
 // ── Filter + paginate a flat list client-side ────────────────────────────────
 const applyFilterAndPage = (
@@ -192,31 +177,14 @@ export const getVerificationQueue = async (
   status: string = 'all',
   search: string = ''
 ) => {
-  // Fetch real data and mock data in parallel; either can fail gracefully
-  const [realResult, mockResult] = await Promise.allSettled([
-    api.get('/admin/verifications', { params: { page: 1, limit: 1000, status: 'all', search: '' } }),
-    api.get('/admin/mock-users'),
-  ]);
-
-  // Collect real verifications
-  const realItems: AdminVerification[] =
-    realResult.status === 'fulfilled'
-      ? (realResult.value.data?.results ?? [])
-      : [];
-
-  // Collect and map mock users
-  const mockRaw: any[] =
-    mockResult.status === 'fulfilled' ? (mockResult.value.data ?? []) : [];
-  const mockItems: AdminVerification[] = mockRaw.map(mapMockUser);
-
-  // Merge: real entries take precedence — exclude mock entries whose id clashes with a real user_id
-  const realIds = new Set(realItems.map(r => r.user_id));
-  const uniqueMock = mockItems.filter(m => !realIds.has(m.user_id));
-
-  // Combined list — real first, then mock
-  const combined = [...realItems, ...uniqueMock];
-
-  return applyFilterAndPage(combined, page, limit, status, search);
+  try {
+    const res = await api.get('/admin/verifications', { params: { page: 1, limit: 1000, status: 'all', search: '' } });
+    const realItems: AdminVerification[] = Array.isArray(res.data?.results) ? res.data.results : [];
+    return applyFilterAndPage(realItems, page, limit, status, search);
+  } catch (err) {
+    console.error('Failed to fetch verification queue', err);
+    return { results: [], total: 0, page, limit };
+  }
 };
 
 export const getVerificationDetails = async (id: number): Promise<AdminVerification> => {
