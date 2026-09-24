@@ -70,6 +70,20 @@ async function createTables() {
         )
     `);
 
+    // Durable registration application state
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS registration_applications (
+            id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+            application_id VARCHAR(100) UNIQUE NOT NULL,
+            user_id     INT UNIQUE NOT NULL,
+            status      ENUM('draft', 'uploading', 'submitted', 'processing', 'complete', 'failed') DEFAULT 'draft',
+            created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            submitted_at TIMESTAMP NULL,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+    `);
+
     // Resumable registration uploads
     await pool.query(`
         CREATE TABLE IF NOT EXISTS upload_sessions (

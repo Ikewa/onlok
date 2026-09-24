@@ -79,7 +79,7 @@ async function createTusUploadServer() {
         onUploadCreate: async (req, upload) => {
             const userId = getUserId(req);
             const category = getMetadata(upload, 'upload-category');
-            const applicationId = getMetadata(upload, 'application-id');
+            let applicationId = getMetadata(upload, 'application-id');
             const fileName = getMetadata(upload, 'filename');
             const fileType = getMetadata(upload, 'filetype');
 
@@ -87,12 +87,37 @@ async function createTusUploadServer() {
                 throw tusError('A valid upload category is required.', 422);
             }
 
-            if (!applicationId) {
-                throw tusError('An application ID is required.', 422);
-            }
-
             if (!fileName || !fileType) {
                 throw tusError('File name and type are required.', 422);
+            }
+
+            if (!applicationId) {
+                const [existingApplication] = await pool.execute(
+                    `SELECT application_id
+                     FROM registration_applications
+                     WHERE user_id = ?
+                     LIMIT 1`,
+                    [userId]
+                );
+                applicationId = existingApplication[0]?.application_id || require('crypto').randomUUID();
+                if (existingApplication.length === 0) {
+                    await pool.execute(
+                        `INSERT INTO registration_applications (application_id, user_id, status)
+                         VALUES (?, ?, 'draft')`,
+                        [applicationId, userId]
+                    );
+                }
+            }
+
+            const [applications] = await pool.execute(
+                `SELECT application_id
+                 FROM registration_applications
+                 WHERE application_id = ? AND user_id = ? AND status IN ('draft', 'uploading', 'submitted', 'processing', 'failed')
+                 LIMIT 1`,
+                [applicationId, userId]
+            );
+            if (applications.length !== 1) {
+                throw tusError('Registration application not found.', 404);
             }
 
             await pool.execute(
@@ -100,6 +125,13 @@ async function createTusUploadServer() {
                     (upload_id, user_id, application_id, category, file_name, mime_type, total_size, status)
                  VALUES (?, ?, ?, ?, ?, ?, ?, 'uploading')`,
                 [upload.id, userId, applicationId, category, fileName, fileType, upload.size || null]
+            );
+
+            await pool.execute(
+                `UPDATE registration_applications
+                 SET status = 'uploading', updated_at = CURRENT_TIMESTAMP
+                 WHERE application_id = ? AND user_id = ?`,
+                [applicationId, userId]
             );
 
             return {};
