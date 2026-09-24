@@ -60,6 +60,23 @@ const requestTus = (
 
 const getToken = () => localStorage.getItem('onlok_token') || '';
 
+const getResumeKey = (file: File, fileCategory: string, applicationId?: string) =>
+  `onlok_tus:${applicationId || 'legacy'}:${fileCategory}:${file.name}:${file.size}:${file.lastModified}`;
+
+interface StoredUpload {
+  uploadId: string;
+  uploadUrl: string;
+}
+
+const loadStoredUpload = (key: string): StoredUpload | null => {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) as StoredUpload : null;
+  } catch {
+    return null;
+  }
+};
+
 /** Uploads a file using the tus protocol with offset recovery and bounded retries. */
 export async function uploadFileInChunks(
   file: File,
@@ -71,23 +88,52 @@ export async function uploadFileInChunks(
   const totalChunks = Math.max(1, Math.ceil(file.size / chunkSize));
   const baseUrl = `${getApiBaseUrl()}/verifications/upload/tus`;
   const authHeaders = { Authorization: `Bearer ${getToken()}`, 'Tus-Resumable': '1.0.0' };
+  const resumeKey = getResumeKey(file, fileCategory, options?.applicationId);
+  const storedUpload = loadStoredUpload(resumeKey);
+  let uploadUrl = storedUpload?.uploadUrl || '';
+  let uploadId = storedUpload?.uploadId || '';
+  let offset = 0;
 
-  const createRes = await requestTus('POST', baseUrl, null, {
-    ...authHeaders,
-    'Upload-Length': String(file.size),
-    'Upload-Metadata': encodeMetadata({
-      filename: file.name,
-      filetype: file.type || 'application/octet-stream',
-      'upload-category': fileCategory,
-      ...(options?.applicationId ? { 'application-id': options.applicationId } : {}),
-    }),
-  }, 30000);
+  if (uploadUrl && uploadId) {
+    try {
+      const status = await requestTus('HEAD', uploadUrl, null, authHeaders, 30000);
+      offset = Number(status.headers.get('Upload-Offset') || 0);
+    } catch {
+      localStorage.removeItem(resumeKey);
+      uploadUrl = '';
+      uploadId = '';
+    }
+  }
 
-  const location = createRes.headers.get('Location');
-  if (!location) throw new Error('Upload session was not created.');
-  const uploadUrl = new URL(location, window.location.origin).toString();
-  const uploadId = decodeURIComponent(uploadUrl.split('/').pop() || '');
-  let offset = Number(createRes.headers.get('Upload-Offset') || 0);
+  if (!uploadUrl || !uploadId) {
+    let createError: unknown;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const createRes = await requestTus('POST', baseUrl, null, {
+          ...authHeaders,
+          'Upload-Length': String(file.size),
+          'Upload-Metadata': encodeMetadata({
+            filename: file.name,
+            filetype: file.type || 'application/octet-stream',
+            'upload-category': fileCategory,
+            ...(options?.applicationId ? { 'application-id': options.applicationId } : {}),
+          }),
+        }, 30000);
+
+        const location = createRes.headers.get('Location');
+        if (!location) throw new Error('Upload session was not created.');
+        uploadUrl = new URL(location, window.location.origin).toString();
+        uploadId = decodeURIComponent(uploadUrl.split('/').pop() || '');
+        offset = Number(createRes.headers.get('Upload-Offset') || 0);
+        localStorage.setItem(resumeKey, JSON.stringify({ uploadId, uploadUrl } satisfies StoredUpload));
+        break;
+      } catch (error) {
+        createError = error;
+        if (attempt < maxRetries) await sleep(1000 * Math.pow(2, attempt - 1));
+      }
+    }
+    if (!uploadUrl || !uploadId) throw createError || new Error('Upload session was not created.');
+  }
 
   while (offset < file.size) {
     let attempts = 0;
@@ -125,6 +171,7 @@ export async function uploadFileInChunks(
   }
 
   options?.onProgress?.(100, totalChunks, totalChunks);
+  localStorage.removeItem(resumeKey);
   return {
     uploadId,
     url: `/uploads/tus/${encodeURIComponent(uploadId)}`,

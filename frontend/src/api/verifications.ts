@@ -156,7 +156,10 @@ export const submitVerification = async (
 ): Promise<VerificationResponse> => {
   // Check if decoupled URL payload is passed
   if (payload && typeof payload === 'object' && ('application_id' in payload || 'gov_id_url' in payload)) {
-    const { data } = await api.post<VerificationResponse>('/verifications', payload);
+    const headers = 'application_id' in payload && payload.application_id
+      ? { 'Idempotency-Key': payload.application_id }
+      : undefined;
+    const { data } = await api.post<VerificationResponse>('/verifications', payload, { headers });
     return data;
   }
 

@@ -84,6 +84,18 @@ async function createTables() {
         )
     `);
 
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS registration_idempotency (
+            idempotency_key VARCHAR(255) PRIMARY KEY,
+            user_id        INT NOT NULL,
+            application_id VARCHAR(100) NOT NULL,
+            verification_id INT NULL,
+            created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+            INDEX idx_registration_idempotency_application (application_id)
+        )
+    `);
+
     // Resumable registration uploads
     await pool.query(`
         CREATE TABLE IF NOT EXISTS upload_sessions (
