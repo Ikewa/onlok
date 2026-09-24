@@ -12,6 +12,7 @@ const logger = require('./utils/logger');
 require('dotenv').config();
 
 const { requestContextMiddleware } = require('./middlewares/requestContextMiddleware');
+const { createTusUploadServer } = require('./utils/tusUploadServer');
 
 const app = express();
 
@@ -34,6 +35,18 @@ app.use(cors({
     },
     credentials: true,
 }));
+
+// Tus receives raw PATCH byte streams, so it must run before express.json().
+const tusServerPromise = createTusUploadServer();
+app.use('/api/verifications/upload/tus', async (req, res, next) => {
+    try {
+        const tusServer = await tusServerPromise;
+        return tusServer.handle(req, res);
+    } catch (error) {
+        return next(error);
+    }
+});
+
 // Capture raw body for Paystack webhook HMAC verification.
 // express.json()'s verify callback runs before the body is parsed,
 // giving us the original bytes that Paystack signed.

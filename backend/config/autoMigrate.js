@@ -70,6 +70,28 @@ async function createTables() {
         )
     `);
 
+    // Resumable registration uploads
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS upload_sessions (
+            id              BIGINT AUTO_INCREMENT PRIMARY KEY,
+            upload_id       VARCHAR(255) UNIQUE NOT NULL,
+            user_id         INT NOT NULL,
+            application_id  VARCHAR(100) NOT NULL,
+            category        VARCHAR(50) NOT NULL,
+            file_name       VARCHAR(255) NOT NULL,
+            mime_type       VARCHAR(150) NOT NULL,
+            total_size      BIGINT NULL,
+            offset_bytes    BIGINT NOT NULL DEFAULT 0,
+            status          ENUM('uploading', 'completed', 'expired', 'failed') DEFAULT 'uploading',
+            created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            completed_at    TIMESTAMP NULL,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+            INDEX idx_upload_sessions_user_status (user_id, status),
+            INDEX idx_upload_sessions_application (application_id)
+        )
+    `);
+
     // Badges
     await pool.query(`
         CREATE TABLE IF NOT EXISTS badges (

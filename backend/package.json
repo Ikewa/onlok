@@ -11,6 +11,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@tus/file-store": "^2.1.1",
+    "@tus/server": "^2.4.5",
     "axios": "^1.19.0",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.6",
