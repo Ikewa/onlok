@@ -12,8 +12,8 @@ const { sendEmail } = require('../utils/emailService');
 const logger = require('../utils/logger');
 
 // Generate JWT
-const generateToken = (id, role, vendor_id) => {
-    return jwt.sign({ id, role, vendor_id }, process.env.JWT_SECRET, {
+const generateToken = (id, role, vendor_id, email) => {
+    return jwt.sign({ id, role, vendor_id, email }, process.env.JWT_SECRET, {
         expiresIn: process.env.JWT_EXPIRES_IN,
     });
 };
@@ -23,10 +23,14 @@ const generateToken = (id, role, vendor_id) => {
 // @access  Public
 const registerUser = async (req, res) => {
     try {
-        const { first_name, last_name, business_name, email, password, phone_number, business_address, country_code, twitter_handle, instagram_handle, facebook_handle, tiktok_handle, referred_by } = req.body;
+        const { first_name, last_name, business_name, email, password, phone_number, business_address, country_code, category, nin, rc_number, twitter_handle, instagram_handle, facebook_handle, tiktok_handle, referred_by } = req.body;
 
         if (!first_name || !last_name || !business_name || !email || !password || !phone_number) {
             return res.status(400).json({ message: 'Please add all fields' });
+        }
+
+        if (!twitter_handle && !instagram_handle && !facebook_handle && !tiktok_handle) {
+            return res.status(400).json({ message: 'Please provide at least one social media link.' });
         }
 
         const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
@@ -55,10 +59,10 @@ const registerUser = async (req, res) => {
 
         // Create user with null vendor_id (will be generated later upon admin approval)
         const query = `
-            INSERT INTO users (vendor_id, referred_by, first_name, last_name, business_name, email, password_hash, phone_number, business_address, twitter_handle, instagram_handle, facebook_handle, tiktok_handle) 
-            VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO users (vendor_id, referred_by, first_name, last_name, business_name, email, password_hash, phone_number, business_address, country_code, category, nin, rc_number, twitter_handle, instagram_handle, facebook_handle, tiktok_handle)
+            VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
-        const [result] = await pool.execute(query, [referrerId, first_name, last_name, business_name, email, hashedPassword, phone_number, business_address || null, twitter_handle || null, instagram_handle || null, facebook_handle || null, tiktok_handle || null]);
+        const [result] = await pool.execute(query, [referrerId, first_name, last_name, business_name, email, hashedPassword, phone_number, business_address || null, country_code || null, category || null, nin || null, rc_number || null, twitter_handle || null, instagram_handle || null, facebook_handle || null, tiktok_handle || null]);
 
         const newUserId = result.insertId;
 
@@ -77,7 +81,7 @@ const registerUser = async (req, res) => {
             first_name,
             last_name,
             email,
-            token: generateToken(newUserId, 'vendor', null)
+            token: generateToken(newUserId, 'vendor', null, email)
         });
 
     } catch (error) {
@@ -118,7 +122,7 @@ const loginUser = async (req, res) => {
                 email: user.email,
                 role: user.role,
                 status: user.status,
-                token: generateToken(user.id, user.role, user.vendor_id)
+                token: generateToken(user.id, user.role, user.vendor_id, user.email)
             });
         } else {
             res.status(401).json({ message: 'Invalid Onlok ID / Email or password' });
@@ -150,7 +154,7 @@ const magicLogin = async (req, res) => {
         const user = users[0];
         
         // Generate new session token
-        const sessionToken = generateToken(user.id, user.role, user.vendor_id);
+        const sessionToken = generateToken(user.id, user.role, user.vendor_id, user.email);
         
         res.status(200).json({
             id: user.id,

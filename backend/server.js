@@ -40,12 +40,31 @@ app.use(cors({
 const tusServerPromise = createTusUploadServer();
 app.use('/api/verifications/upload/tus', async (req, res, next) => {
     try {
+        req.setTimeout(120000);
         const tusServer = await tusServerPromise;
         return tusServer.handle(req, res);
     } catch (error) {
         return next(error);
     }
 });
+
+tusServerPromise.then((tusServer) => {
+    const cleanup = async () => {
+        try {
+            await tusServer.cleanUpExpiredUploads();
+            await pool.query(
+                `UPDATE upload_sessions
+                 SET status = 'expired', updated_at = CURRENT_TIMESTAMP
+                 WHERE status = 'uploading'
+                   AND created_at < DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 24 HOUR)`
+            );
+        } catch (error) {
+            logger.warn('Tus cleanup failed', { error });
+        }
+    };
+    cleanup();
+    setInterval(cleanup, 60 * 60 * 1000).unref();
+}).catch((error) => logger.error('Tus server initialization failed', { error }));
 
 // Capture raw body for Paystack webhook HMAC verification.
 // express.json()'s verify callback runs before the body is parsed,
@@ -194,6 +213,11 @@ runMigrations();
 // Start cron jobs
 const { startCronJobs } = require('./utils/cronJobs');
 startCronJobs();
+
+const { processRegistrationOutbox } = require('./utils/registrationOutbox');
+setInterval(() => {
+    processRegistrationOutbox().catch((error) => logger.warn('Registration outbox worker failed', { error }));
+}, 30 * 1000).unref();
 
 // Trigger backfill routine for legacy Paystack transactions asynchronously
 const { backfillLegacyPaystackTransactions } = require('./utils/paystackBackfill');

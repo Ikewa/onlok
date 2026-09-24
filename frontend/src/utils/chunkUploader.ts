@@ -5,6 +5,7 @@ export interface ChunkUploadOptions {
   chunkSize?: number; // default 2MB
   maxRetries?: number; // default 3
   onProgress?: (progressPercent: number, currentChunk: number, totalChunks: number) => void;
+  onStatus?: (status: 'uploading' | 'retrying' | 'resuming') => void;
 }
 
 const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
@@ -96,6 +97,7 @@ export async function uploadFileInChunks(
 
   if (uploadUrl && uploadId) {
     try {
+      options?.onStatus?.('resuming');
       const status = await requestTus('HEAD', uploadUrl, null, authHeaders, 30000);
       offset = Number(status.headers.get('Upload-Offset') || 0);
     } catch {
@@ -109,6 +111,7 @@ export async function uploadFileInChunks(
     let createError: unknown;
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
+        options?.onStatus?.('uploading');
         const createRes = await requestTus('POST', baseUrl, null, {
           ...authHeaders,
           'Upload-Length': String(file.size),
@@ -129,6 +132,7 @@ export async function uploadFileInChunks(
         break;
       } catch (error) {
         createError = error;
+        options?.onStatus?.('retrying');
         if (attempt < maxRetries) await sleep(1000 * Math.pow(2, attempt - 1));
       }
     }
@@ -156,6 +160,7 @@ export async function uploadFileInChunks(
         break;
       } catch (err: any) {
         if (attempts >= maxRetries) throw err;
+        options?.onStatus?.('retrying');
         try {
           const status = await requestTus('HEAD', uploadUrl, null, authHeaders, 30000);
           offset = Number(status.headers.get('Upload-Offset') || offset);

@@ -6,6 +6,7 @@ const { validateDocument, validateVideo } = require('../utils/fileValidator');
 const { UPLOAD_DIR, TEMP_DIR } = require('../middlewares/uploadMiddleware');
 const { sendEmail } = require('../utils/emailService');
 const logger = require('../utils/logger');
+const { setContextRegistration } = require('../middlewares/requestContextMiddleware');
 
 const createRegistrationApplication = async (req, res) => {
     try {
@@ -22,6 +23,7 @@ const createRegistrationApplication = async (req, res) => {
         }
 
         const applicationId = crypto.randomUUID();
+        setContextRegistration({ applicationId });
         await pool.execute(
             `INSERT INTO registration_applications (application_id, user_id, status)
              VALUES (?, ?, 'draft')`,
@@ -39,6 +41,7 @@ const submitRegistrationApplication = async (req, res) => {
     const connection = await pool.getConnection();
     const userId = req.user.id;
     const applicationId = req.body.application_id;
+    setContextRegistration({ applicationId });
     const idempotencyKey = String(req.headers['idempotency-key'] || applicationId);
 
     try {
@@ -55,6 +58,22 @@ const submitRegistrationApplication = async (req, res) => {
         if (applications.length !== 1) {
             await connection.rollback();
             return res.status(404).json({ message: 'Registration application not found.' });
+        }
+
+        if (['submitted', 'processing', 'complete'].includes(applications[0].status)) {
+            const [submitted] = await connection.query(
+                `SELECT id AS verification_id
+                 FROM verifications
+                 WHERE user_id = ?
+                 ORDER BY submitted_at DESC
+                 LIMIT 1`,
+                [userId]
+            );
+            await connection.commit();
+            return res.status(200).json({
+                message: 'Verification documents submitted successfully',
+                verification_id: submitted[0]?.verification_id || null,
+            });
         }
 
         const [existingIdempotency] = await connection.query(
@@ -163,13 +182,13 @@ const submitRegistrationApplication = async (req, res) => {
              ON DUPLICATE KEY UPDATE verification_id = VALUES(verification_id)`,
             [idempotencyKey, userId, applicationId, verificationId]
         );
+        await connection.query(
+            `INSERT INTO registration_outbox (event_type, aggregate_id, payload)
+             VALUES ('registration.submitted', ?, ?)`,
+            [applicationId, JSON.stringify({ userId, verificationId, applicationId })]
+        );
 
         await connection.commit();
-
-        const [users] = await pool.query('SELECT email FROM users WHERE id = ?', [userId]);
-        if (users[0]?.email) {
-            await sendEmail(users[0].email, 'Application Received - Dashboard Ready', '<p>Your Onlok application was received successfully.</p>');
-        }
 
         return res.status(200).json({
             message: 'Verification documents submitted successfully',

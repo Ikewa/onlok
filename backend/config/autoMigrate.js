@@ -45,6 +45,10 @@ async function createTables() {
             facebook_handle VARCHAR(255) NULL,
             tiktok_handle          VARCHAR(255) NULL,
             profile_picture_url    VARCHAR(500) NULL,
+            country_code           VARCHAR(10) NULL,
+            category               VARCHAR(100) NULL,
+            nin                    VARCHAR(100) NULL,
+            rc_number              VARCHAR(100) NULL,
             created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         )
@@ -93,6 +97,20 @@ async function createTables() {
             created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
             INDEX idx_registration_idempotency_application (application_id)
+        )
+    `);
+
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS registration_outbox (
+            id              BIGINT AUTO_INCREMENT PRIMARY KEY,
+            event_type      VARCHAR(100) NOT NULL,
+            aggregate_id    VARCHAR(100) NOT NULL,
+            payload         JSON NOT NULL,
+            attempts        INT NOT NULL DEFAULT 0,
+            next_attempt_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            processed_at    TIMESTAMP NULL,
+            created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_registration_outbox_pending (processed_at, next_attempt_at)
         )
     `);
 
@@ -312,6 +330,10 @@ const COLUMN_MIGRATIONS = [
     { table: 'users', column: 'instagram_handle', definition: 'VARCHAR(255) NULL AFTER twitter_handle' },
     { table: 'users', column: 'facebook_handle', definition: 'VARCHAR(255) NULL AFTER instagram_handle' },
     { table: 'users', column: 'tiktok_handle', definition: 'VARCHAR(255) NULL AFTER facebook_handle' },
+    { table: 'users', column: 'country_code', definition: 'VARCHAR(10) NULL' },
+    { table: 'users', column: 'category', definition: 'VARCHAR(100) NULL' },
+    { table: 'users', column: 'nin', definition: 'VARCHAR(100) NULL' },
+    { table: 'users', column: 'rc_number', definition: 'VARCHAR(100) NULL' },
 
     // Verifications enhancements
     { table: 'verifications', column: 'admin_notes', definition: 'TEXT NULL AFTER status' },

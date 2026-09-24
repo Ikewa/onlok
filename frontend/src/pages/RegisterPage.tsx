@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   Box, Container, Typography, TextField, Button, CircularProgress, Paper, MenuItem, Select, FormControl, Stack, Chip, Switch, FormControlLabel, LinearProgress, Alert
 } from '@mui/material';
@@ -22,7 +22,7 @@ import toast from 'react-hot-toast';
 const STEPS = ['Personal Info', 'Business', 'Documents', 'Review'];
 
 interface FileUploadState {
-  status: 'idle' | 'compressing' | 'uploading' | 'completed' | 'error';
+  status: 'idle' | 'compressing' | 'uploading' | 'retrying' | 'resuming' | 'completed' | 'error';
   progress: number;
   error: string | null;
   uploadedUrl?: string;
@@ -184,6 +184,7 @@ export default function RegisterPage() {
 
     const result = await uploadFileInChunks(finalFile, fieldName, {
       applicationId: activeApplicationId,
+      onStatus: (status) => setState((prev) => ({ ...prev, status })),
       onProgress: (pct) => {
         setState((prev) => ({ ...prev, progress: pct }));
       },
@@ -211,6 +212,7 @@ export default function RegisterPage() {
 
     const result = await uploadFileInChunks(file, 'video', {
       applicationId: activeApplicationId,
+      onStatus: (status) => setState((prev) => ({ ...prev, status })),
       onProgress: (pct, currentChunk, totalChunks) => {
         setState((prev) => ({ ...prev, progress: pct }));
         setSubmissionProgressLabel(`Uploading video chunk ${currentChunk}/${totalChunks} (${pct}%)...`);
@@ -249,6 +251,9 @@ export default function RegisterPage() {
             password: form.password,
             phone_number: form.phone_number,
             country_code: form.country_code,
+            category: form.category,
+            nin: form.nin,
+            rc_number: form.rc_number,
             referred_by: refCode || undefined,
             twitter_handle: form.twitter_handle,
             instagram_handle: form.instagram_handle,
@@ -299,6 +304,9 @@ export default function RegisterPage() {
         setActiveStep(4); // Success screen
       } catch (err: any) {
         console.error('Submission error:', err);
+        setGovIdState((prev) => prev.status === 'uploading' || prev.status === 'retrying' || prev.status === 'resuming' ? { ...prev, status: 'error', error: 'Upload interrupted. You can retry safely.' } : prev);
+        setCacState((prev) => prev.status === 'uploading' || prev.status === 'retrying' || prev.status === 'resuming' ? { ...prev, status: 'error', error: 'Upload interrupted. You can retry safely.' } : prev);
+        setVideoState((prev) => prev.status === 'uploading' || prev.status === 'retrying' || prev.status === 'resuming' ? { ...prev, status: 'error', error: 'Upload interrupted. You can retry safely.' } : prev);
         let msg = err?.response?.data?.message;
         if (err?.response?.status === 413) {
           msg = 'File size is too large. Please select a smaller video or image.';
@@ -734,12 +742,30 @@ const GridRow = ({ label, value }: { label: string; value: string }) => (
   </Box>
 );
 
+const usePreviewUrl = (file: File | null) => {
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!file || !file.type.startsWith('image/')) {
+      setPreviewUrl(null);
+      return undefined;
+    }
+
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+
+  return previewUrl;
+};
+
 const FileReviewRow = ({ label, file, state }: { label: string; file: File | null; state?: FileUploadState }) => {
+  const previewUrl = usePreviewUrl(file);
+
   if (!file) {
     return <GridRow label={label} value="Missing" />;
   }
   const isImage = file.type.startsWith('image/');
-  const previewUrl = isImage ? URL.createObjectURL(file) : null;
 
   return (
     <Box sx={{ display: 'flex', mb: 2, alignItems: 'center' }}>
@@ -774,6 +800,7 @@ interface DropzoneProps {
 
 const FileUploadDropzone = ({ file, uploadState, onChange, onRemove, title, labels, accept, maxSize, icon }: DropzoneProps) => {
   const inputRef = useRef<HTMLInputElement>(null);
+  const previewUrl = usePreviewUrl(file);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -796,8 +823,7 @@ const FileUploadDropzone = ({ file, uploadState, onChange, onRemove, title, labe
 
   if (file) {
     const isImage = file.type.startsWith('image/');
-    const previewUrl = isImage ? URL.createObjectURL(file) : null;
-    const isUploading = uploadState?.status === 'uploading' || uploadState?.status === 'compressing';
+    const isUploading = uploadState?.status === 'uploading' || uploadState?.status === 'compressing' || uploadState?.status === 'retrying' || uploadState?.status === 'resuming';
     const isError = uploadState?.status === 'error';
 
     return (
@@ -824,7 +850,7 @@ const FileUploadDropzone = ({ file, uploadState, onChange, onRemove, title, labe
               <Box sx={{ mt: 1, width: '100%' }}>
                 <LinearProgress variant="determinate" value={uploadState?.progress || 0} sx={{ height: 6, borderRadius: 1 }} />
                 <Typography variant="caption" sx={{ color: '#0284C7', mt: 0.5, display: 'block', fontWeight: 600 }}>
-                  {uploadState?.status === 'compressing' ? 'Optimizing...' : `Uploading (${uploadState?.progress || 0}%)`}
+                  {uploadState?.status === 'compressing' ? 'Optimizing...' : uploadState?.status === 'resuming' ? 'Resuming upload...' : uploadState?.status === 'retrying' ? 'Retrying upload...' : `Uploading (${uploadState?.progress || 0}%)`}
                 </Typography>
               </Box>
             )}

@@ -3,10 +3,18 @@ const jwt = require('jsonwebtoken');
 const pool = require('../config/db');
 const logger = require('./logger');
 const { UPLOAD_DIR } = require('../middlewares/uploadMiddleware');
+const { validateDocument, validateVideo } = require('./fileValidator');
+const { setContextRegistration } = require('../middlewares/requestContextMiddleware');
 
 const TUS_PATH = '/';
 const MAX_UPLOAD_SIZE = 100 * 1024 * 1024;
 const UPLOAD_EXPIRATION_MS = 24 * 60 * 60 * 1000;
+const MAX_ACTIVE_UPLOADS_PER_USER = 3;
+const MAX_ACTIVE_BYTES_PER_USER = 300 * 1024 * 1024;
+const REQUESTS_PER_MINUTE_PER_USER = 180;
+const MAX_ACTIVE_UPLOADS_GLOBAL = 50;
+const requestCounters = new Map();
+let activeUploadCount = 0;
 
 const getHeader = (req, name) => {
     const value = req.headers?.[name.toLowerCase()];
@@ -40,6 +48,20 @@ const tusError = (message, statusCode = 400) => {
 
 const getMetadata = (upload, key) => upload.metadata?.[key] || null;
 
+const enforceRequestRate = (userId) => {
+    const now = Date.now();
+    const current = requestCounters.get(userId);
+    if (!current || now - current.startedAt >= 60_000) {
+        requestCounters.set(userId, { startedAt: now, count: 1 });
+        return;
+    }
+
+    current.count += 1;
+    if (current.count > REQUESTS_PER_MINUTE_PER_USER) {
+        throw tusError('Upload rate limit exceeded. Please retry shortly.', 429);
+    }
+};
+
 const assertOwnedUpload = async (uploadId, userId) => {
     const [rows] = await pool.execute(
         'SELECT upload_id FROM upload_sessions WHERE upload_id = ? AND user_id = ? LIMIT 1',
@@ -52,7 +74,7 @@ const assertOwnedUpload = async (uploadId, userId) => {
 };
 
 async function createTusUploadServer() {
-    const [{ Server }, { FileStore }] = await Promise.all([
+    const [{ Server, EVENTS }, { FileStore }] = await Promise.all([
         import('@tus/server'),
         import('@tus/file-store'),
     ]);
@@ -72,6 +94,8 @@ async function createTusUploadServer() {
         exposedHeaders: ['Location', 'Upload-Offset', 'Upload-Length', 'Tus-Resumable', 'Tus-Version'],
         onIncomingRequest: async (req, uploadId) => {
             const userId = getUserId(req);
+            enforceRequestRate(userId);
+            setContextRegistration({ uploadId });
             if (req.method !== 'POST') {
                 await assertOwnedUpload(uploadId, userId);
             }
@@ -91,6 +115,13 @@ async function createTusUploadServer() {
                 throw tusError('File name and type are required.', 422);
             }
 
+            const validation = category === 'video'
+                ? validateVideo(fileName, fileType)
+                : validateDocument(fileName, fileType);
+            if (!validation.valid) {
+                throw tusError(validation.error || 'Unsupported upload format.', 422);
+            }
+
             if (!applicationId) {
                 const [existingApplication] = await pool.execute(
                     `SELECT application_id
@@ -108,6 +139,7 @@ async function createTusUploadServer() {
                     );
                 }
             }
+            setContextRegistration({ applicationId, uploadId: upload.id });
 
             const [applications] = await pool.execute(
                 `SELECT application_id
@@ -118,6 +150,22 @@ async function createTusUploadServer() {
             );
             if (applications.length !== 1) {
                 throw tusError('Registration application not found.', 404);
+            }
+
+            const [activeUploads] = await pool.execute(
+                `SELECT COUNT(*) AS count, COALESCE(SUM(total_size), 0) AS bytes
+                 FROM upload_sessions
+                 WHERE user_id = ? AND status = 'uploading'`,
+                [userId]
+            );
+            if (Number(activeUploads[0].count) >= MAX_ACTIVE_UPLOADS_PER_USER) {
+                throw tusError('Too many active uploads. Please finish or cancel one first.', 429);
+            }
+            if (Number(activeUploads[0].bytes) + Number(upload.size || 0) > MAX_ACTIVE_BYTES_PER_USER) {
+                throw tusError('Active upload capacity for this account has been reached.', 413);
+            }
+            if (activeUploadCount >= MAX_ACTIVE_UPLOADS_GLOBAL) {
+                throw tusError('Upload capacity is temporarily full. Please retry shortly.', 503);
             }
 
             await pool.execute(
@@ -133,11 +181,13 @@ async function createTusUploadServer() {
                  WHERE application_id = ? AND user_id = ?`,
                 [applicationId, userId]
             );
+            activeUploadCount += 1;
 
             return {};
         },
         onUploadFinish: async (req, upload) => {
             const userId = getUserId(req);
+            setContextRegistration({ uploadId: upload.id });
             const [result] = await pool.execute(
                 `UPDATE upload_sessions
                  SET offset_bytes = ?, status = 'completed', completed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
@@ -158,6 +208,28 @@ async function createTusUploadServer() {
             });
             return undefined;
         },
+    });
+
+    server.on(EVENTS.POST_RECEIVE, async (req, upload) => {
+        try {
+            const userId = getUserId(req);
+            await pool.execute(
+                `UPDATE upload_sessions
+                 SET offset_bytes = ?, updated_at = CURRENT_TIMESTAMP
+                 WHERE upload_id = ? AND user_id = ? AND status = 'uploading'`,
+                [upload.offset, upload.id, userId]
+            );
+        } catch (error) {
+            logger.warn('Tus upload progress persistence failed', { error, uploadId: upload.id });
+        }
+    });
+
+    server.on(EVENTS.POST_FINISH, () => {
+        activeUploadCount = Math.max(0, activeUploadCount - 1);
+    });
+
+    server.on(EVENTS.POST_TERMINATE, () => {
+        activeUploadCount = Math.max(0, activeUploadCount - 1);
     });
 
     return server;
