@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { 
+    createRegistrationApplication,
     uploadSingleDocument,
     initChunkUpload,
     uploadChunk,
@@ -14,6 +15,7 @@ const { uploadSingleDoc, uploadChunkMulter } = require('../middlewares/uploadMid
 
 // Get current user's verification record
 router.get('/me', protect, getMyVerification);
+router.post('/application', protect, createRegistrationApplication);
 
 // ─── 1. Single Document Upload (ID / CAC) ─────────────────────────────────────
 router.post(

@@ -105,6 +105,8 @@ const formatMessage = (level, message, meta = {}) => {
         traceId: context.traceId || sanitizedMeta.traceId || null,
         userId: context.userId || sanitizedMeta.userId || null,
         userEmail: context.userEmail || sanitizedMeta.userEmail || null,
+        applicationId: context.applicationId || sanitizedMeta.applicationId || null,
+        uploadId: context.uploadId || sanitizedMeta.uploadId || null,
         method: context.method || sanitizedMeta.method || null,
         path: context.path || sanitizedMeta.path || null,
         message,

@@ -16,7 +16,9 @@ const requestContextMiddleware = (req, res, next) => {
         path: req.originalUrl || req.path,
         ip: req.headers['x-forwarded-for'] || req.socket?.remoteAddress || req.ip,
         userId: null,
-        userEmail: null
+        userEmail: null,
+        applicationId: null,
+        uploadId: null
     };
 
     asyncLocalStorage.run(store, () => {
@@ -35,6 +37,13 @@ const setContextUser = (user) => {
     }
 };
 
+const setContextRegistration = ({ applicationId, uploadId } = {}) => {
+    const store = asyncLocalStorage.getStore();
+    if (!store) return;
+    if (applicationId) store.applicationId = applicationId;
+    if (uploadId) store.uploadId = uploadId;
+};
+
 /**
  * Get current request context store
  */
@@ -46,5 +55,6 @@ module.exports = {
     asyncLocalStorage,
     requestContextMiddleware,
     setContextUser,
+    setContextRegistration,
     getRequestContext
 };

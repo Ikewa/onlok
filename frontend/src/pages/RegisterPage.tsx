@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   Box, Container, Typography, TextField, Button, CircularProgress, Paper, MenuItem, Select, FormControl, Stack, Chip, Switch, FormControlLabel, LinearProgress, Alert
 } from '@mui/material';
@@ -13,7 +13,7 @@ import ReplayIcon from '@mui/icons-material/Replay';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { registerUser } from '../api/auth';
-import { submitVerification, uploadSingleDocument } from '../api/verifications';
+import { createRegistrationApplication, submitVerification } from '../api/verifications';
 import { compressImageFile, formatBytes } from '../utils/fileCompressor';
 import { uploadFileInChunks } from '../utils/chunkUploader';
 import Navbar from '../components/Navbar';
@@ -22,7 +22,7 @@ import toast from 'react-hot-toast';
 const STEPS = ['Personal Info', 'Business', 'Documents', 'Review'];
 
 interface FileUploadState {
-  status: 'idle' | 'compressing' | 'uploading' | 'completed' | 'error';
+  status: 'idle' | 'compressing' | 'uploading' | 'retrying' | 'resuming' | 'completed' | 'error';
   progress: number;
   error: string | null;
   uploadedUrl?: string;
@@ -46,10 +46,13 @@ interface FormData {
   confirm_password: string;
   gov_id_file: File | null;
   gov_id_url: string;
+  gov_id_upload_id: string;
   business_video_file: File | null;
   business_video_url: string;
+  video_upload_id: string;
   cac_file: File | null;
   cac_url: string;
+  cac_upload_id: string;
   category: string;
   nin: string;
   rc_number: string;
@@ -61,8 +64,9 @@ const initialData: FormData = {
   twitter_handle: '', instagram_handle: '', facebook_handle: '', tiktok_handle: '',
   password: '', confirm_password: '',
   gov_id_file: null, gov_id_url: '',
-  business_video_file: null, business_video_url: '',
-  cac_file: null, cac_url: '',
+  gov_id_upload_id: '',
+  business_video_file: null, business_video_url: '', video_upload_id: '',
+  cac_file: null, cac_url: '', cac_upload_id: '',
   category: 'Consumer', nin: '', rc_number: ''
 };
 
@@ -82,7 +86,7 @@ const countryCodes = [
 ];
 
 export default function RegisterPage() {
-  const { login } = useAuth();
+  const { login, user: authUser } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
@@ -95,6 +99,7 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [submissionProgressLabel, setSubmissionProgressLabel] = useState<string>('');
+  const [applicationId, setApplicationId] = useState<string>(() => localStorage.getItem('onlok_registration_application_id') || '');
 
   // Per-file upload tracking
   const [govIdState, setGovIdState] = useState<FileUploadState>(initialFileState);
@@ -152,7 +157,9 @@ export default function RegisterPage() {
     file: File,
     fieldName: string,
     setState: React.Dispatch<React.SetStateAction<FileUploadState>>,
-    urlField: 'gov_id_url' | 'cac_url'
+    urlField: 'gov_id_url' | 'cac_url',
+    uploadIdField: 'gov_id_upload_id' | 'cac_upload_id',
+    activeApplicationId: string,
   ): Promise<string> => {
     setState({ status: 'compressing', progress: 0, error: null, originalSize: file.size });
     setSubmissionProgressLabel(`Optimizing ${file.name}...`);
@@ -175,8 +182,12 @@ export default function RegisterPage() {
     });
     setSubmissionProgressLabel(`Uploading ${file.name}...`);
 
-    const result = await uploadSingleDocument(finalFile, fieldName, (pct) => {
-      setState((prev) => ({ ...prev, progress: pct }));
+    const result = await uploadFileInChunks(finalFile, fieldName, {
+      applicationId: activeApplicationId,
+      onStatus: (status) => setState((prev) => ({ ...prev, status })),
+      onProgress: (pct) => {
+        setState((prev) => ({ ...prev, progress: pct }));
+      },
     });
 
     setState((prev) => ({
@@ -186,18 +197,22 @@ export default function RegisterPage() {
       uploadedUrl: result.url,
     }));
     set(urlField, result.url);
+    set(uploadIdField, result.uploadId || '');
     return result.url;
   };
 
   // Upload handler for chunked video
   const processAndUploadVideo = async (
     file: File,
-    setState: React.Dispatch<React.SetStateAction<FileUploadState>>
+    setState: React.Dispatch<React.SetStateAction<FileUploadState>>,
+    activeApplicationId: string,
   ): Promise<string> => {
     setState({ status: 'uploading', progress: 0, error: null, originalSize: file.size });
     setSubmissionProgressLabel('Uploading video in resilient chunks...');
 
     const result = await uploadFileInChunks(file, 'video', {
+      applicationId: activeApplicationId,
+      onStatus: (status) => setState((prev) => ({ ...prev, status })),
       onProgress: (pct, currentChunk, totalChunks) => {
         setState((prev) => ({ ...prev, progress: pct }));
         setSubmissionProgressLabel(`Uploading video chunk ${currentChunk}/${totalChunks} (${pct}%)...`);
@@ -211,6 +226,7 @@ export default function RegisterPage() {
       uploadedUrl: result.url,
     }));
     set('business_video_url', result.url);
+    set('video_upload_id', result.uploadId || '');
     return result.url;
   };
 
@@ -221,7 +237,7 @@ export default function RegisterPage() {
     if (activeStep === 3) {
       setLoading(true);
       try {
-        let user = registeredUser;
+        let user = registeredUser || authUser;
 
         // 1. Register or retrieve user session
         if (!user) {
@@ -235,6 +251,9 @@ export default function RegisterPage() {
             password: form.password,
             phone_number: form.phone_number,
             country_code: form.country_code,
+            category: form.category,
+            nin: form.nin,
+            rc_number: form.rc_number,
             referred_by: refCode || undefined,
             twitter_handle: form.twitter_handle,
             instagram_handle: form.instagram_handle,
@@ -245,36 +264,49 @@ export default function RegisterPage() {
           login(user);
         }
 
+        let activeApplicationId = applicationId;
+        if (!activeApplicationId) {
+          setSubmissionProgressLabel('Preparing your application...');
+          const application = await createRegistrationApplication();
+          activeApplicationId = application.application_id;
+          setApplicationId(activeApplicationId);
+          localStorage.setItem('onlok_registration_application_id', activeApplicationId);
+        }
+
         // 2. Decoupled Upload: Government ID
         let govIdUrl = form.gov_id_url;
         if (!govIdUrl && form.gov_id_file) {
-          govIdUrl = await processAndUploadDoc(form.gov_id_file, 'gov_id', setGovIdState, 'gov_id_url');
+          govIdUrl = await processAndUploadDoc(form.gov_id_file, 'gov_id', setGovIdState, 'gov_id_url', 'gov_id_upload_id', activeApplicationId);
         }
 
         // 3. Decoupled Upload: CAC Certificate
         let cacUrl = form.cac_url;
         if (!cacUrl && form.cac_file) {
-          cacUrl = await processAndUploadDoc(form.cac_file, 'cac_document', setCacState, 'cac_url');
+          cacUrl = await processAndUploadDoc(form.cac_file, 'cac_document', setCacState, 'cac_url', 'cac_upload_id', activeApplicationId);
         }
 
         // 4. Decoupled Upload: Business Video (Chunked)
         let videoUrl = form.business_video_url;
         if (!videoUrl && form.business_video_file) {
-          videoUrl = await processAndUploadVideo(form.business_video_file, setVideoState);
+          videoUrl = await processAndUploadVideo(form.business_video_file, setVideoState, activeApplicationId);
         }
 
         // 5. Finalize Verification Record
         setSubmissionProgressLabel('Finalizing application review...');
         await submitVerification({
-          gov_id_url: govIdUrl,
-          cac_url: cacUrl,
-          video_url: videoUrl,
+          application_id: activeApplicationId,
+          gov_id_upload_id: form.gov_id_upload_id,
+          cac_upload_id: form.cac_upload_id || undefined,
+          video_upload_id: form.video_upload_id,
         });
 
         toast.success('Verification submitted successfully!');
         setActiveStep(4); // Success screen
       } catch (err: any) {
         console.error('Submission error:', err);
+        setGovIdState((prev) => prev.status === 'uploading' || prev.status === 'retrying' || prev.status === 'resuming' ? { ...prev, status: 'error', error: 'Upload interrupted. You can retry safely.' } : prev);
+        setCacState((prev) => prev.status === 'uploading' || prev.status === 'retrying' || prev.status === 'resuming' ? { ...prev, status: 'error', error: 'Upload interrupted. You can retry safely.' } : prev);
+        setVideoState((prev) => prev.status === 'uploading' || prev.status === 'retrying' || prev.status === 'resuming' ? { ...prev, status: 'error', error: 'Upload interrupted. You can retry safely.' } : prev);
         let msg = err?.response?.data?.message;
         if (err?.response?.status === 413) {
           msg = 'File size is too large. Please select a smaller video or image.';
@@ -710,12 +742,30 @@ const GridRow = ({ label, value }: { label: string; value: string }) => (
   </Box>
 );
 
+const usePreviewUrl = (file: File | null) => {
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!file || !file.type.startsWith('image/')) {
+      setPreviewUrl(null);
+      return undefined;
+    }
+
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+
+  return previewUrl;
+};
+
 const FileReviewRow = ({ label, file, state }: { label: string; file: File | null; state?: FileUploadState }) => {
+  const previewUrl = usePreviewUrl(file);
+
   if (!file) {
     return <GridRow label={label} value="Missing" />;
   }
   const isImage = file.type.startsWith('image/');
-  const previewUrl = isImage ? URL.createObjectURL(file) : null;
 
   return (
     <Box sx={{ display: 'flex', mb: 2, alignItems: 'center' }}>
@@ -750,6 +800,7 @@ interface DropzoneProps {
 
 const FileUploadDropzone = ({ file, uploadState, onChange, onRemove, title, labels, accept, maxSize, icon }: DropzoneProps) => {
   const inputRef = useRef<HTMLInputElement>(null);
+  const previewUrl = usePreviewUrl(file);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -772,8 +823,7 @@ const FileUploadDropzone = ({ file, uploadState, onChange, onRemove, title, labe
 
   if (file) {
     const isImage = file.type.startsWith('image/');
-    const previewUrl = isImage ? URL.createObjectURL(file) : null;
-    const isUploading = uploadState?.status === 'uploading' || uploadState?.status === 'compressing';
+    const isUploading = uploadState?.status === 'uploading' || uploadState?.status === 'compressing' || uploadState?.status === 'retrying' || uploadState?.status === 'resuming';
     const isError = uploadState?.status === 'error';
 
     return (
@@ -800,7 +850,7 @@ const FileUploadDropzone = ({ file, uploadState, onChange, onRemove, title, labe
               <Box sx={{ mt: 1, width: '100%' }}>
                 <LinearProgress variant="determinate" value={uploadState?.progress || 0} sx={{ height: 6, borderRadius: 1 }} />
                 <Typography variant="caption" sx={{ color: '#0284C7', mt: 0.5, display: 'block', fontWeight: 600 }}>
-                  {uploadState?.status === 'compressing' ? 'Optimizing...' : `Uploading (${uploadState?.progress || 0}%)`}
+                  {uploadState?.status === 'compressing' ? 'Optimizing...' : uploadState?.status === 'resuming' ? 'Resuming upload...' : uploadState?.status === 'retrying' ? 'Retrying upload...' : `Uploading (${uploadState?.progress || 0}%)`}
                 </Typography>
               </Box>
             )}

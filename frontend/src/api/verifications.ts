@@ -15,9 +15,20 @@ export interface VerificationRecord extends VerificationStatus {
 export interface UploadResult {
   url: string;
   filename: string;
+  uploadId?: string;
   originalname?: string;
   size: number;
 }
+
+export interface RegistrationApplication {
+  application_id: string;
+  status: string;
+}
+
+export const createRegistrationApplication = async (): Promise<RegistrationApplication> => {
+  const { data } = await api.post<RegistrationApplication>('/verifications/application');
+  return data;
+};
 
 export interface ChunkInitResponse {
   uploadId: string;
@@ -128,7 +139,15 @@ export const completeChunkUpload = async (
  */
 export const submitVerification = async (
   payload:
-    | { gov_id_url?: string; cac_url?: string; video_url?: string }
+    | {
+        application_id?: string;
+        gov_id_upload_id?: string;
+        cac_upload_id?: string;
+        video_upload_id?: string;
+        gov_id_url?: string;
+        cac_url?: string;
+        video_url?: string;
+      }
     | FormData
     | File,
   cacFile?: File | null,
@@ -136,8 +155,11 @@ export const submitVerification = async (
   onProgress?: (progress: number) => void
 ): Promise<VerificationResponse> => {
   // Check if decoupled URL payload is passed
-  if (payload && typeof payload === 'object' && 'gov_id_url' in payload) {
-    const { data } = await api.post<VerificationResponse>('/verifications', payload);
+  if (payload && typeof payload === 'object' && ('application_id' in payload || 'gov_id_url' in payload)) {
+    const headers = 'application_id' in payload && payload.application_id
+      ? { 'Idempotency-Key': payload.application_id }
+      : undefined;
+    const { data } = await api.post<VerificationResponse>('/verifications', payload, { headers });
     return data;
   }
 

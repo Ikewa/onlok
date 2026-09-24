@@ -45,6 +45,10 @@ async function createTables() {
             facebook_handle VARCHAR(255) NULL,
             tiktok_handle          VARCHAR(255) NULL,
             profile_picture_url    VARCHAR(500) NULL,
+            country_code           VARCHAR(10) NULL,
+            category               VARCHAR(100) NULL,
+            nin                    VARCHAR(100) NULL,
+            rc_number              VARCHAR(100) NULL,
             created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         )
@@ -67,6 +71,68 @@ async function createTables() {
             reviewed_by   INT NULL,
             FOREIGN KEY (user_id)     REFERENCES users(id) ON DELETE CASCADE,
             FOREIGN KEY (reviewed_by) REFERENCES users(id) ON DELETE SET NULL
+        )
+    `);
+
+    // Durable registration application state
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS registration_applications (
+            id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+            application_id VARCHAR(100) UNIQUE NOT NULL,
+            user_id     INT UNIQUE NOT NULL,
+            status      ENUM('draft', 'uploading', 'submitted', 'processing', 'complete', 'failed') DEFAULT 'draft',
+            created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            submitted_at TIMESTAMP NULL,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+    `);
+
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS registration_idempotency (
+            idempotency_key VARCHAR(255) PRIMARY KEY,
+            user_id        INT NOT NULL,
+            application_id VARCHAR(100) NOT NULL,
+            verification_id INT NULL,
+            created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+            INDEX idx_registration_idempotency_application (application_id)
+        )
+    `);
+
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS registration_outbox (
+            id              BIGINT AUTO_INCREMENT PRIMARY KEY,
+            event_type      VARCHAR(100) NOT NULL,
+            aggregate_id    VARCHAR(100) NOT NULL,
+            payload         JSON NOT NULL,
+            attempts        INT NOT NULL DEFAULT 0,
+            next_attempt_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            processed_at    TIMESTAMP NULL,
+            created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_registration_outbox_pending (processed_at, next_attempt_at)
+        )
+    `);
+
+    // Resumable registration uploads
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS upload_sessions (
+            id              BIGINT AUTO_INCREMENT PRIMARY KEY,
+            upload_id       VARCHAR(255) UNIQUE NOT NULL,
+            user_id         INT NOT NULL,
+            application_id  VARCHAR(100) NOT NULL,
+            category        VARCHAR(50) NOT NULL,
+            file_name       VARCHAR(255) NOT NULL,
+            mime_type       VARCHAR(150) NOT NULL,
+            total_size      BIGINT NULL,
+            offset_bytes    BIGINT NOT NULL DEFAULT 0,
+            status          ENUM('uploading', 'completed', 'expired', 'failed') DEFAULT 'uploading',
+            created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            completed_at    TIMESTAMP NULL,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+            INDEX idx_upload_sessions_user_status (user_id, status),
+            INDEX idx_upload_sessions_application (application_id)
         )
     `);
 
@@ -264,6 +330,10 @@ const COLUMN_MIGRATIONS = [
     { table: 'users', column: 'instagram_handle', definition: 'VARCHAR(255) NULL AFTER twitter_handle' },
     { table: 'users', column: 'facebook_handle', definition: 'VARCHAR(255) NULL AFTER instagram_handle' },
     { table: 'users', column: 'tiktok_handle', definition: 'VARCHAR(255) NULL AFTER facebook_handle' },
+    { table: 'users', column: 'country_code', definition: 'VARCHAR(10) NULL' },
+    { table: 'users', column: 'category', definition: 'VARCHAR(100) NULL' },
+    { table: 'users', column: 'nin', definition: 'VARCHAR(100) NULL' },
+    { table: 'users', column: 'rc_number', definition: 'VARCHAR(100) NULL' },
 
     // Verifications enhancements
     { table: 'verifications', column: 'admin_notes', definition: 'TEXT NULL AFTER status' },

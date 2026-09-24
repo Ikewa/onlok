@@ -6,6 +6,202 @@ const { validateDocument, validateVideo } = require('../utils/fileValidator');
 const { UPLOAD_DIR, TEMP_DIR } = require('../middlewares/uploadMiddleware');
 const { sendEmail } = require('../utils/emailService');
 const logger = require('../utils/logger');
+const { setContextRegistration } = require('../middlewares/requestContextMiddleware');
+
+const createRegistrationApplication = async (req, res) => {
+    try {
+        const [existing] = await pool.query(
+            `SELECT application_id, status
+             FROM registration_applications
+             WHERE user_id = ?
+             LIMIT 1`,
+            [req.user.id]
+        );
+
+        if (existing.length > 0) {
+            return res.status(200).json(existing[0]);
+        }
+
+        const applicationId = crypto.randomUUID();
+        setContextRegistration({ applicationId });
+        await pool.execute(
+            `INSERT INTO registration_applications (application_id, user_id, status)
+             VALUES (?, ?, 'draft')`,
+            [applicationId, req.user.id]
+        );
+
+        return res.status(201).json({ application_id: applicationId, status: 'draft' });
+    } catch (error) {
+        logger.error('Create Registration Application Error', { error });
+        return res.status(500).json({ message: 'Server error creating registration application' });
+    }
+};
+
+const submitRegistrationApplication = async (req, res) => {
+    const connection = await pool.getConnection();
+    const userId = req.user.id;
+    const applicationId = req.body.application_id;
+    setContextRegistration({ applicationId });
+    const idempotencyKey = String(req.headers['idempotency-key'] || applicationId);
+
+    try {
+        await connection.beginTransaction();
+
+        const [applications] = await connection.query(
+            `SELECT application_id, status
+             FROM registration_applications
+             WHERE application_id = ? AND user_id = ?
+             FOR UPDATE`,
+            [applicationId, userId]
+        );
+
+        if (applications.length !== 1) {
+            await connection.rollback();
+            return res.status(404).json({ message: 'Registration application not found.' });
+        }
+
+        if (['submitted', 'processing', 'complete'].includes(applications[0].status)) {
+            const [submitted] = await connection.query(
+                `SELECT id AS verification_id
+                 FROM verifications
+                 WHERE user_id = ?
+                 ORDER BY submitted_at DESC
+                 LIMIT 1`,
+                [userId]
+            );
+            await connection.commit();
+            return res.status(200).json({
+                message: 'Verification documents submitted successfully',
+                verification_id: submitted[0]?.verification_id || null,
+            });
+        }
+
+        const [existingIdempotency] = await connection.query(
+            `SELECT verification_id
+             FROM registration_idempotency
+             WHERE idempotency_key = ? AND user_id = ? AND application_id = ?
+             FOR UPDATE`,
+            [idempotencyKey, userId, applicationId]
+        );
+
+        if (existingIdempotency.length > 0 && existingIdempotency[0].verification_id) {
+            await connection.commit();
+            return res.status(200).json({
+                message: 'Verification documents submitted successfully',
+                verification_id: existingIdempotency[0].verification_id,
+            });
+        }
+
+        const uploadIds = [
+            req.body.gov_id_upload_id,
+            req.body.cac_upload_id,
+            req.body.video_upload_id,
+        ].filter(Boolean);
+
+        if (!req.body.gov_id_upload_id || !req.body.video_upload_id || uploadIds.length === 0) {
+            await connection.rollback();
+            return res.status(422).json({ message: 'Government ID and video uploads are required.' });
+        }
+
+        const [uploads] = await connection.query(
+            `SELECT upload_id, category, status
+             FROM upload_sessions
+             WHERE upload_id IN (?) AND application_id = ? AND user_id = ?
+             FOR UPDATE`,
+            [uploadIds, applicationId, userId]
+        );
+        const uploadById = new Map(uploads.map((upload) => [upload.upload_id, upload]));
+        const requiredUploads = [
+            ['gov_id_upload_id', 'gov_id'],
+            ['video_upload_id', 'video'],
+        ];
+
+        for (const [field, category] of requiredUploads) {
+            const upload = uploadById.get(req.body[field]);
+            if (!upload || upload.status !== 'completed' || upload.category !== category) {
+                await connection.rollback();
+                return res.status(422).json({ message: `Completed ${category} upload is required.` });
+            }
+        }
+
+        if (req.body.cac_upload_id) {
+            const upload = uploadById.get(req.body.cac_upload_id);
+            if (!upload || upload.status !== 'completed' || upload.category !== 'cac_document') {
+                await connection.rollback();
+                return res.status(422).json({ message: 'Completed CAC upload is invalid.' });
+            }
+        }
+
+        const uploadUrl = (uploadId) => uploadId ? `/uploads/tus/${encodeURIComponent(uploadId)}` : null;
+        const finalGovIdUrl = uploadUrl(req.body.gov_id_upload_id);
+        const finalCacUrl = uploadUrl(req.body.cac_upload_id);
+        const finalVideoUrl = uploadUrl(req.body.video_upload_id);
+
+        const [existingVerification] = await connection.query(
+            `SELECT id
+             FROM verifications
+             WHERE user_id = ?
+             ORDER BY submitted_at DESC
+             LIMIT 1
+             FOR UPDATE`,
+            [userId]
+        );
+
+        let verificationId;
+        if (existingVerification.length > 0) {
+            verificationId = existingVerification[0].id;
+            await connection.query(
+                `UPDATE verifications
+                 SET status = 'pending', admin_notes = NULL,
+                     gov_id_url = ?, gov_id_status = 'pending', gov_id_notes = NULL,
+                     cac_url = ?, cac_status = IF(?, 'pending', cac_status), cac_notes = IF(?, NULL, cac_notes),
+                     video_url = ?, video_status = 'pending', video_notes = NULL,
+                     submitted_at = CURRENT_TIMESTAMP
+                 WHERE id = ?`,
+                [finalGovIdUrl, finalCacUrl, Boolean(finalCacUrl), Boolean(finalCacUrl), finalVideoUrl, verificationId]
+            );
+        } else {
+            const [result] = await connection.query(
+                `INSERT INTO verifications (user_id, gov_id_url, cac_url, video_url, status)
+                 VALUES (?, ?, ?, ?, 'pending')`,
+                [userId, finalGovIdUrl, finalCacUrl, finalVideoUrl]
+            );
+            verificationId = result.insertId;
+        }
+
+        await connection.query('UPDATE users SET status = "pending" WHERE id = ?', [userId]);
+        await connection.query(
+            `UPDATE registration_applications
+             SET status = 'submitted', submitted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+             WHERE application_id = ? AND user_id = ?`,
+            [applicationId, userId]
+        );
+        await connection.query(
+            `INSERT INTO registration_idempotency (idempotency_key, user_id, application_id, verification_id)
+             VALUES (?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE verification_id = VALUES(verification_id)`,
+            [idempotencyKey, userId, applicationId, verificationId]
+        );
+        await connection.query(
+            `INSERT INTO registration_outbox (event_type, aggregate_id, payload)
+             VALUES ('registration.submitted', ?, ?)`,
+            [applicationId, JSON.stringify({ userId, verificationId, applicationId })]
+        );
+
+        await connection.commit();
+
+        return res.status(200).json({
+            message: 'Verification documents submitted successfully',
+            verification_id: verificationId,
+        });
+    } catch (error) {
+        await connection.rollback();
+        logger.error('Registration Application Submit Error', { error, userId, applicationId });
+        return res.status(500).json({ message: 'Server error submitting registration application' });
+    } finally {
+        connection.release();
+    }
+};
 
 // In-memory or file-backed upload sessions
 const CHUNK_SIZE = 2 * 1024 * 1024; // 2 MB per chunk
@@ -203,8 +399,61 @@ const completeChunkUpload = async (req, res) => {
 
 // ─── 5. Submit Verification Record (Decoupled or Legacy Multipart) ────────────
 const submitVerification = async (req, res) => {
+    if (req.body.application_id) {
+        return submitRegistrationApplication(req, res);
+    }
+
     try {
         const userId = req.user.id;
+        const applicationId = req.body.application_id || null;
+
+        if (applicationId) {
+            const uploadIds = [
+                req.body.gov_id_upload_id,
+                req.body.cac_upload_id,
+                req.body.video_upload_id,
+            ].filter(Boolean);
+            if (!req.body.gov_id_upload_id || !req.body.video_upload_id) {
+                return res.status(422).json({ message: 'Government ID and video uploads are required.' });
+            }
+            const [uploads] = await pool.query(
+                `SELECT upload_id, category, status
+                 FROM upload_sessions
+                 WHERE upload_id IN (?) AND application_id = ? AND user_id = ?`,
+                [uploadIds, applicationId, userId]
+            );
+            const uploadById = new Map(uploads.map((upload) => [upload.upload_id, upload]));
+            const requiredUploads = [
+                ['gov_id_upload_id', 'gov_id'],
+                ['video_upload_id', 'video'],
+            ];
+
+            for (const [field, category] of requiredUploads) {
+                const upload = uploadById.get(req.body[field]);
+                if (!upload || upload.status !== 'completed' || upload.category !== category) {
+                    return res.status(422).json({ message: `Completed ${category} upload is required.` });
+                }
+            }
+
+            if (req.body.cac_upload_id) {
+                const upload = uploadById.get(req.body.cac_upload_id);
+                if (!upload || upload.status !== 'completed' || upload.category !== 'cac_document') {
+                    return res.status(422).json({ message: 'Completed CAC upload is invalid.' });
+                }
+            }
+
+            const uploadUrl = (uploadId) => uploadId ? `/uploads/tus/${encodeURIComponent(uploadId)}` : null;
+            req.body.gov_id_url = uploadUrl(req.body.gov_id_upload_id);
+            req.body.cac_url = uploadUrl(req.body.cac_upload_id);
+            req.body.video_url = uploadUrl(req.body.video_upload_id);
+
+            await pool.query(
+                `UPDATE registration_applications
+                 SET status = 'uploading', updated_at = CURRENT_TIMESTAMP
+                 WHERE application_id = ? AND user_id = ?`,
+                [applicationId, userId]
+            );
+        }
 
         // Support both pre-uploaded URLs (JSON body) and legacy multipart file streams
         let govIdUrl = req.body.gov_id_url || null;
@@ -283,6 +532,15 @@ const submitVerification = async (req, res) => {
 
         // Reset user table status to pending
         await pool.query('UPDATE users SET status = "pending" WHERE id = ?', [userId]);
+
+        if (applicationId) {
+            await pool.query(
+                `UPDATE registration_applications
+                 SET status = 'submitted', submitted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+                 WHERE application_id = ? AND user_id = ?`,
+                [applicationId, userId]
+            );
+        }
 
         // Send Welcome/Application Received Email
         const welcomeHtml = `
@@ -404,6 +662,7 @@ const resubmitDocuments = async (req, res) => {
 };
 
 module.exports = {
+    createRegistrationApplication,
     uploadSingleDocument,
     initChunkUpload,
     uploadChunk,
