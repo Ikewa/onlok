@@ -11,7 +11,15 @@ const api = axios.create({
 // Attach JWT from localStorage on every request
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('onlok_token');
+    let token = localStorage.getItem('onlok_token');
+    if (!token) {
+      try {
+        const rawUser = localStorage.getItem('onlok_user');
+        if (rawUser) token = JSON.parse(rawUser).token || null;
+      } catch {
+        // fallback
+      }
+    }
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }

@@ -60,7 +60,7 @@ const registerUser = async (req, res) => {
         // Create user with null vendor_id (will be generated later upon admin approval)
         const query = `
             INSERT INTO users (vendor_id, referred_by, first_name, last_name, business_name, email, password_hash, phone_number, business_address, country_code, category, nin, rc_number, twitter_handle, instagram_handle, facebook_handle, tiktok_handle)
-            VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
         const [result] = await pool.execute(query, [referrerId, first_name, last_name, business_name, email, hashedPassword, phone_number, business_address || null, country_code || null, category || null, nin || null, rc_number || null, twitter_handle || null, instagram_handle || null, facebook_handle || null, tiktok_handle || null]);
 

@@ -262,6 +262,8 @@ export default function RegisterPage() {
           });
           setRegisteredUser(user);
           login(user);
+          localStorage.removeItem('onlok_registration_application_id');
+          setApplicationId('');
         }
 
         let activeApplicationId = applicationId;

@@ -2,6 +2,7 @@ import type { UploadResult } from '../api/verifications';
 
 export interface ChunkUploadOptions {
   applicationId?: string;
+  token?: string; // Optional token override
   chunkSize?: number; // default 2MB
   maxRetries?: number; // default 3
   onProgress?: (progressPercent: number, currentChunk: number, totalChunks: number) => void;
@@ -59,7 +60,32 @@ const requestTus = (
   sendBody(body);
 });
 
-const getToken = () => localStorage.getItem('onlok_token') || '';
+const getToken = (): string => {
+  const directToken = localStorage.getItem('onlok_token');
+  if (directToken) return directToken;
+  try {
+    const rawUser = localStorage.getItem('onlok_user');
+    if (rawUser) {
+      const parsed = JSON.parse(rawUser);
+      return parsed.token || '';
+    }
+  } catch {
+    // fallback
+  }
+  return '';
+};
+
+const ensureQueryToken = (url: string, token: string): string => {
+  try {
+    const parsed = new URL(url, window.location.origin);
+    if (!parsed.searchParams.has('token') && token) {
+      parsed.searchParams.set('token', token);
+    }
+    return parsed.toString();
+  } catch {
+    return url;
+  }
+};
 
 const getResumeKey = (file: File, fileCategory: string, applicationId?: string) =>
   `onlok_tus:${applicationId || 'legacy'}:${fileCategory}:${file.name}:${file.size}:${file.lastModified}`;
@@ -84,14 +110,19 @@ export async function uploadFileInChunks(
   fileCategory: string = 'video',
   options?: ChunkUploadOptions
 ): Promise<UploadResult> {
+  const token = options?.token || getToken();
+  if (!token) {
+    throw new Error('Not authorized, no token. Please sign in again.');
+  }
+
   const maxRetries = options?.maxRetries ?? 3;
   const chunkSize = options?.chunkSize ?? 2 * 1024 * 1024;
   const totalChunks = Math.max(1, Math.ceil(file.size / chunkSize));
-  const baseUrl = `${getApiBaseUrl()}/verifications/upload/tus`;
-  const authHeaders = { Authorization: `Bearer ${getToken()}`, 'Tus-Resumable': '1.0.0' };
+  const baseUrl = ensureQueryToken(`${getApiBaseUrl()}/verifications/upload/tus`, token);
+  const authHeaders = { Authorization: `Bearer ${token}`, 'Tus-Resumable': '1.0.0' };
   const resumeKey = getResumeKey(file, fileCategory, options?.applicationId);
   const storedUpload = loadStoredUpload(resumeKey);
-  let uploadUrl = storedUpload?.uploadUrl || '';
+  let uploadUrl = storedUpload?.uploadUrl ? ensureQueryToken(storedUpload.uploadUrl, token) : '';
   let uploadId = storedUpload?.uploadId || '';
   let offset = 0;
 
@@ -125,8 +156,8 @@ export async function uploadFileInChunks(
 
         const location = createRes.headers.get('Location');
         if (!location) throw new Error('Upload session was not created.');
-        uploadUrl = new URL(location, window.location.origin).toString();
-        uploadId = decodeURIComponent(uploadUrl.split('/').pop() || '');
+        uploadUrl = ensureQueryToken(new URL(location, window.location.origin).toString(), token);
+        uploadId = decodeURIComponent(uploadUrl.split('?')[0].split('/').pop() || '');
         offset = Number(createRes.headers.get('Upload-Offset') || 0);
         localStorage.setItem(resumeKey, JSON.stringify({ uploadId, uploadUrl } satisfies StoredUpload));
         break;

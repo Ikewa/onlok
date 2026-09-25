@@ -17,21 +17,48 @@ const requestCounters = new Map();
 let activeUploadCount = 0;
 
 const getHeader = (req, name) => {
-    const value = req.headers?.[name.toLowerCase()];
+    const headers = req.headers;
+    if (headers && typeof headers.get === 'function') {
+        return headers.get(name) || '';
+    }
+    const value = headers?.[name.toLowerCase()];
     if (Array.isArray(value)) return value[0];
     return value || '';
 };
 
+const getTokenFromQuery = (req) => {
+    try {
+        const urlObj = new URL(req.url);
+        return urlObj.searchParams.get('token') || '';
+    } catch {
+        const urlStr = typeof req.url === 'string' ? req.url : '';
+        const queryIndex = urlStr.indexOf('?');
+        if (queryIndex !== -1) {
+            return new URLSearchParams(urlStr.slice(queryIndex + 1)).get('token') || '';
+        }
+        return '';
+    }
+};
+
 const getUserId = (req) => {
     const authorization = getHeader(req, 'authorization');
-    if (!authorization.startsWith('Bearer ')) {
+    const tokenFromQuery = getTokenFromQuery(req);
+    const authHeader = authorization || (tokenFromQuery ? `Bearer ${tokenFromQuery}` : '');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        const error = new Error('Not authorized, no token');
+        error.status_code = 401;
+        throw error;
+    }
+
+    const tokenStr = authHeader.slice(7).trim();
+    if (!tokenStr) {
         const error = new Error('Not authorized, no token');
         error.status_code = 401;
         throw error;
     }
 
     try {
-        const decoded = jwt.verify(authorization.slice(7), process.env.JWT_SECRET);
+        const decoded = jwt.verify(tokenStr, process.env.JWT_SECRET);
         return Number(decoded.id);
     } catch (error) {
         const authError = new Error('Not authorized, token failed');
@@ -90,9 +117,12 @@ async function createTusUploadServer() {
         maxSize: MAX_UPLOAD_SIZE,
         relativeLocation: true,
         generateUrl: (_req, { id }) => `/api/verifications/upload/tus/${encodeURIComponent(id)}`,
-        allowedHeaders: ['Authorization', 'Upload-Metadata', 'Upload-Length', 'Upload-Offset', 'Tus-Resumable'],
+        allowedHeaders: ['Authorization', 'authorization', 'x-access-token', 'Upload-Metadata', 'Upload-Length', 'Upload-Offset', 'Tus-Resumable', 'Content-Type'],
         exposedHeaders: ['Location', 'Upload-Offset', 'Upload-Length', 'Tus-Resumable', 'Tus-Version'],
         onIncomingRequest: async (req, uploadId) => {
+            if (req.method === 'OPTIONS') {
+                return;
+            }
             const userId = getUserId(req);
             enforceRequestRate(userId);
             setContextRegistration({ uploadId });
@@ -122,16 +152,29 @@ async function createTusUploadServer() {
                 throw tusError(validation.error || 'Unsupported upload format.', 422);
             }
 
-            if (!applicationId) {
-                const [existingApplication] = await pool.execute(
-                    `SELECT application_id
-                     FROM registration_applications
-                     WHERE user_id = ?
-                     LIMIT 1`,
+            const [existingApp] = await pool.execute(
+                `SELECT application_id
+                 FROM registration_applications
+                 WHERE application_id = ? AND user_id = ? AND status IN ('draft', 'uploading', 'submitted', 'processing', 'failed')
+                 LIMIT 1`,
+                [applicationId, userId]
+            );
+
+            if (existingApp.length === 0) {
+                if (applicationId) {
+                    logger.warn('Tus upload: Provided application ID not found for user; creating a new application', {
+                        userId,
+                        requestedApplicationId: applicationId,
+                    });
+                }
+                const [userApp] = await pool.execute(
+                    `SELECT application_id FROM registration_applications WHERE user_id = ? LIMIT 1`,
                     [userId]
                 );
-                applicationId = existingApplication[0]?.application_id || require('crypto').randomUUID();
-                if (existingApplication.length === 0) {
+                if (userApp.length > 0) {
+                    applicationId = userApp[0].application_id;
+                } else {
+                    applicationId = require('crypto').randomUUID();
                     await pool.execute(
                         `INSERT INTO registration_applications (application_id, user_id, status)
                          VALUES (?, ?, 'draft')`,
@@ -140,17 +183,6 @@ async function createTusUploadServer() {
                 }
             }
             setContextRegistration({ applicationId, uploadId: upload.id });
-
-            const [applications] = await pool.execute(
-                `SELECT application_id
-                 FROM registration_applications
-                 WHERE application_id = ? AND user_id = ? AND status IN ('draft', 'uploading', 'submitted', 'processing', 'failed')
-                 LIMIT 1`,
-                [applicationId, userId]
-            );
-            if (applications.length !== 1) {
-                throw tusError('Registration application not found.', 404);
-            }
 
             const [activeUploads] = await pool.execute(
                 `SELECT COUNT(*) AS count, COALESCE(SUM(total_size), 0) AS bytes
