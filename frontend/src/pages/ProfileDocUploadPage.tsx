@@ -9,7 +9,7 @@ import UploadIcon from '@mui/icons-material/Upload';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
-import { submitVerification, uploadSingleDocument } from '../api/verifications';
+import { createRegistrationApplication, submitVerification } from '../api/verifications';
 import { compressImageFile } from '../utils/fileCompressor';
 import { uploadFileInChunks } from '../utils/chunkUploader';
 import { useAuth } from '../context/AuthContext';
@@ -115,53 +115,54 @@ export default function ProfileDocUploadPage() {
     setUploadPhase('');
 
     try {
-      let govIdUrl: string | undefined;
-      let cacDocUrl: string | undefined;
-      let videoUrl: string | undefined;
+      const application = await createRegistrationApplication();
+      const applicationId = application.application_id;
+      const uploadIds: { gov_id_upload_id?: string; cac_upload_id?: string; video_upload_id?: string } = {};
 
       if (govId) {
         setUploadPhase('Optimizing & uploading Government ID...');
-        let fileToUpload = govId;
-        if (govId.type.startsWith('image/')) {
-          fileToUpload = await compressImageFile(govId);
-        }
-        const res = await uploadSingleDocument(fileToUpload, 'gov_id');
-        govIdUrl = res.url;
+        const fileToUpload = govId.type.startsWith('image/') ? await compressImageFile(govId) : govId;
+        const res = await uploadFileInChunks(fileToUpload, 'gov_id', {
+          applicationId,
+          onProgress: (pct) => setUploadProgress(pct),
+        });
+        uploadIds.gov_id_upload_id = res.uploadId;
       }
 
       if (cacDoc) {
         setUploadPhase('Optimizing & uploading CAC Document...');
-        let fileToUpload = cacDoc;
-        if (cacDoc.type.startsWith('image/')) {
-          fileToUpload = await compressImageFile(cacDoc);
-        }
-        const res = await uploadSingleDocument(fileToUpload, 'cac_document');
-        cacDocUrl = res.url;
+        const fileToUpload = cacDoc.type.startsWith('image/') ? await compressImageFile(cacDoc) : cacDoc;
+        const res = await uploadFileInChunks(fileToUpload, 'cac_document', {
+          applicationId,
+          onProgress: (pct) => setUploadProgress(pct),
+        });
+        uploadIds.cac_upload_id = res.uploadId;
       }
 
       if (video) {
-        setUploadPhase('Uploading Video in resilient chunks...');
+        setUploadPhase('Uploading video in resilient chunks...');
         const res = await uploadFileInChunks(video, 'video', {
+          applicationId,
           onProgress: (pct, cur, tot) => {
             setUploadProgress(pct);
             setUploadPhase(`Uploading video chunk ${cur}/${tot} (${pct}%)...`);
           },
         });
-        videoUrl = res.url;
+        uploadIds.video_upload_id = res.uploadId;
+      }
+
+      if (!uploadIds.gov_id_upload_id && !uploadIds.cac_upload_id && !uploadIds.video_upload_id) {
+        throw new Error('No documents were uploaded. Please try again.');
       }
 
       setUploadPhase('Finalizing request...');
-      await submitVerification({
-        gov_id_url: govIdUrl,
-        cac_url: cacDocUrl,
-        video_url: videoUrl,
-      });
+      await submitVerification({ application_id: applicationId, ...uploadIds });
 
       toast.success('Documents submitted for review!');
       navigate('/dashboard/verification');
     } catch (err: any) {
       console.error(err);
-      toast.error(err?.response?.data?.message || err?.message || 'Failed to submit verification');
+      toast.error(err?.serverMessage || err?.response?.data?.message || err?.message || 'Failed to submit verification');
     } finally {
       setLoading(false);
       setUploadPhase('');

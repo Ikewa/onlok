@@ -12,6 +12,7 @@ const logger = require('./utils/logger');
 require('dotenv').config();
 
 const { requestContextMiddleware } = require('./middlewares/requestContextMiddleware');
+const { documentMediaGuard } = require('./middlewares/documentMediaMiddleware');
 const { createTusUploadServer } = require('./utils/tusUploadServer');
 
 const app = express();
@@ -108,6 +109,9 @@ const uploadDir = process.env.STORAGE_PATH || path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
 }
+// Verification documents and business videos are private: they require either a
+// short-lived signed URL or a valid JWT before express.static serves them.
+app.use('/uploads', documentMediaGuard);
 app.use('/uploads', express.static(uploadDir));
 
 // Routes

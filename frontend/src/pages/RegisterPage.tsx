@@ -153,6 +153,8 @@ export default function RegisterPage() {
   };
 
   // Upload handler for single documents (with client compression)
+  // Returns the upload id directly: React state updates are not visible to the
+  // closure that is still running, so the caller must use the return value.
   const processAndUploadDoc = async (
     file: File,
     fieldName: string,
@@ -160,7 +162,7 @@ export default function RegisterPage() {
     urlField: 'gov_id_url' | 'cac_url',
     uploadIdField: 'gov_id_upload_id' | 'cac_upload_id',
     activeApplicationId: string,
-  ): Promise<string> => {
+  ): Promise<{ url: string; uploadId: string }> => {
     setState({ status: 'compressing', progress: 0, error: null, originalSize: file.size });
     setSubmissionProgressLabel(`Optimizing ${file.name}...`);
 
@@ -198,7 +200,7 @@ export default function RegisterPage() {
     }));
     set(urlField, result.url);
     set(uploadIdField, result.uploadId || '');
-    return result.url;
+    return { url: result.url, uploadId: result.uploadId || '' };
   };
 
   // Upload handler for chunked video
@@ -206,7 +208,7 @@ export default function RegisterPage() {
     file: File,
     setState: React.Dispatch<React.SetStateAction<FileUploadState>>,
     activeApplicationId: string,
-  ): Promise<string> => {
+  ): Promise<{ url: string; uploadId: string }> => {
     setState({ status: 'uploading', progress: 0, error: null, originalSize: file.size });
     setSubmissionProgressLabel('Uploading video in resilient chunks...');
 
@@ -227,7 +229,7 @@ export default function RegisterPage() {
     }));
     set('business_video_url', result.url);
     set('video_upload_id', result.uploadId || '');
-    return result.url;
+    return { url: result.url, uploadId: result.uploadId || '' };
   };
 
   const handleNext = async () => {
@@ -275,42 +277,58 @@ export default function RegisterPage() {
           localStorage.setItem('onlok_registration_application_id', activeApplicationId);
         }
 
-        // 2. Decoupled Upload: Government ID
-        let govIdUrl = form.gov_id_url;
-        if (!govIdUrl && form.gov_id_file) {
-          govIdUrl = await processAndUploadDoc(form.gov_id_file, 'gov_id', setGovIdState, 'gov_id_url', 'gov_id_upload_id', activeApplicationId);
-        }
+        // 2-4. Decoupled uploads.
+        // Values already recorded by an earlier attempt are reused; everything
+        // produced during *this* attempt comes from the helpers' return values,
+        // because the `form` state object is stale inside this async handler.
+        const pendingUploads: { gov_id_upload_id?: string; cac_upload_id?: string; video_upload_id?: string } = {};
 
-        // 3. Decoupled Upload: CAC Certificate
-        let cacUrl = form.cac_url;
-        if (!cacUrl && form.cac_file) {
-          cacUrl = await processAndUploadDoc(form.cac_file, 'cac_document', setCacState, 'cac_url', 'cac_upload_id', activeApplicationId);
+        let govIdUploadId = govIdState.status === 'completed' ? form.gov_id_upload_id : '';
+        if (!govIdUploadId) {
+          if (!form.gov_id_file) throw new Error('Please select your Government ID.');
+          const govIdUpload = await processAndUploadDoc(
+            form.gov_id_file, 'gov_id', setGovIdState, 'gov_id_url', 'gov_id_upload_id', activeApplicationId
+          );
+          govIdUploadId = govIdUpload.uploadId;
         }
+        pendingUploads.gov_id_upload_id = govIdUploadId;
 
-        // 4. Decoupled Upload: Business Video (Chunked)
-        let videoUrl = form.business_video_url;
-        if (!videoUrl && form.business_video_file) {
-          videoUrl = await processAndUploadVideo(form.business_video_file, setVideoState, activeApplicationId);
+        let cacUploadId = cacState.status === 'completed' ? form.cac_upload_id : '';
+        if (!cacUploadId && form.cac_file) {
+          const cacUpload = await processAndUploadDoc(
+            form.cac_file, 'cac_document', setCacState, 'cac_url', 'cac_upload_id', activeApplicationId
+          );
+          cacUploadId = cacUpload.uploadId;
         }
+        if (cacUploadId) pendingUploads.cac_upload_id = cacUploadId;
+
+        let videoUploadId = videoState.status === 'completed' ? form.video_upload_id : '';
+        if (!videoUploadId) {
+          if (!form.business_video_file) throw new Error('Please select your business video.');
+          const videoUpload = await processAndUploadVideo(
+            form.business_video_file, setVideoState, activeApplicationId
+          );
+          videoUploadId = videoUpload.uploadId;
+        }
+        pendingUploads.video_upload_id = videoUploadId;
 
         // 5. Finalize Verification Record
         setSubmissionProgressLabel('Finalizing application review...');
         await submitVerification({
           application_id: activeApplicationId,
-          gov_id_upload_id: form.gov_id_upload_id,
-          cac_upload_id: form.cac_upload_id || undefined,
-          video_upload_id: form.video_upload_id,
+          ...pendingUploads,
         });
 
         toast.success('Verification submitted successfully!');
+        localStorage.removeItem('onlok_registration_application_id');
         setActiveStep(4); // Success screen
       } catch (err: any) {
         console.error('Submission error:', err);
         setGovIdState((prev) => prev.status === 'uploading' || prev.status === 'retrying' || prev.status === 'resuming' ? { ...prev, status: 'error', error: 'Upload interrupted. You can retry safely.' } : prev);
         setCacState((prev) => prev.status === 'uploading' || prev.status === 'retrying' || prev.status === 'resuming' ? { ...prev, status: 'error', error: 'Upload interrupted. You can retry safely.' } : prev);
         setVideoState((prev) => prev.status === 'uploading' || prev.status === 'retrying' || prev.status === 'resuming' ? { ...prev, status: 'error', error: 'Upload interrupted. You can retry safely.' } : prev);
-        let msg = err?.response?.data?.message;
-        if (err?.response?.status === 413) {
+        let msg = err?.serverMessage || err?.response?.data?.message;
+        if (err?.response?.status === 413 || err?.status === 413) {
           msg = 'File size is too large. Please select a smaller video or image.';
         } else if (!msg) {
           msg = err?.message || 'Registration failed. Please check your connection and try again.';
@@ -657,7 +675,9 @@ export default function RegisterPage() {
         <Paper elevation={0} sx={{ p: 4, borderRadius: 4, mb: 5, bgcolor: '#F8FAFC', maxWidth: 400, mx: 'auto' }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
             <Typography variant="body2" color="#64748B">Application ID</Typography>
-            <Typography variant="subtitle2" fontWeight={700} color="#0F172A">APP-{Math.floor(Math.random() * 9000) + 1000}-KX</Typography>
+            <Typography variant="subtitle2" fontWeight={700} color="#0F172A">
+              {applicationId ? `APP-${applicationId.slice(0, 8).toUpperCase()}` : 'Processing'}
+            </Typography>
           </Box>
           <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
             <Typography variant="body2" color="#64748B">Status</Typography>

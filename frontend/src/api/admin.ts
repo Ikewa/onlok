@@ -16,6 +16,9 @@ export interface AdminVerification {
   gov_id_url?: string;
   cac_url?: string;
   video_url?: string;
+  gov_id_mime?: string | null;
+  cac_mime?: string | null;
+  video_mime?: string | null;
   admin_notes?: string;
   assigned_tier?: string;
   gov_id_status?: string;

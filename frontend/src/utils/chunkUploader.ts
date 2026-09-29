@@ -24,6 +24,30 @@ interface TusResponse {
   headers: Headers;
 }
 
+interface TusError extends Error {
+  status?: number;
+  headers?: Headers;
+  serverMessage?: string;
+}
+
+const parseErrorMessage = (rawBody: string): string | undefined => {
+  if (!rawBody) return undefined;
+  try {
+    const parsed = JSON.parse(rawBody);
+    return typeof parsed?.message === 'string' ? parsed.message : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+// Network failures, timeouts, offset conflicts, rate limits and server errors
+// are worth retrying. Everything else is a permanent rejection.
+const isRetryableTusError = (error: TusError): boolean => {
+  const status = error?.status;
+  if (status === undefined || status === null) return true;
+  return status === 408 || status === 409 || status === 429 || status >= 500;
+};
+
 const requestTus = (
   method: string,
   url: string,
@@ -48,13 +72,16 @@ const requestTus = (
     if (request.status >= 200 && request.status < 300) {
       resolve({ status: request.status, headers: responseHeaders });
     } else {
-      const error = new Error(`Tus request failed with status ${request.status}`);
-      Object.assign(error, { status: request.status, headers: responseHeaders });
+      const serverMessage = parseErrorMessage(request.responseText);
+      const error: TusError = new Error(serverMessage || `Upload failed (HTTP ${request.status}).`);
+      error.status = request.status;
+      error.headers = responseHeaders;
+      error.serverMessage = serverMessage;
       reject(error);
     }
   };
-  request.onerror = () => reject(new Error('Network error during upload'));
-  request.ontimeout = () => reject(new Error('Upload request timed out'));
+  request.onerror = () => reject(new Error('Network error during upload. Check your connection and try again.'));
+  request.ontimeout = () => reject(new Error('Upload request timed out. Progress is saved, retry to resume.'));
   request.onabort = () => reject(new Error('Upload request was aborted'));
   const sendBody = request.send.bind(request) as (payload: unknown) => void;
   sendBody(body);
@@ -73,18 +100,6 @@ const getToken = (): string => {
     // fallback
   }
   return '';
-};
-
-const ensureQueryToken = (url: string, token: string): string => {
-  try {
-    const parsed = new URL(url, window.location.origin);
-    if (!parsed.searchParams.has('token') && token) {
-      parsed.searchParams.set('token', token);
-    }
-    return parsed.toString();
-  } catch {
-    return url;
-  }
 };
 
 const getResumeKey = (file: File, fileCategory: string, applicationId?: string) =>
@@ -118,11 +133,18 @@ export async function uploadFileInChunks(
   const maxRetries = options?.maxRetries ?? 3;
   const chunkSize = options?.chunkSize ?? 2 * 1024 * 1024;
   const totalChunks = Math.max(1, Math.ceil(file.size / chunkSize));
-  const baseUrl = ensureQueryToken(`${getApiBaseUrl()}/verifications/upload/tus`, token);
+
+  if (!file.size) {
+    throw new Error('The selected file is empty.');
+  }
+
+  const baseUrl = `${getApiBaseUrl()}/verifications/upload/tus`;
+  // The JWT travels in the Authorization header only. It must never appear in
+  // the URL: those end up in access logs, browser history and Location headers.
   const authHeaders = { Authorization: `Bearer ${token}`, 'Tus-Resumable': '1.0.0' };
   const resumeKey = getResumeKey(file, fileCategory, options?.applicationId);
   const storedUpload = loadStoredUpload(resumeKey);
-  let uploadUrl = storedUpload?.uploadUrl ? ensureQueryToken(storedUpload.uploadUrl, token) : '';
+  let uploadUrl = storedUpload?.uploadUrl || '';
   let uploadId = storedUpload?.uploadId || '';
   let offset = 0;
 
@@ -156,13 +178,15 @@ export async function uploadFileInChunks(
 
         const location = createRes.headers.get('Location');
         if (!location) throw new Error('Upload session was not created.');
-        uploadUrl = ensureQueryToken(new URL(location, window.location.origin).toString(), token);
+        uploadUrl = new URL(location, window.location.origin).toString();
         uploadId = decodeURIComponent(uploadUrl.split('?')[0].split('/').pop() || '');
         offset = Number(createRes.headers.get('Upload-Offset') || 0);
+        if (!uploadId) throw new Error('Upload session was not created.');
         localStorage.setItem(resumeKey, JSON.stringify({ uploadId, uploadUrl } satisfies StoredUpload));
         break;
-      } catch (error) {
+      } catch (error: any) {
         createError = error;
+        if (!isRetryableTusError(error)) throw error;
         options?.onStatus?.('retrying');
         if (attempt < maxRetries) await sleep(1000 * Math.pow(2, attempt - 1));
       }
@@ -190,6 +214,10 @@ export async function uploadFileInChunks(
         options?.onProgress?.(Math.min(Math.round((offset / file.size) * 100), 99), Math.ceil(offset / chunkSize), totalChunks);
         break;
       } catch (err: any) {
+        // 4xx responses other than conflicts/rate limits are permanent
+        // (invalid format, file too large, quota exhausted): fail fast rather
+        // than burning the retry budget.
+        if (!isRetryableTusError(err)) throw err;
         if (attempts >= maxRetries) throw err;
         options?.onStatus?.('retrying');
         try {
@@ -204,6 +232,10 @@ export async function uploadFileInChunks(
         }
       }
     }
+  }
+
+  if (offset < file.size) {
+    throw new Error('Upload did not complete. Please retry to resume from where it stopped.');
   }
 
   options?.onProgress?.(100, totalChunks, totalChunks);
