@@ -8,6 +8,21 @@ const STATIC_ASSET_PATTERN = /\.[a-z0-9]{2,5}$/i;
 const QUIET_PATHS = [/^\/api\/health$/, /^\/api\/identities\/prembly-config$/];
 
 /**
+ * Decodes anything a response body can legally be written as. A Uint8Array
+ * stringifies to a comma-separated byte list, which would put gibberish in the
+ * log instead of the reason the request failed.
+ */
+const decodeChunk = (chunk) => {
+    if (chunk === null || chunk === undefined) return '';
+    if (Buffer.isBuffer(chunk)) return chunk.toString('utf8');
+    if (ArrayBuffer.isView(chunk)) {
+        return Buffer.from(chunk.buffer, chunk.byteOffset, chunk.byteLength).toString('utf8');
+    }
+    if (typeof chunk === 'string') return chunk;
+    return String(chunk);
+};
+
+/**
  * Captures the beginning of a response body so a failed request records *why*
  * it failed. A bare status code is not diagnosable: `422` without the message
  * leaves nothing to act on.
@@ -18,8 +33,8 @@ const captureBody = (res) => {
     const originalEnd = res.end.bind(res);
 
     res.write = (chunk, ...rest) => {
-        if (captured.length < MAX_CAPTURED_BODY && chunk) {
-            captured += Buffer.isBuffer(chunk) ? chunk.toString('utf8') : String(chunk);
+        if (captured.length < MAX_CAPTURED_BODY) {
+            captured += decodeChunk(chunk);
             if (captured.length > MAX_CAPTURED_BODY) captured = captured.slice(0, MAX_CAPTURED_BODY);
         }
         return originalWrite(chunk, ...rest);
@@ -27,7 +42,7 @@ const captureBody = (res) => {
 
     res.end = (chunk, ...rest) => {
         if (chunk && captured.length < MAX_CAPTURED_BODY) {
-            captured += Buffer.isBuffer(chunk) ? chunk.toString('utf8') : String(chunk);
+            captured += decodeChunk(chunk);
             if (captured.length > MAX_CAPTURED_BODY) captured = captured.slice(0, MAX_CAPTURED_BODY);
         }
         return originalEnd(chunk, ...rest);

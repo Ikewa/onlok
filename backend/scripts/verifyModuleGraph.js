@@ -7,6 +7,8 @@ const tusUploadServer = require('../utils/tusUploadServer');
 const verificationRoute = require('../routes/verificationRoute');
 const adminController = require('../controllers/adminController');
 const uploadMiddleware = require('../middlewares/uploadMiddleware');
+const requestLoggingMiddleware = require('../middlewares/requestLoggingMiddleware');
+const requestContextMiddleware = require('../middlewares/requestContextMiddleware');
 
 const checks = [];
 const check = (name, actual, expected = true) => checks.push([name, actual === expected]);
@@ -31,6 +33,20 @@ check('multer chunk storage removed', 'uploadChunkMulter' in uploadMiddleware, f
 check('multer single-doc storage removed', 'uploadSingleDoc' in uploadMiddleware, false);
 check('avatar upload retained', Boolean(uploadMiddleware.uploadAvatar?.single), true);
 check('tus directory is ensured at startup', uploadMiddleware.UPLOAD_DIR.length > 0);
+
+check('request logging middleware is a function', typeof requestLoggingMiddleware.requestLoggingMiddleware, 'function');
+check('slow-request threshold is configured', requestLoggingMiddleware.SLOW_REQUEST_MS > 0);
+check('request context exposes runWithContext', typeof requestContextMiddleware.runWithContext, 'function');
+
+// The logger must be mounted before the tus handler, otherwise resumable upload
+// requests bypass the request log entirely.
+const serverSource = require('fs').readFileSync(require.resolve('../server.js'), 'utf8');
+const loggingAt = serverSource.indexOf('app.use(requestLoggingMiddleware)');
+const tusAt = serverSource.indexOf("app.use('/api/verifications/upload/tus'");
+check('request logging is mounted', loggingAt > 0);
+check('request logging is mounted before the tus handler', loggingAt > 0 && loggingAt < tusAt);
+check('inline http logger was removed', serverSource.includes('Structured HTTP Request Logging'), false);
+check('unused morgan import was removed', serverSource.includes("require('morgan')"), false);
 
 // Regression guard: the request key names are part of the public API contract
 // and must not be derived from the category name (that produced `gov_idUploadId`

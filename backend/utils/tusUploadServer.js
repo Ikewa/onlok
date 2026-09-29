@@ -15,6 +15,11 @@ const MAX_ACTIVE_BYTES_PER_USER = 300 * 1024 * 1024;
 const REQUESTS_PER_MINUTE_PER_USER = 180;
 const MAX_ACTIVE_UPLOADS_GLOBAL = 50;
 const RATE_COUNTER_SWEEP_THRESHOLD = 1000;
+// An upload session left "uploading" after an abandoned transfer used to hold a
+// quota slot for the full 24h expiry window, permanently locking the user out
+// of uploading. Only recent sessions are treated as active, and starting a new
+// transfer supersedes the user's own abandoned one for the same category.
+const ACTIVE_UPLOAD_WINDOW_MINUTES = 120;
 const requestCounters = new Map();
 
 // uploadId -> userId, populated on create/resume so the per-chunk progress hook
@@ -123,7 +128,8 @@ const reconcileActiveUploadCount = async () => {
         `SELECT COUNT(*) AS count
          FROM upload_sessions
          WHERE status = 'uploading'
-           AND created_at > DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 24 HOUR)`
+           AND created_at > DATE_SUB(CURRENT_TIMESTAMP, INTERVAL ? MINUTE)`,
+        [ACTIVE_UPLOAD_WINDOW_MINUTES]
     );
     activeUploadCount = Number(rows[0]?.count || 0);
 };
@@ -230,12 +236,33 @@ async function createTusUploadServer() {
             setContextRegistration({ applicationId, uploadId: upload.id });
             rememberOwner(upload.id, userId);
 
+            // A new transfer supersedes the caller's own abandoned session for
+            // the same category so it cannot consume capacity indefinitely. The
+            // underlying bytes stay resumable: a HEAD-based resume still
+            // completes this row through onUploadFinish. This runs before the
+            // quota check so the superseded row is not counted against it.
+            const [superseded] = await pool.execute(
+                `UPDATE upload_sessions
+                 SET status = 'abandoned', updated_at = CURRENT_TIMESTAMP
+                 WHERE user_id = ? AND category = ? AND status = 'uploading' AND upload_id <> ?`,
+                [userId, category, upload.id]
+            );
+
             const [activeUploads] = await pool.execute(
                 `SELECT COUNT(*) AS count, COALESCE(SUM(total_size), 0) AS bytes
                  FROM upload_sessions
-                 WHERE user_id = ? AND status = 'uploading'`,
-                [userId]
+                 WHERE user_id = ?
+                   AND status = 'uploading'
+                   AND created_at > DATE_SUB(CURRENT_TIMESTAMP, INTERVAL ? MINUTE)`,
+                [userId, ACTIVE_UPLOAD_WINDOW_MINUTES]
             );
+            if (superseded.affectedRows > 0) {
+                logger.info('Superseded abandoned upload sessions', {
+                    userId,
+                    category,
+                    supersededCount: superseded.affectedRows
+                });
+            }
             if (Number(activeUploads[0].count) >= MAX_ACTIVE_UPLOADS_PER_USER) {
                 throw tusError('Too many active uploads. Please finish or cancel one first.', 429);
             }

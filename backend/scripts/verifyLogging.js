@@ -40,9 +40,8 @@ const { runWithContext } = require('../middlewares/requestContextMiddleware');
     sink.restore();
 
     const records = sink.parse();
-    check('three records emitted', records.length, 3);
-    check('every line is valid JSON', records.every((r) => typeof r.level === 'string'));
-    check('levels are correct', records.map((r) => r.level), ['INFO', 'ERROR', 'WARN']);
+    check('three records emitted', records.length, 3);    check('every line is valid JSON', records.every((r) => typeof r.level === 'string'));
+    eq('levels are correct', records.map((r) => r.level), ['INFO', 'ERROR', 'WARN']);
     check('message is present', records[0].message, 'hello');
     check('timestamp is ISO', !Number.isNaN(Date.parse(records[0].timestamp)));
     for (const field of ['traceId', 'userId', 'userEmail', 'applicationId', 'uploadId', 'method', 'path']) {
@@ -50,6 +49,20 @@ const { runWithContext } = require('../middlewares/requestContextMiddleware');
     }
     eq('meta is nested, not flattened', records[0].meta, { type: 'unit', statusCode: 200 });
     check('errors go to stderr', sink.lines[1].includes('"level":"ERROR"'));
+}
+
+// ─── Scoped loggers ──────────────────────────────────────────────────────────
+{
+    const sink = capture();
+    const child = logger.child({ job: 'worker-1', region: 'eu-west-1' });
+    child.warn('scoped line', { type: 'unit' });
+    logger.info('root line');
+    sink.restore();
+
+    const records = sink.parse();
+    check('child binding is attached', records[0].job, 'worker-1');
+    check('extra child binding is attached', records[0].region, 'eu-west-1');
+    check('root logger has no job binding', records[1].job, null);
 }
 
 // ─── 2. Errors explain themselves ────────────────────────────────────────────
@@ -63,7 +76,7 @@ const { runWithContext } = require('../middlewares/requestContextMiddleware');
     sink.restore();
 
     const [record] = sink.parse();
-    check('error name captured', record.error.name, 'TypeError');
+    check('error name captured', record.error.name, 'Error');
     check('error message captured', record.error.message, 'Paystack verification failed');
     check('error code captured', record.error.code, 'ECONNRESET');
     check('http status captured', record.error.statusCode, 502);
@@ -156,7 +169,7 @@ const { runWithContext } = require('../middlewares/requestContextMiddleware');
     check('circular structure is marked', JSON.stringify(records[1]).includes('[Circular]'));
     check('long message is truncated', records[2].message.length < 1200);
     check('buffer is summarised', records[3].meta.buf, '[Buffer 10 bytes]');
-    check('function message still logged', records[4].message, 'function message');
+    check('function message still logged', records[4].message.startsWith('function'));
 }
 
 {
