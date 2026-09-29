@@ -184,9 +184,9 @@ export async function uploadFileInChunks(
         if (!uploadId) throw new Error('Upload session was not created.');
         localStorage.setItem(resumeKey, JSON.stringify({ uploadId, uploadUrl } satisfies StoredUpload));
         break;
-      } catch (error: any) {
+      } catch (error) {
         createError = error;
-        if (!isRetryableTusError(error)) throw error;
+        if (!isRetryableTusError(error as TusError)) throw error;
         options?.onStatus?.('retrying');
         if (attempt < maxRetries) await sleep(1000 * Math.pow(2, attempt - 1));
       }
@@ -213,11 +213,11 @@ export async function uploadFileInChunks(
         offset = Number(response.headers.get('Upload-Offset') || nextOffset);
         options?.onProgress?.(Math.min(Math.round((offset / file.size) * 100), 99), Math.ceil(offset / chunkSize), totalChunks);
         break;
-      } catch (err: any) {
+      } catch (err) {
         // 4xx responses other than conflicts/rate limits are permanent
         // (invalid format, file too large, quota exhausted): fail fast rather
         // than burning the retry budget.
-        if (!isRetryableTusError(err)) throw err;
+        if (!isRetryableTusError(err as TusError)) throw err;
         if (attempts >= maxRetries) throw err;
         options?.onStatus?.('retrying');
         try {
