@@ -5,10 +5,11 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "npm run verify:upload && npm run verify:logging && npm run verify:modules",
+    "test": "npm run verify:upload && npm run verify:logging && npm run verify:modules && npm run verify:requests",
     "verify:upload": "node scripts/verifyUploadHardening.js",
     "verify:logging": "node scripts/verifyLogging.js",
     "verify:modules": "node scripts/verifyModuleGraph.js",
+    "verify:requests": "node scripts/verifyRequestLogging.js",
     "verify:flow": "node scripts/verifySubmitFlow.js"
   },
   "keywords": [],

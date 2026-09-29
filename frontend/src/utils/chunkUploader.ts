@@ -182,7 +182,11 @@ export async function uploadFileInChunks(
 
         const location = createRes.headers.get('Location');
         if (!location) throw new Error('Upload session was not created.');
-        uploadUrl = new URL(location, window.location.origin).toString();
+        // tus returns a relative Location. It must be resolved against the API
+        // base, not the page origin: in dev those are different servers, so
+        // resolving against window.location sends every PATCH/HEAD to Vite,
+        // which has no tus route and answers 404.
+        uploadUrl = new URL(location, new URL(baseUrl, window.location.origin)).toString();
         uploadId = decodeURIComponent(uploadUrl.split('?')[0].split('/').pop() || '');
         offset = Number(createRes.headers.get('Upload-Offset') || 0);
         if (!uploadId) throw new Error('Upload session was not created.');

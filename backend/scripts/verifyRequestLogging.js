@@ -57,13 +57,17 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     const app = express();
     app.use(requestContextMiddleware);
     app.use(requestLoggingMiddleware);
-    app.use(express.json());
 
+    // Mirrors server.js: tus is mounted before express.json() so a PATCH body
+    // streams through untouched and body-parser limits never mask tus's own
+    // size validation.
     const tusServer = await createTusUploadServer();
     app.use('/api/verifications/upload/tus', (req, res, next) => {
         req.setTimeout(120000);
         return tusServer.handle(req, res).catch(next);
     });
+
+    app.use(express.json());
 
     app.get('/api/health', (req, res) => res.json({ status: 'success' }));
     app.get('/api/asset.js', (req, res) => res.type('application/javascript').send('console.log(1)'));
@@ -72,6 +76,13 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     app.get('/api/crash', () => { throw new Error('deliberate failure'); });
     app.get('/api/plaintext-fail', (req, res) => res.status(500).send('Frontend not found on server'));
     app.get('/api/slow', async (req, res) => { await sleep(60); res.json({ ok: true }); });
+
+    // Mirrors the JSON error handler in server.js so the log records the same
+    // message shape a real request produces.
+    app.use((err, req, res, next) => {
+        if (res.headersSent) return next(err);
+        return res.status(500).json({ error: err.message });
+    });
 
     const server = app.listen(5099);
     await sleep(150);
@@ -181,16 +192,23 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
             headers: {
                 Authorization: `Bearer ${token}`,
                 'Tus-Resumable': '1.0.0',
-                'Upload-Length': String(200 * 1024 * 1024),
+                'Upload-Length': String(20 * 1024 * 1024),
                 'Upload-Metadata': `filename ${Buffer.from('id.jpg').toString('base64')},filetype ${Buffer.from('image/jpeg').toString('base64')},upload-category ${Buffer.from('gov_id').toString('base64')}`
             }
         });
         await sleep(150);
         sink.release();
-        const oversize = sink.records().find((r) => r.meta?.type === 'http_request' && r.message.includes('/upload/tus'));
+        // Must select the rejection, not the earlier successful create.
+        const oversize = sink.records().find(
+            (r) => r.meta?.type === 'http_request' && r.message.includes('/upload/tus') && r.meta.statusCode >= 400
+        );
         check('oversize upload is rejected', tooBig.status >= 400, true);
         check('oversize rejection is logged', Boolean(oversize));
-        check('oversize rejection explains the limit', /15MB/.test(oversize.meta.errorMessage || ''));
+        if (process.env.DEBUG_LOGGING) {
+            process.stdout.write(`tooBig status=${tooBig.status} body=${tooBig.body}\n`);
+            process.stdout.write(`oversize record=${JSON.stringify(oversize)}\n`);
+        }
+        check('oversize rejection explains the limit', /15MB/.test(oversize?.meta?.errorMessage || ''));
     } finally {
         // ─── cleanup ─────────────────────────────────────────────────────────
         if (uploadId) {

@@ -5,7 +5,7 @@ const pool = require('../config/db');
 const logger = require('./logger');
 const { UPLOAD_DIR } = require('../middlewares/uploadMiddleware');
 const { getCategoryConfig, validateDocument, validateVideo, assertContentMatchesCategory } = require('./fileValidator');
-const { setContextRegistration } = require('../middlewares/requestContextMiddleware');
+const { setContextRegistration, setContextUser } = require('../middlewares/requestContextMiddleware');
 
 const TUS_PATH = '/';
 const MAX_UPLOAD_SIZE = 100 * 1024 * 1024;
@@ -60,6 +60,9 @@ const getUserId = (req) => {
 
     try {
         const decoded = jwt.verify(tokenStr, process.env.JWT_SECRET);
+        // Attach the caller to the request context so every tus log line is
+        // attributable; without this, upload traffic is unattributable noise.
+        setContextUser({ id: Number(decoded.id), email: decoded.email, role: decoded.role });
         return Number(decoded.id);
     } catch (error) {
         const authError = new Error('Not authorized, token failed');
@@ -194,6 +197,17 @@ async function createTusUploadServer() {
             setContextRegistration({ uploadId });
             if (req.method !== 'POST') {
                 await assertOwnedUpload(uploadId, userId);
+                return;
+            }
+            // Runs ahead of the server's own maxSize check so an oversized
+            // upload is rejected with the actual limit instead of the opaque
+            // "Maximum size exceeded" the tus protocol handler emits.
+            const declaredLength = Number(getHeader(req, 'upload-length'));
+            if (Number.isFinite(declaredLength) && declaredLength > MAX_UPLOAD_SIZE) {
+                throw tusError(
+                    `This file exceeds the ${Math.round(MAX_UPLOAD_SIZE / (1024 * 1024))}MB maximum upload size.`,
+                    413
+                );
             }
         },
         onUploadCreate: async (req, upload) => {
@@ -243,7 +257,7 @@ async function createTusUploadServer() {
             // quota check so the superseded row is not counted against it.
             const [superseded] = await pool.execute(
                 `UPDATE upload_sessions
-                 SET status = 'abandoned', updated_at = CURRENT_TIMESTAMP
+                 SET status = 'expired', updated_at = CURRENT_TIMESTAMP
                  WHERE user_id = ? AND category = ? AND status = 'uploading' AND upload_id <> ?`,
                 [userId, category, upload.id]
             );
@@ -262,8 +276,7 @@ async function createTusUploadServer() {
                     category,
                     supersededCount: superseded.affectedRows
                 });
-            }
-            if (Number(activeUploads[0].count) >= MAX_ACTIVE_UPLOADS_PER_USER) {
+            }            if (Number(activeUploads[0].count) >= MAX_ACTIVE_UPLOADS_PER_USER) {
                 throw tusError('Too many active uploads. Please finish or cancel one first.', 429);
             }
             if (Number(activeUploads[0].bytes) + Number(upload.size || 0) > MAX_ACTIVE_BYTES_PER_USER) {
