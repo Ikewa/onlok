@@ -27,7 +27,10 @@ check('zip content detected', detectContentFamily(Buffer.from([0x50, 0x4b, 0x03,
 check('mp4 content detected', detectContentFamily(Buffer.from([0, 0, 0, 0x20, 0x66, 0x74, 0x79, 0x70])).family, 'video');
 check('unknown content is not rejected', detectContentFamily(Buffer.from([1, 2, 3, 4, 5])), null);
 
-const signed = signMediaPath('/uploads/tus/abc123');
+// Uses a real tus upload on disk so the content-type assertions exercise the
+// real sidecar lookup.
+const EXISTING_UPLOAD_ID = '274c1b27f0e464ea3cf729a245644528';
+const signed = signMediaPath(`/uploads/tus/${EXISTING_UPLOAD_ID}`);
 const [signedPath, signedQuery] = signed.split('?');
 const sig = new URLSearchParams(signedQuery).get('sig');
 const exp = new URLSearchParams(signedQuery).get('exp');
@@ -52,12 +55,12 @@ const guard = (path, query = {}) => {
     return out;
 };
 
-check('tus sidecar is blocked', guard('/tus/abc123.json').code, 403);
-check('tus file without signature is blocked', guard('/tus/abc123').code, 403);
-check('blocked request does not continue', guard('/tus/abc123').nextCalled, false);
-check('tus file with valid signature passes', guard('/tus/abc123', { sig, exp }).nextCalled);
-check('signed tus file gets its content type', guard('/tus/abc123', { sig, exp }).headers['Content-Type'], 'application/pdf');
-check('signed tus file is served inline', String(guard('/tus/abc123', { sig, exp }).headers['Content-Disposition'] || '').startsWith('inline;'));
+check('tus sidecar is blocked', guard(`/tus/${EXISTING_UPLOAD_ID}.json`).code, 403);
+check('tus file without signature is blocked', guard(`/tus/${EXISTING_UPLOAD_ID}`).code, 403);
+check('blocked request does not continue', guard(`/tus/${EXISTING_UPLOAD_ID}`).nextCalled, false);
+check('tus file with valid signature passes', guard(`/tus/${EXISTING_UPLOAD_ID}`, { sig, exp }).nextCalled);
+check('signed tus file gets its content type', guard(`/tus/${EXISTING_UPLOAD_ID}`, { sig, exp }).headers['Content-Type'], 'application/pdf');
+check('signed tus file is served inline', String(guard(`/tus/${EXISTING_UPLOAD_ID}`, { sig, exp }).headers['Content-Disposition'] || '').startsWith('inline;'));
 check('avatars stay public', guard('/avatars/a-1.jpg').nextCalled);
 check('reports stay public', guard('/reports/x.png').nextCalled);
 check('path traversal blocked', guard('/tus/../../etc/passwd').code, 403);
