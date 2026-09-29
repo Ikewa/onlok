@@ -4,10 +4,11 @@ const { sendEmail } = require('./emailService');
 const logger = require('./logger');
 require('dotenv').config();
 
-const checkExpiringSubscriptions = async () => {
+const checkExpiringSubscriptions = async (jobLogger = logger.child({ job: 'subscription-expiry-cron' })) => {
+    const startedAt = Date.now();
+    jobLogger.info('Checking for expiring subscriptions', { type: 'cron' });
+
     try {
-        logger.info('[CRON] Running daily check for expiring subscriptions...');
-        
         const intervals = [30, 7, 5, 3, 1, 0];
         const counts = {};
 
@@ -63,18 +64,24 @@ const checkExpiringSubscriptions = async () => {
             await pool.query('UPDATE subscriptions SET status = "completed" WHERE id = ?', [sub.id]);
         }
 
-        logger.info(`[CRON] Sent notices: ${JSON.stringify(counts)}. Expired: ${expiredToday.length}.`);
+        jobLogger.info('Subscription expiry sweep complete', {
+            type: 'cron',
+            durationMs: Date.now() - startedAt,
+            notices: counts,
+            expired: expiredToday.length
+        });
     } catch (error) {
-        logger.error('[CRON] Error checking expiring subscriptions', { error });
+        jobLogger.error('Subscription expiry sweep failed', { error, type: 'cron', durationMs: Date.now() - startedAt });
     }
 };
 
 // Schedule task to run every day at 12:00 PM (noon)
 const startCronJobs = () => {
     cron.schedule('0 12 * * *', () => {
-        checkExpiringSubscriptions();
+        logger.runJob('subscription-expiry-cron', (jobLogger) => checkExpiringSubscriptions(jobLogger))
+            .catch(() => { /* already logged with full context by runJob */ });
     });
-    logger.info('[CRON] Scheduled jobs initialized.');
+    logger.info('Scheduled jobs initialized', { type: 'cron' });
 };
 
 module.exports = { startCronJobs };

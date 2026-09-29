@@ -1,7 +1,6 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
-const morgan = require('morgan');
 const path = require('path');
 const fs = require('fs');
 const pool = require('./config/db');
@@ -12,6 +11,7 @@ const logger = require('./utils/logger');
 require('dotenv').config();
 
 const { requestContextMiddleware } = require('./middlewares/requestContextMiddleware');
+const { requestLoggingMiddleware } = require('./middlewares/requestLoggingMiddleware');
 const { documentMediaGuard } = require('./middlewares/documentMediaMiddleware');
 const { createTusUploadServer } = require('./utils/tusUploadServer');
 
@@ -19,6 +19,10 @@ const app = express();
 
 // Trace ID & Request Context Tracing
 app.use(requestContextMiddleware);
+
+// Request/response logging sits above every other middleware, including the tus
+// handler, so no request (not even a failed upload) can go unlogged.
+app.use(requestLoggingMiddleware);
 
 // Middlewares
 app.use(helmet({ crossOriginResourcePolicy: false }));
@@ -50,22 +54,20 @@ app.use('/api/verifications/upload/tus', async (req, res, next) => {
 });
 
 tusServerPromise.then((tusServer) => {
-    const cleanup = async () => {
-        try {
-            await tusServer.cleanUpExpiredUploads();
-            await pool.query(
-                `UPDATE upload_sessions
-                 SET status = 'expired', updated_at = CURRENT_TIMESTAMP
-                 WHERE status = 'uploading'
-                   AND created_at < DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 24 HOUR)`
-            );
-        } catch (error) {
-            logger.warn('Tus cleanup failed', { error });
-        }
-    };
+    const cleanup = () => logger.runJob('tus-expired-upload-cleanup', async () => {
+        const removed = await tusServer.cleanUpExpiredUploads();
+        const [result] = await pool.query(
+            `UPDATE upload_sessions
+             SET status = 'expired', updated_at = CURRENT_TIMESTAMP
+             WHERE status = 'uploading'
+               AND created_at < DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 24 HOUR)`
+        );
+        return { expiredRows: result.affectedRows };
+    }).catch(() => { /* already logged with full context by runJob */ });
+
     cleanup();
     setInterval(cleanup, 60 * 60 * 1000).unref();
-}).catch((error) => logger.error('Tus server initialization failed', { error }));
+}).catch((error) => logger.error('Tus server initialization failed', { error, type: 'startup' }));
 
 // Capture raw body for Paystack webhook HMAC verification.
 // express.json()'s verify callback runs before the body is parsed,
@@ -76,29 +78,13 @@ app.use(express.json({
     }
 }));
 
-// Structured HTTP Request Logging
-app.use((req, res, next) => {
-    const start = Date.now();
-    res.on('finish', () => {
-        const duration = Date.now() - start;
-        const level = res.statusCode >= 500 ? 'error' : res.statusCode >= 400 ? 'warn' : 'info';
-        logger[level](`HTTP ${req.method} ${req.originalUrl || req.url} ${res.statusCode} (${duration}ms)`, {
-            type: 'http_request',
-            statusCode: res.statusCode,
-            durationMs: duration
-        });
-    });
-    next();
-});
-
-
 // Website hit tracking middleware
 app.use(async (req, res, next) => {
     if (req.method === 'GET' && req.headers.accept && req.headers.accept.includes('text/html')) {
         try {
             await pool.query('INSERT INTO daily_site_hits (date) VALUES (CURRENT_DATE) ON DUPLICATE KEY UPDATE hits = hits + 1');
         } catch (e) {
-            console.error('Hit tracking error:', e);
+            logger.warn('Site hit tracking failed', { error: e });
         }
     }
     next();
@@ -170,14 +156,14 @@ app.get(/.*/, (req, res) => {
     if (req.hostname.startsWith('app.') || req.hostname === 'localhost') {
         res.sendFile('index.html', { root: frontendDistPath }, (err) => {
             if (err) {
-                console.error('Error sending app index.html:', err);
+                logger.error('Failed to serve app index.html', { error: err, type: 'static' });
                 res.status(500).send('Frontend not found on server. Did you build client-dist?');
             }
         });
     } else {
         res.sendFile('index.html', { root: landingDistPath }, (err) => {
             if (err) {
-                console.error('Error sending landing index.html:', err);
+                logger.error('Failed to serve landing index.html', { error: err, type: 'static' });
                 res.status(500).send('Landing page not found on server. Did you build landing-dist?');
             }
         });
@@ -189,12 +175,19 @@ app.use((err, req, res, next) => {
     const statusCode = err.status || err.statusCode || 500;
     logger.error(`Unhandled Express Error: ${err.message}`, {
         error: err,
+        type: 'unhandled_error',
         statusCode,
+        method: req.method,
+        path: req.originalUrl,
         query: req.query,
         params: req.params,
         body: req.body
     });
-    
+
+    if (res.headersSent) {
+        return res.end();
+    }
+
     res.status(statusCode).json({
         status: 'error',
         message: err.message || 'Internal Server Error',
@@ -204,15 +197,25 @@ app.use((err, req, res, next) => {
 
 // Process-level Error Safety
 process.on('uncaughtException', (err) => {
-    logger.error(`CRITICAL: Uncaught Exception: ${err.message}`, { error: err });
+    logger.error(`CRITICAL: Uncaught Exception: ${err.message}`, {
+        error: err,
+        type: 'process_uncaught_exception',
+        hint: 'The process kept running; the stack below identifies the origin.'
+    });
 });
 
 process.on('unhandledRejection', (reason) => {
-    logger.error(`CRITICAL: Unhandled Promise Rejection`, { error: reason });
+    logger.error('CRITICAL: Unhandled Promise Rejection', {
+        error: reason,
+        type: 'process_unhandled_rejection',
+        hint: 'A promise was never awaited; the stack below identifies the origin.'
+    });
 });
 
 // Auto-migrate: create tables, add missing columns, seed admin
-runMigrations();
+runMigrations().catch((error) => {
+    logger.error('Database migration failed on startup', { error, type: 'startup' });
+});
 
 // Start cron jobs
 const { startCronJobs } = require('./utils/cronJobs');
@@ -220,15 +223,15 @@ startCronJobs();
 
 const { processRegistrationOutbox } = require('./utils/registrationOutbox');
 setInterval(() => {
-    processRegistrationOutbox().catch((error) => logger.warn('Registration outbox worker failed', { error }));
+    logger.runJob('registration-outbox', () => processRegistrationOutbox())
+        .catch(() => { /* already logged with full context by runJob */ });
 }, 30 * 1000).unref();
 
 // Trigger backfill routine for legacy Paystack transactions asynchronously
 const { backfillLegacyPaystackTransactions } = require('./utils/paystackBackfill');
 setTimeout(() => {
-    backfillLegacyPaystackTransactions().catch(err => {
-        logger.warn('Legacy Paystack backfill error:', { error: err });
-    });
+    logger.runJob('paystack-backfill', () => backfillLegacyPaystackTransactions())
+        .catch(() => { /* already logged with full context by runJob */ });
 }, 3000);
 
 // Start the server

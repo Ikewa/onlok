@@ -162,7 +162,9 @@ export default function ProfileDocUploadPage() {
       navigate('/dashboard/verification');
     } catch (err: any) {
       console.error(err);
-      toast.error(err?.serverMessage || err?.response?.data?.message || err?.message || 'Failed to submit verification');
+      const message = err?.serverMessage || err?.response?.data?.message || err?.message || 'Failed to submit verification';
+      const traceId = err?.traceId || err?.response?.headers?.['x-trace-id'];
+      toast.error(traceId ? `${message} (ref: ${traceId})` : message);
     } finally {
       setLoading(false);
       setUploadPhase('');

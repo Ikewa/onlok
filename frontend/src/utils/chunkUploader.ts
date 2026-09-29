@@ -28,6 +28,7 @@ interface TusError extends Error {
   status?: number;
   headers?: Headers;
   serverMessage?: string;
+  traceId?: string;
 }
 
 const parseErrorMessage = (rawBody: string): string | undefined => {
@@ -77,6 +78,9 @@ const requestTus = (
       error.status = request.status;
       error.headers = responseHeaders;
       error.serverMessage = serverMessage;
+      // Quote the trace id when reporting an upload failure: the resumable
+      // upload endpoints are the ones most likely to need support help.
+      error.traceId = responseHeaders.get('X-Trace-Id') || undefined;
       reject(error);
     }
   };

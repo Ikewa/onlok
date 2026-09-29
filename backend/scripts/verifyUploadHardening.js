@@ -27,9 +27,26 @@ check('zip content detected', detectContentFamily(Buffer.from([0x50, 0x4b, 0x03,
 check('mp4 content detected', detectContentFamily(Buffer.from([0, 0, 0, 0x20, 0x66, 0x74, 0x79, 0x70])).family, 'video');
 check('unknown content is not rejected', detectContentFamily(Buffer.from([1, 2, 3, 4, 5])), null);
 
-// Uses a real tus upload on disk so the content-type assertions exercise the
-// real sidecar lookup.
-const EXISTING_UPLOAD_ID = '274c1b27f0e464ea3cf729a245644528';
+// Uses a temporary sidecar so the content-type assertions do not depend on an
+// upload that still exists on disk (the server's expiry sweep removes old ones).
+const fs = require('fs');
+const path = require('path');
+const { UPLOAD_DIR } = require('../middlewares/uploadMiddleware');
+
+const EXISTING_UPLOAD_ID = 'verifyuploadharnessfixture';
+const TUS_DIR = path.join(UPLOAD_DIR, 'tus');
+fs.mkdirSync(TUS_DIR, { recursive: true });
+fs.writeFileSync(
+    path.join(TUS_DIR, `${EXISTING_UPLOAD_ID}.json`),
+    JSON.stringify({ id: EXISTING_UPLOAD_ID, metadata: { filename: 'id card.pdf', filetype: 'application/pdf' } })
+);
+process.on('exit', () => {
+    for (const suffix of ['', '.json']) {
+        const file = path.join(TUS_DIR, `${EXISTING_UPLOAD_ID}${suffix}`);
+        if (fs.existsSync(file)) fs.unlinkSync(file);
+    }
+});
+
 const signed = signMediaPath(`/uploads/tus/${EXISTING_UPLOAD_ID}`);
 const [signedPath, signedQuery] = signed.split('?');
 const sig = new URLSearchParams(signedQuery).get('sig');

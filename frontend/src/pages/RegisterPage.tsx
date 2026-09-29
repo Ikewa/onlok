@@ -333,7 +333,9 @@ export default function RegisterPage() {
         } else if (!msg) {
           msg = err?.message || 'Registration failed. Please check your connection and try again.';
         }
-        toast.error(msg);
+        // Quoting the trace id makes a failed upload traceable in the server log.
+        const traceId = err?.traceId || err?.response?.headers?.['x-trace-id'] || err?.response?.data?.traceId;
+        toast.error(traceId ? `${msg} (ref: ${traceId})` : msg);
       } finally {
         setLoading(false);
         setSubmissionProgressLabel('');

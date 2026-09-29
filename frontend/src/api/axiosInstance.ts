@@ -32,6 +32,20 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    // Every server response carries X-Trace-Id. Keep it on the error so a user
+    // can quote the exact request that failed and it can be found in the logs.
+    const traceId =
+      error?.response?.headers?.['x-trace-id'] || error?.response?.data?.traceId || null;
+    if (traceId) {
+      error.traceId = traceId;
+    }
+    if (error.response && !error.response.data?.message) {
+      error.response.data = {
+        ...(error.response.data || {}),
+        message: `Request failed with status ${error.response.status}.`,
+      };
+    }
+
     if (error.response?.status === 401) {
       localStorage.removeItem('onlok_token');
       localStorage.removeItem('onlok_user');

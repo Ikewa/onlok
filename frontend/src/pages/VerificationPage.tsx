@@ -222,7 +222,9 @@ export default function VerificationPage() {
       setRecord(updatedRec);
     } catch (err: any) {
       console.error('Resubmit error:', err);
-      toast.error(err?.serverMessage || err?.response?.data?.message || err?.message || 'Failed to resubmit document.');
+      const message = err?.serverMessage || err?.response?.data?.message || err?.message || 'Failed to resubmit document.';
+      const traceId = err?.traceId || err?.response?.headers?.['x-trace-id'];
+      toast.error(traceId ? `${message} (ref: ${traceId})` : message);
     } finally {
       setIsResubmitting(false);
       setResubmitProgress(0);

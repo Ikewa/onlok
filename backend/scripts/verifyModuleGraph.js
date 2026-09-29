@@ -32,6 +32,28 @@ check('multer single-doc storage removed', 'uploadSingleDoc' in uploadMiddleware
 check('avatar upload retained', Boolean(uploadMiddleware.uploadAvatar?.single), true);
 check('tus directory is ensured at startup', uploadMiddleware.UPLOAD_DIR.length > 0);
 
+// Regression guard: the request key names are part of the public API contract
+// and must not be derived from the category name (that produced `gov_idUploadId`
+// instead of `gov_id_upload_id`, which silently rejected every submission).
+const EXPECTED_FIELD_KEYS = {
+    gov_id: { uploadIdKey: 'gov_id_upload_id', urlKey: 'gov_id_url' },
+    cac_document: { uploadIdKey: 'cac_upload_id', urlKey: 'cac_url' },
+    video: { uploadIdKey: 'video_upload_id', urlKey: 'video_url' },
+};
+
+check(
+    'all three document fields are declared',
+    verificationController.DOCUMENT_FIELDS.length,
+    Object.keys(EXPECTED_FIELD_KEYS).length
+);
+for (const { field, uploadIdKey, urlKey } of verificationController.DOCUMENT_FIELDS) {
+    const expected = EXPECTED_FIELD_KEYS[field];
+    check(`${field} upload id key`, uploadIdKey, expected?.uploadIdKey);
+    check(`${field} url key`, urlKey, expected?.urlKey);
+    check(`${field} key is snake_case`, /^[a-z0-9]+(_[a-z0-9]+)*$/.test(uploadIdKey) && /^[a-z0-9]+(_[a-z0-9]+)*$/.test(urlKey));
+    check(`${field} category matches the field name`, field === verificationController.DOCUMENT_FIELDS.find((f) => f.field === field).category);
+}
+
 const failures = checks.filter(([, ok]) => !ok);
 checks.forEach(([name, ok]) => console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}`));
 console.log(failures.length ? `\n${failures.length} FAILURE(S)` : `\nAll ${checks.length} checks passed`);

@@ -5,7 +5,10 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "npm run verify:upload && npm run verify:modules",
+    "verify:upload": "node scripts/verifyUploadHardening.js",
+    "verify:modules": "node scripts/verifyModuleGraph.js",
+    "verify:flow": "node scripts/verifySubmitFlow.js"
   },
   "keywords": [],
   "author": "",

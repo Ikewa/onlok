@@ -5,7 +5,15 @@ const logger = require('../utils/logger');
 const { setContextRegistration } = require('../middlewares/requestContextMiddleware');
 
 const TUS_URL_PREFIX = '/uploads/tus/';
-const DOCUMENT_CATEGORIES = { gov_id: 'gov_id', cac_document: 'cac_document', video: 'video' };
+
+// The request key names are part of the public API contract and must be listed
+// explicitly: deriving them from the category name produces `gov_idUploadId`
+// instead of `gov_id_upload_id`.
+const DOCUMENT_FIELDS = [
+    { field: 'gov_id', category: 'gov_id', uploadIdKey: 'gov_id_upload_id', urlKey: 'gov_id_url', label: 'government ID' },
+    { field: 'cac_document', category: 'cac_document', uploadIdKey: 'cac_upload_id', urlKey: 'cac_url', label: 'CAC document' },
+    { field: 'video', category: 'video', uploadIdKey: 'video_upload_id', urlKey: 'video_url', label: 'business video' }
+];
 
 class ApiError extends Error {
     constructor(status, message) {
@@ -33,26 +41,38 @@ const uploadUrl = (uploadId) => (uploadId ? `${TUS_URL_PREFIX}${encodeURICompone
  * Every reference must be a completed upload owned by the caller and, when an
  * application is supplied, attached to it. Raw URLs are never trusted as-is.
  */
+const BARE_UPLOAD_ID = /^[A-Za-z0-9_-]{8,}$/;
+
 const resolveUploadReferences = async (executor, userId, references, { applicationId = null, required = [] } = {}) => {
     const resolved = {};
     const pending = [];
 
-    for (const [field, category] of Object.entries(DOCUMENT_CATEGORIES)) {
-        const uploadId = references[`${field}UploadId`] || uploadIdFromUrl(references[`${field}Url`]);
+    for (const { field, category, uploadIdKey, urlKey, label } of DOCUMENT_FIELDS) {
+        const reference = references[uploadIdKey] || references[urlKey];
 
-        if (!uploadId) {
+        if (!reference) {
             if (required.includes(field)) {
-                throw new ApiError(422, `A completed ${field} upload is required.`);
+                throw new ApiError(422, `A completed ${label} upload is required.`);
             }
             resolved[field] = null;
             continue;
         }
 
-        pending.push({ field, category, uploadId });
+        // A bare id is an upload reference; anything else must be a URL this
+        // server issued. Foreign paths and absolute URLs are rejected outright
+        // rather than silently ignored, so a client never believes it replaced a
+        // document when nothing was stored.
+        const uploadId = BARE_UPLOAD_ID.test(reference) ? reference : uploadIdFromUrl(reference);
+        if (!uploadId) {
+            throw new ApiError(422, `The ${label} reference is not a recognised upload. Please upload the file again.`);
+        }
+
+        pending.push({ field, category, uploadId, label });
     }
 
     if (pending.length > 0) {
-        const params = [...pending.map((item) => item.uploadId)];
+        // Placeholder order must match the SQL: user_id, upload_id IN (...), application_id.
+        const params = [userId, pending.map((item) => item.uploadId)];
         let sql = 'SELECT upload_id, category, status FROM upload_sessions WHERE user_id = ? AND upload_id IN (?)';
         if (applicationId) {
             sql += ' AND application_id = ?';
@@ -63,10 +83,10 @@ const resolveUploadReferences = async (executor, userId, references, { applicati
         const [uploads] = await executor.query(sql, params);
         const byId = new Map(uploads.map((upload) => [upload.upload_id, upload]));
 
-        for (const { field, category, uploadId } of pending) {
+        for (const { field, category, uploadId, label } of pending) {
             const upload = byId.get(uploadId);
             if (!upload || upload.status !== 'completed' || upload.category !== category) {
-                throw new ApiError(422, `The ${field} upload is invalid or incomplete. Please upload it again.`);
+                throw new ApiError(422, `The ${label} upload is invalid or incomplete. Please upload it again.`);
             }
             resolved[field] = uploadUrl(uploadId);
         }
@@ -220,19 +240,10 @@ const submitVerification = async (req, res) => {
         // submissions may replace a subset and keep the documents already on
         // file, which is what the dashboard document page relies on.
         const existingRecord = await loadVerificationRecord(connection, userId);
-        const resolved = await resolveUploadReferences(
-            connection,
-            userId,
-            {
-                govIdUploadId: req.body.gov_id_upload_id,
-                cacUploadId: req.body.cac_upload_id,
-                videoUploadId: req.body.video_upload_id,
-                govIdUrl: req.body.gov_id_url,
-                cacUrl: req.body.cac_url,
-                videoUrl: req.body.video_url
-            },
-            { applicationId, required: existingRecord ? [] : ['gov_id', 'video'] }
-        );
+        const resolved = await resolveUploadReferences(connection, userId, req.body || {}, {
+            applicationId,
+            required: existingRecord ? [] : ['gov_id', 'video']
+        });
 
         const urls = {
             gov_id: resolved.gov_id || existingRecord?.gov_id_url || null,
@@ -373,16 +384,12 @@ const resubmitDocuments = async (req, res) => {
         }
 
         const record = existing[0];
-        const references = {
-            govIdUploadId: req.body?.gov_id_upload_id,
-            cacUploadId: req.body?.cac_upload_id,
-            videoUploadId: req.body?.video_upload_id,
-            govIdUrl: req.body?.gov_id_url,
-            cacUrl: req.body?.cac_url,
-            videoUrl: req.body?.video_url
-        };
+        const body = req.body || {};
+        const hasReference = DOCUMENT_FIELDS.some(
+            ({ uploadIdKey, urlKey }) => body[uploadIdKey] || body[urlKey]
+        );
 
-        if (!Object.values(references).some(Boolean)) {
+        if (!hasReference) {
             await connection.rollback();
             return res.status(400).json({ message: 'Please provide at least one document to resubmit.' });
         }
@@ -393,7 +400,7 @@ const resubmitDocuments = async (req, res) => {
         );
         const applicationId = application[0]?.application_id || null;
 
-        const resolved = await resolveUploadReferences(connection, userId, references, {
+        const resolved = await resolveUploadReferences(connection, userId, body, {
             applicationId,
             required: []
         });
@@ -470,5 +477,6 @@ module.exports = {
     createRegistrationApplication,
     submitVerification,
     getMyVerification,
-    resubmitDocuments
+    resubmitDocuments,
+    DOCUMENT_FIELDS
 };
