@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const axios = require('axios');
 const { protect, adminOnly } = require('../middlewares/authMiddleware');
+const logger = require('../utils/logger');
 
 const PREMBLY_BASE_URL = 'https://api.prembly.com';
 
@@ -37,7 +38,7 @@ router.post('/nin', protect, adminOnly, async (req, res) => {
         const data = await premblyRequest('/identitypass/verification/nin', { number_nin: nin });
         res.json(data);
     } catch (error) {
-        console.error('Prembly NIN Error:', error.response?.data || error.message);
+        logger.warn('Prembly NIN verification failed', { error, type: 'prembly' });
         res.status(error.response?.status || 500).json(error.response?.data || { message: 'Failed to verify NIN' });
     }
 });
@@ -56,7 +57,7 @@ router.post('/cac', protect, adminOnly, async (req, res) => {
         const data = await premblyRequest('/identitypass/verification/cac/advance', payload);
         res.json(data);
     } catch (error) {
-        console.error('Prembly CAC Error:', error.response?.data || error.message);
+        logger.warn('Prembly CAC verification failed', { error, type: 'prembly' });
         res.status(error.response?.status || 500).json(error.response?.data || { message: 'Failed to verify CAC' });
     }
 });
@@ -72,7 +73,7 @@ router.post('/vnin', protect, adminOnly, async (req, res) => {
         const data = await premblyRequest('/identitypass/verification/vnin', { number_nin: vnin });
         res.json(data);
     } catch (error) {
-        console.error('Prembly VNIN Error:', error.response?.data || error.message);
+        logger.warn('Prembly VNIN verification failed', { error, type: 'prembly' });
         res.status(error.response?.status || 500).json(error.response?.data || { message: 'Failed to verify VNIN' });
     }
 });
@@ -92,7 +93,7 @@ router.post('/drivers_license', protect, adminOnly, async (req, res) => {
         const data = await premblyRequest('/identitypass/verification/drivers_license', payload);
         res.json(data);
     } catch (error) {
-        console.error('Prembly DL Error:', error.response?.data || error.message);
+        logger.warn('Prembly DL verification failed', { error, type: 'prembly' });
         res.status(error.response?.status || 500).json(error.response?.data || { message: "Failed to verify Driver's License" });
     }
 });
@@ -112,7 +113,7 @@ router.post('/passport', protect, adminOnly, async (req, res) => {
         const data = await premblyRequest('/identitypass/verification/passport', payload);
         res.json(data);
     } catch (error) {
-        console.error('Prembly Passport Error:', error.response?.data || error.message);
+        logger.warn('Prembly Passport verification failed', { error, type: 'prembly' });
         res.status(error.response?.status || 500).json(error.response?.data || { message: 'Failed to verify Passport' });
     }
 });

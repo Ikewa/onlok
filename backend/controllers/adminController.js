@@ -8,8 +8,48 @@ const paystackPlanService = require('../utils/paystackPlanService');
 const { generateVendorId } = require('../utils/generateId');
 const { generateQRCode } = require('../utils/qrCodeGenerator');
 const { sendEmail } = require('../utils/emailService');
+const { signMediaPath, stripMediaSignature } = require('../utils/signedMedia');
 const logger = require('../utils/logger');
 const { processSuccessfulSubscription } = require('./paymentController');
+
+const TUS_URL_PREFIX = '/uploads/tus/';
+
+const uploadIdFromUrl = (url) => {
+    if (typeof url !== 'string') return null;
+    const pathname = stripMediaSignature(url).split('?')[0];
+    if (!pathname.startsWith(TUS_URL_PREFIX)) return null;
+    const uploadId = pathname.slice(TUS_URL_PREFIX.length);
+    return /^[A-Za-z0-9_-]+$/.test(uploadId) ? uploadId : null;
+};
+
+/**
+ * Resolves the stored mime type of each document so the review UI can render
+ * PDFs, images and video without guessing from a file extension.
+ */
+const loadVerificationDocumentMimes = async (details) => {
+    const fields = { gov_id: details.gov_id_url, cac: details.cac_url, video: details.video_url };
+    const uploadIds = Object.values(fields).map(uploadIdFromUrl).filter(Boolean);
+    const mimes = { gov_id: null, cac: null, video: null };
+
+    if (uploadIds.length === 0) return mimes;
+
+    try {
+        const [rows] = await pool.query(
+            'SELECT upload_id, mime_type FROM upload_sessions WHERE upload_id IN (?)',
+            [uploadIds]
+        );
+        const byId = new Map(rows.map((row) => [row.upload_id, row.mime_type]));
+
+        for (const [field, url] of Object.entries(fields)) {
+            const uploadId = uploadIdFromUrl(url);
+            if (uploadId) mimes[field] = byId.get(uploadId) || null;
+        }
+    } catch (error) {
+        logger.warn('Failed to load verification document mime types', { error });
+    }
+
+    return mimes;
+};
 
 // @desc    Auth admin & get token
 // @route   POST /api/admin/login
@@ -161,7 +201,18 @@ const getVerificationDetails = async (req, res) => {
             return res.status(404).json({ message: 'Verification request not found' });
         }
 
-        res.status(200).json(rows[0]);
+        const details = rows[0];
+        const mimes = await loadVerificationDocumentMimes(details);
+
+        res.status(200).json({
+            ...details,
+            gov_id_mime: mimes.gov_id,
+            cac_mime: mimes.cac,
+            video_mime: mimes.video,
+            gov_id_url: signMediaPath(details.gov_id_url),
+            cac_url: signMediaPath(details.cac_url),
+            video_url: signMediaPath(details.video_url)
+        });
     } catch (error) {
         logger.error('Admin Details Error', { error });
         res.status(500).json({ message: 'Server error fetching verification details' });

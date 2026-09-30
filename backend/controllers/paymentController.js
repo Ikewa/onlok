@@ -115,7 +115,7 @@ const verifyPayment = async (req, res) => {
         const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
 
         if (!PAYSTACK_SECRET) {
-            console.error('Verify Payment Error: PAYSTACK_SECRET_KEY is missing in server environment');
+            logger.error('Paystack secret key is missing in the server environment', { type: 'config' });
             return res.status(500).json({ message: 'Paystack secret key is missing in server environment' });
         }
 

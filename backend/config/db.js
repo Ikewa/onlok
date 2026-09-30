@@ -1,5 +1,6 @@
 const mysql = require('mysql2/promise');
 require('dotenv').config();
+const logger = require('../utils/logger');
 
 const pool = mysql.createPool({
     host: process.env.DB_HOST,
@@ -14,11 +15,17 @@ const pool = mysql.createPool({
 // Test the connection
 pool.getConnection()
     .then(connection => {
-        console.log('Successfully connected to the MySQL database.');
+        logger.info('Connected to MySQL', { type: 'database', database: process.env.DB_NAME });
         connection.release();
     })
     .catch(err => {
-        console.error('Error connecting to MySQL database:', err.message);
+        logger.error('Failed to connect to MySQL', {
+            error: err,
+            type: 'database',
+            database: process.env.DB_NAME,
+            host: process.env.DB_HOST,
+            hint: 'Every database-backed request will fail until this is resolved.'
+        });
     });
 
 module.exports = pool;

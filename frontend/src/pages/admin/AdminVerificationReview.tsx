@@ -183,6 +183,19 @@ export default function AdminVerificationReview() {
     return `http://localhost:5000${path.startsWith('/') ? '' : '/'}${path}`;
   };
 
+  // Resumable uploads are stored without a file extension, so the declared mime
+  // type is the only reliable way to tell a PDF from an image. Signed URLs also
+  // carry a query string, which breaks naive extension checks.
+  const mediaKind = (url?: string, mime?: string | null): 'pdf' | 'image' | 'video' | 'file' => {
+    if (!url) return 'file';
+    const type = (mime || '').toLowerCase();
+    const pathname = url.split('?')[0].toLowerCase();
+    if (type === 'application/pdf' || pathname.endsWith('.pdf')) return 'pdf';
+    if (type.startsWith('image/') || /\.(jpe?g|png|webp|gif)$/.test(pathname)) return 'image';
+    if (type.startsWith('video/') || /\.(mp4|mov|mkv|webm|avi)$/.test(pathname)) return 'video';
+    return 'file';
+  };
+
   if (loading || !details) {
     return <Box sx={{ p: 5, textAlign: 'center' }}><CircularProgress sx={{ color: '#5B5FEC' }} /></Box>;
   }
@@ -366,9 +379,9 @@ export default function AdminVerificationReview() {
                   }}
                 >
                   {details.gov_id_url ? (
-                    details.gov_id_url.endsWith('.pdf') ? 
-                      <Typography variant="body2" color="#5B5FEC" component="a" href={getMediaUrl(details.gov_id_url)} target="_blank" sx={{ fontWeight: 600 }}>View PDF ID</Typography>
-                    : <Box component="img" src={getMediaUrl(details.gov_id_url)} onClick={() => setMediaPreview({ url: getMediaUrl(details.gov_id_url), type: 'image' })} sx={{ width: '100%', height: '100%', objectFit: 'cover', cursor: 'pointer' }} />
+                    mediaKind(details.gov_id_url, details.gov_id_mime) === 'image' ?
+                    <Box component="img" src={getMediaUrl(details.gov_id_url)} onClick={() => setMediaPreview({ url: getMediaUrl(details.gov_id_url), type: 'image' })} sx={{ width: '100%', height: '100%', objectFit: 'cover', cursor: 'pointer' }} />
+                    : <Typography variant="body2" color="#5B5FEC" component="a" href={getMediaUrl(details.gov_id_url)} target="_blank" rel="noopener noreferrer" sx={{ fontWeight: 600, cursor: 'pointer' }}>Open ID document</Typography>
                   ) : <Typography variant="caption" color="#9CA3AF">No ID uploaded</Typography>}
                 </Box>
                 <Select
@@ -417,9 +430,9 @@ export default function AdminVerificationReview() {
                   }}
                 >
                   {details.cac_url ? (
-                    details.cac_url.endsWith('.pdf') ? 
-                      <Typography variant="body2" color="#5B5FEC" component="a" href={getMediaUrl(details.cac_url)} target="_blank" sx={{ fontWeight: 600 }}>View PDF CAC</Typography>
-                    : <Box component="img" src={getMediaUrl(details.cac_url)} onClick={() => setMediaPreview({ url: getMediaUrl(details.cac_url), type: 'image' })} sx={{ width: '100%', height: '100%', objectFit: 'cover', cursor: 'pointer' }} />
+                    mediaKind(details.cac_url, details.cac_mime) === 'image' ?
+                    <Box component="img" src={getMediaUrl(details.cac_url)} onClick={() => setMediaPreview({ url: getMediaUrl(details.cac_url), type: 'image' })} sx={{ width: '100%', height: '100%', objectFit: 'cover', cursor: 'pointer' }} />
+                    : <Typography variant="body2" color="#5B5FEC" component="a" href={getMediaUrl(details.cac_url)} target="_blank" rel="noopener noreferrer" sx={{ fontWeight: 600, cursor: 'pointer' }}>Open CAC document</Typography>
                   ) : <Typography variant="caption" color="#9CA3AF">No CAC uploaded</Typography>}
                 </Box>
                 <Select

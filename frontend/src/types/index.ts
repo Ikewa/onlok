@@ -105,6 +105,9 @@ export interface RegisterPayload {
   phone_number: string;
   business_address?: string;
   country_code?: string;
+  category?: string;
+  nin?: string;
+  rc_number?: string;
   referred_by?: string;
   twitter_handle?: string;
   instagram_handle?: string;

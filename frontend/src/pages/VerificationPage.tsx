@@ -14,7 +14,7 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import { Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import { useAuth } from '../context/AuthContext';
-import { getMyVerification, resubmitVerificationDocuments, uploadSingleDocument } from '../api/verifications';
+import { createRegistrationApplication, getMyVerification, resubmitVerificationDocuments } from '../api/verifications';
 import { compressImageFile } from '../utils/fileCompressor';
 import { uploadFileInChunks } from '../utils/chunkUploader';
 import type { VerificationRecord } from '../api/verifications';
@@ -193,41 +193,28 @@ export default function VerificationPage() {
     setResubmitProgress(0);
 
     try {
-      let uploadedUrl = '';
+      const application = await createRegistrationApplication();
+      const category = activeDocKey === 'video' ? 'video' : activeDocKey === 'govId' ? 'gov_id' : 'cac_document';
+      const fieldName = activeDocKey === 'govId' ? 'gov_id_upload_id' : activeDocKey === 'cac' ? 'cac_upload_id' : 'video_upload_id';
 
-      if (activeDocKey === 'video') {
-        setResubmitPhase('Uploading video in resilient chunks...');
-        const res = await uploadFileInChunks(selectedFile, 'video', {
-          onProgress: (pct, current, total) => {
-            setResubmitProgress(pct);
-            setResubmitPhase(`Uploading chunk ${current}/${total} (${pct}%)...`);
-          },
-        });
-        uploadedUrl = res.url;
-        await resubmitVerificationDocuments({ video_url: uploadedUrl });
-      } else {
-        setResubmitPhase('Optimizing document image...');
-        let fileToUpload = selectedFile;
-        if (selectedFile.type.startsWith('image/')) {
-          try {
-            fileToUpload = await compressImageFile(selectedFile);
-          } catch (e) {
-            console.warn('Compression fallback:', e);
-          }
-        }
-        setResubmitPhase('Uploading document...');
-        const fieldName = activeDocKey === 'govId' ? 'gov_id' : 'cac_document';
-        const res = await uploadSingleDocument(fileToUpload, fieldName, (pct) => {
+      setResubmitPhase('Optimizing file...');
+      const fileToUpload = selectedFile.type.startsWith('image/')
+        ? await compressImageFile(selectedFile)
+        : selectedFile;
+
+      setResubmitPhase(category === 'video' ? 'Uploading video in resilient chunks...' : 'Uploading document...');
+      const res = await uploadFileInChunks(fileToUpload, category, {
+        applicationId: application.application_id,
+        onProgress: (pct, current, total) => {
           setResubmitProgress(pct);
-        });
-        uploadedUrl = res.url;
+          if (current !== undefined) setResubmitPhase(`Uploading chunk ${current}/${total} (${pct}%)...`);
+          else setResubmitPhase(`Uploading (${pct}%)...`);
+        },
+      });
 
-        if (activeDocKey === 'govId') {
-          await resubmitVerificationDocuments({ gov_id_url: uploadedUrl });
-        } else {
-          await resubmitVerificationDocuments({ cac_url: uploadedUrl });
-        }
-      }
+      if (!res.uploadId) throw new Error('The upload did not return a usable reference.');
+
+      await resubmitVerificationDocuments({ [fieldName]: res.uploadId });
 
       toast.success(`${activeDocTitle} resubmitted! Account is now under pending review.`);
       setResubmitModalOpen(false);
@@ -235,7 +222,9 @@ export default function VerificationPage() {
       setRecord(updatedRec);
     } catch (err: any) {
       console.error('Resubmit error:', err);
-      toast.error(err.response?.data?.message || err.message || 'Failed to resubmit document.');
+      const message = err?.serverMessage || err?.response?.data?.message || err?.message || 'Failed to resubmit document.';
+      const traceId = err?.traceId || err?.response?.headers?.['x-trace-id'];
+      toast.error(traceId ? `${message} (ref: ${traceId})` : message);
     } finally {
       setIsResubmitting(false);
       setResubmitProgress(0);

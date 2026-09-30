@@ -1,6 +1,8 @@
 {
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",
+    "@tus/file-store": "^2.1.1",
+    "@tus/server": "^2.4.5",
     "prembly-react-kyc": "^1.0.2",
     "tailwindcss": "^4.3.3"
   }

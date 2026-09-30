@@ -1,4 +1,5 @@
 const pool = require('../config/db');
+const logger = require('./logger');
 
 /**
  * Generates a unique vendor ID like 'OL-NG-1234'
@@ -24,7 +25,7 @@ const generateVendorId = async (countryCode = 'NG') => {
 
         return newId;
     } catch (error) {
-        console.error('Error generating vendor ID:', error);
+        logger.error('Vendor ID generation failed', { error, type: 'vendor_id' });
         throw error;
     }
 };
