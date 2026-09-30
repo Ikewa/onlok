@@ -4,7 +4,7 @@ import {
 } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
-import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+
 import FileUploadOutlinedIcon from '@mui/icons-material/FileUploadOutlined';
 import InsertDriveFileOutlinedIcon from '@mui/icons-material/InsertDriveFileOutlined';
 import PlayCircleOutlinedIcon from '@mui/icons-material/PlayCircleOutlined';
@@ -164,7 +164,7 @@ export default function RegisterPage() {
     activeApplicationId: string,
   ): Promise<{ url: string; uploadId: string }> => {
     setState({ status: 'compressing', progress: 0, error: null, originalSize: file.size });
-    setSubmissionProgressLabel(`Optimizing ${file.name}...`);
+    setSubmissionProgressLabel('Preparing your documents...');
 
     let finalFile = file;
     if (file.type.startsWith('image/')) {
@@ -182,7 +182,7 @@ export default function RegisterPage() {
       originalSize: file.size,
       compressedSize: finalFile.size,
     });
-    setSubmissionProgressLabel(`Uploading ${file.name}...`);
+    setSubmissionProgressLabel('Uploading documents...');
 
     const result = await uploadFileInChunks(finalFile, fieldName, {
       applicationId: activeApplicationId,
@@ -210,14 +210,14 @@ export default function RegisterPage() {
     activeApplicationId: string,
   ): Promise<{ url: string; uploadId: string }> => {
     setState({ status: 'uploading', progress: 0, error: null, originalSize: file.size });
-    setSubmissionProgressLabel('Uploading video in resilient chunks...');
+    setSubmissionProgressLabel('Uploading video...');
 
     const result = await uploadFileInChunks(file, 'video', {
       applicationId: activeApplicationId,
       onStatus: (status) => setState((prev) => ({ ...prev, status })),
-      onProgress: (pct, currentChunk, totalChunks) => {
+      onProgress: (pct) => {
         setState((prev) => ({ ...prev, progress: pct }));
-        setSubmissionProgressLabel(`Uploading video chunk ${currentChunk}/${totalChunks} (${pct}%)...`);
+        setSubmissionProgressLabel(`Uploading video... ${pct}%`);
       },
     });
 
@@ -362,7 +362,7 @@ export default function RegisterPage() {
           const isCompleted = index < activeStep;
           const isActive = index === activeStep;
           return (
-            <Box key={label} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 1, width: 80 }}>
+            <Box key={label} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 1, width: { xs: 65, sm: 80 } }}>
               <Box
                 sx={{
                   width: 32,
@@ -380,7 +380,7 @@ export default function RegisterPage() {
               >
                 {isCompleted ? <CheckCircleIcon sx={{ fontSize: 20 }} /> : <Typography variant="caption" fontWeight={700}>{index + 1}</Typography>}
               </Box>
-              <Typography variant="caption" sx={{ color: isActive ? '#0F172A' : '#64748B', fontWeight: isActive ? 700 : 500, fontSize: '0.7rem', textTransform: 'capitalize' }}>
+              <Typography variant="caption" sx={{ color: isActive ? '#0F172A' : '#64748B', fontWeight: isActive ? 700 : 500, fontSize: { xs: '0.65rem', sm: '0.7rem' }, textTransform: 'capitalize', textAlign: 'center' }}>
                 {label}
               </Typography>
             </Box>
@@ -411,7 +411,7 @@ export default function RegisterPage() {
             ))}
           </Select>
         </FormControl>
-        <TextField fullWidth value={form.phone_number} onChange={(e) => set('phone_number', e.target.value)} placeholder="(806) 000-0000" InputProps={{ sx: { borderRadius: 2 } }} />
+        <TextField fullWidth value={form.phone_number} onChange={(e) => set('phone_number', e.target.value.slice(0, 11))} placeholder="(806) 000-0000" inputProps={{ maxLength: 11 }} InputProps={{ sx: { borderRadius: 2 } }} />
       </Stack>
 
       <Box sx={{ p: 2.5, borderRadius: 3, bgcolor: '#F8FAFC', mb: 4 }}>
@@ -588,27 +588,6 @@ export default function RegisterPage() {
         maxSize="100MB"
         icon={<PlayCircleOutlinedIcon />}
       />
-
-      <Box sx={{ p: 3, borderRadius: 3, bgcolor: '#F8FAFC', mt: 4 }}>
-        <Stack direction="row" spacing={2} sx={{ alignItems: 'flex-start' }}>
-          <InfoOutlinedIcon sx={{ color: '#1A1FE8' }} />
-          <Box>
-            <Typography variant="subtitle2" fontWeight={700} color="#0F172A" mb={1.5}>Upload Instructions & Optimization</Typography>
-            <Stack spacing={1}>
-              {[
-                'Images are automatically compressed in your browser to save data and speed up upload.',
-                'Videos are uploaded in fast, resilient 2MB chunks with automatic resume.',
-                'Ensure all 4 corners of documents are visible and text is legible.',
-                'Video should clearly show your workspace or products.',
-              ].map((t) => (
-                <Typography component="div" key={t} variant="body2" sx={{ color: '#475569', display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Box component="span" sx={{ width: 4, height: 4, bgcolor: '#64748B', borderRadius: '50%' }} /> {t}
-                </Typography>
-              ))}
-            </Stack>
-          </Box>
-        </Stack>
-      </Box>
     </Box>,
 
     // Step 4: Review
@@ -616,7 +595,7 @@ export default function RegisterPage() {
       <Typography variant="h5" fontWeight={800} color="#0F172A" mb={0.5}>Review & Submit</Typography>
       <Typography variant="body2" color="#64748B" mb={4}>Please review your information before submitting for verification.</Typography>
 
-      <Paper elevation={0} sx={{ p: 3, borderRadius: 3, bgcolor: '#F8FAFC', mb: 3 }}>
+      <Paper elevation={0} sx={{ p: { xs: 2, sm: 3 }, borderRadius: 3, bgcolor: '#F8FAFC', mb: 3 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
           <Typography variant="subtitle2" fontWeight={800} color="#0F172A">Personal Info</Typography>
           <Typography variant="caption" fontWeight={700} color="#1A1FE8" sx={{ cursor: 'pointer' }} onClick={() => setActiveStep(0)}>Edit</Typography>
@@ -626,7 +605,7 @@ export default function RegisterPage() {
         <GridRow label="Phone" value={form.phone_number || '-'} />
       </Paper>
 
-      <Paper elevation={0} sx={{ p: 3, borderRadius: 3, bgcolor: '#F8FAFC', mb: 3 }}>
+      <Paper elevation={0} sx={{ p: { xs: 2, sm: 3 }, borderRadius: 3, bgcolor: '#F8FAFC', mb: 3 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
           <Typography variant="subtitle2" fontWeight={800} color="#0F172A">Documents</Typography>
           <Typography variant="caption" fontWeight={700} color="#1A1FE8" sx={{ cursor: 'pointer' }} onClick={() => setActiveStep(2)}>Edit</Typography>
@@ -636,7 +615,7 @@ export default function RegisterPage() {
         <FileReviewRow label="Business Video" file={form.business_video_file} state={videoState} />
       </Paper>
 
-      <Paper elevation={0} sx={{ p: 3, borderRadius: 3, bgcolor: '#F8FAFC', mb: 4 }}>
+      <Paper elevation={0} sx={{ p: { xs: 2, sm: 3 }, borderRadius: 3, bgcolor: '#F8FAFC', mb: 4 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
           <Typography variant="subtitle2" fontWeight={800} color="#0F172A">Business Details</Typography>
           <Typography variant="caption" fontWeight={700} color="#1A1FE8" sx={{ cursor: 'pointer' }} onClick={() => setActiveStep(1)}>Edit</Typography>
@@ -701,12 +680,12 @@ export default function RegisterPage() {
     <Box sx={{ minHeight: '100vh', bgcolor: '#F8FAFC', display: 'flex', flexDirection: 'column' }}>
       <Navbar />
 
-      <Container maxWidth="md" sx={{ py: { xs: 4, md: 8 }, flexGrow: 1 }}>
+      <Container maxWidth="md" sx={{ py: { xs: 3, md: 8 }, px: { xs: 1.5, sm: 3 }, flexGrow: 1 }}>
         <Paper
           elevation={0}
           sx={{
-            p: { xs: 3, md: 6 },
-            borderRadius: 4,
+            p: { xs: 2, sm: 4, md: 6 },
+            borderRadius: { xs: 3, md: 4 },
             boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
             position: 'relative',
           }}
@@ -760,9 +739,9 @@ export default function RegisterPage() {
 
 // Helpers
 const GridRow = ({ label, value }: { label: string; value: string }) => (
-  <Box sx={{ display: 'flex', mb: 1.5 }}>
-    <Typography variant="body2" color="#64748B" sx={{ width: 150 }}>{label}</Typography>
-    <Typography variant="subtitle2" sx={{ color: '#0F172A', fontWeight: 700 }}>{value}</Typography>
+  <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, mb: 1.5, minWidth: 0, width: '100%' }}>
+    <Typography variant="body2" color="#64748B" sx={{ width: { xs: '100%', sm: 150 }, minWidth: { sm: 150 }, flexShrink: 0, mb: { xs: 0.2, sm: 0 } }}>{label}</Typography>
+    <Typography variant="subtitle2" sx={{ color: '#0F172A', fontWeight: 700, flex: 1, minWidth: 0, wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{value}</Typography>
   </Box>
 );
 
@@ -792,15 +771,15 @@ const FileReviewRow = ({ label, file, state }: { label: string; file: File | nul
   const isImage = file.type.startsWith('image/');
 
   return (
-    <Box sx={{ display: 'flex', mb: 2, alignItems: 'center' }}>
-      <Typography variant="body2" color="#64748B" sx={{ width: 150 }}>{label}</Typography>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+    <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, mb: 2, alignItems: { xs: 'flex-start', sm: 'center' }, minWidth: 0, width: '100%' }}>
+      <Typography variant="body2" color="#64748B" sx={{ width: { xs: '100%', sm: 150 }, minWidth: { sm: 150 }, flexShrink: 0, mb: { xs: 0.5, sm: 0 } }}>{label}</Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flex: 1, minWidth: 0, width: '100%' }}>
         {isImage && previewUrl && (
-          <Box component="img" src={previewUrl} sx={{ width: 44, height: 32, objectFit: 'cover', borderRadius: 1, border: '1px solid #E2E8F0' }} />
+          <Box component="img" src={previewUrl} sx={{ width: 44, height: 32, objectFit: 'cover', borderRadius: 1, border: '1px solid #E2E8F0', flexShrink: 0 }} />
         )}
-        <Box>
-          <Typography variant="subtitle2" sx={{ color: '#0F172A', fontWeight: 700 }}>{file.name}</Typography>
-          <Typography variant="caption" sx={{ color: '#64748B' }}>
+        <Box sx={{ minWidth: 0, flex: 1 }}>
+          <Typography variant="subtitle2" sx={{ color: '#0F172A', fontWeight: 700, wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{file.name}</Typography>
+          <Typography variant="caption" sx={{ color: '#64748B', display: 'block' }}>
             {formatBytes(file.size)}
             {state?.status === 'completed' && ' • Ready'}
           </Typography>
@@ -851,22 +830,22 @@ const FileUploadDropzone = ({ file, uploadState, onChange, onRemove, title, labe
     const isError = uploadState?.status === 'error';
 
     return (
-      <Box sx={{ p: 2.5, borderRadius: 2, border: '1px solid', borderColor: isError ? '#EF4444' : '#00BCD4', bgcolor: isError ? '#FEF2F2' : '#F0FDFA', mb: 3 }}>
+      <Box sx={{ p: { xs: 2, sm: 2.5 }, borderRadius: 2, border: '1px solid', borderColor: isError ? '#EF4444' : '#00BCD4', bgcolor: isError ? '#FEF2F2' : '#F0FDFA', mb: 3 }}>
         <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
           {isImage && previewUrl ? (
-            <Box component="img" src={previewUrl} alt="preview" sx={{ width: 52, height: 52, borderRadius: 1.5, objectFit: 'cover' }} />
+            <Box component="img" src={previewUrl} alt="preview" sx={{ width: 52, height: 52, borderRadius: 1.5, objectFit: 'cover', flexShrink: 0 }} />
           ) : (
-            <Box sx={{ width: 44, height: 44, borderRadius: 1.5, bgcolor: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#00BCD4' }}>
+            <Box sx={{ width: 44, height: 44, borderRadius: 1.5, bgcolor: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#00BCD4', flexShrink: 0 }}>
               {icon}
             </Box>
           )}
 
-          <Box sx={{ flexGrow: 1 }}>
+          <Box sx={{ flexGrow: 1, minWidth: 0 }}>
             <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#0F172A' }}>{title || file.name}</Typography>
-              {!isUploading && !isError && <CheckCircleIcon sx={{ fontSize: 16, color: '#00BCD4' }} />}
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#0F172A', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{title || file.name}</Typography>
+              {!isUploading && !isError && <CheckCircleIcon sx={{ fontSize: 16, color: '#00BCD4', flexShrink: 0 }} />}
             </Stack>
-            <Typography variant="caption" color="#64748B" display="block">
+            <Typography variant="caption" color="#64748B" display="block" sx={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
               {file.name} ({formatBytes(file.size)})
             </Typography>
 
@@ -874,7 +853,7 @@ const FileUploadDropzone = ({ file, uploadState, onChange, onRemove, title, labe
               <Box sx={{ mt: 1, width: '100%' }}>
                 <LinearProgress variant="determinate" value={uploadState?.progress || 0} sx={{ height: 6, borderRadius: 1 }} />
                 <Typography variant="caption" sx={{ color: '#0284C7', mt: 0.5, display: 'block', fontWeight: 600 }}>
-                  {uploadState?.status === 'compressing' ? 'Optimizing...' : uploadState?.status === 'resuming' ? 'Resuming upload...' : uploadState?.status === 'retrying' ? 'Retrying upload...' : `Uploading (${uploadState?.progress || 0}%)`}
+                  {uploadState?.status === 'compressing' ? 'Preparing...' : `Uploading... ${uploadState?.progress || 0}%`}
                 </Typography>
               </Box>
             )}
