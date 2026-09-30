@@ -113,6 +113,7 @@ export interface RegisterPayload {
   instagram_handle?: string;
   facebook_handle?: string;
   tiktok_handle?: string;
+  linkedin_handle?: string;
 }
 
 export interface LoginPayload {

@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS users (
     instagram_handle VARCHAR(255) NULL,
     facebook_handle VARCHAR(255) NULL,
     tiktok_handle VARCHAR(255) NULL,
+    linkedin_handle VARCHAR(255) NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );

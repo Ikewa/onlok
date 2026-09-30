@@ -23,13 +23,13 @@ const generateToken = (id, role, vendor_id, email) => {
 // @access  Public
 const registerUser = async (req, res) => {
     try {
-        const { first_name, last_name, business_name, email, password, phone_number, business_address, country_code, category, nin, rc_number, twitter_handle, instagram_handle, facebook_handle, tiktok_handle, referred_by } = req.body;
+        const { first_name, last_name, business_name, email, password, phone_number, business_address, country_code, category, nin, rc_number, twitter_handle, instagram_handle, facebook_handle, tiktok_handle, linkedin_handle, referred_by } = req.body;
 
         if (!first_name || !last_name || !business_name || !email || !password || !phone_number) {
             return res.status(400).json({ message: 'Please add all fields' });
         }
 
-        if (!twitter_handle && !instagram_handle && !facebook_handle && !tiktok_handle) {
+        if (!twitter_handle && !instagram_handle && !facebook_handle && !tiktok_handle && !linkedin_handle) {
             return res.status(400).json({ message: 'Please provide at least one social media link.' });
         }
 
@@ -59,10 +59,10 @@ const registerUser = async (req, res) => {
 
         // Create user with null vendor_id (will be generated later upon admin approval)
         const query = `
-            INSERT INTO users (vendor_id, referred_by, first_name, last_name, business_name, email, password_hash, phone_number, business_address, country_code, category, nin, rc_number, twitter_handle, instagram_handle, facebook_handle, tiktok_handle)
-            VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO users (vendor_id, referred_by, first_name, last_name, business_name, email, password_hash, phone_number, business_address, country_code, category, nin, rc_number, twitter_handle, instagram_handle, facebook_handle, tiktok_handle, linkedin_handle)
+            VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
-        const [result] = await pool.execute(query, [referrerId, first_name, last_name, business_name, email, hashedPassword, phone_number, business_address || null, country_code || null, category || null, nin || null, rc_number || null, twitter_handle || null, instagram_handle || null, facebook_handle || null, tiktok_handle || null]);
+        const [result] = await pool.execute(query, [referrerId, first_name, last_name, business_name, email, hashedPassword, phone_number, business_address || null, country_code || null, category || null, nin || null, rc_number || null, twitter_handle || null, instagram_handle || null, facebook_handle || null, tiktok_handle || null, linkedin_handle || null]);
 
         const newUserId = result.insertId;
 
