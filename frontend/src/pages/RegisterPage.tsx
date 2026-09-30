@@ -42,6 +42,7 @@ interface FormData {
   instagram_handle: string;
   facebook_handle: string;
   tiktok_handle: string;
+  linkedin_handle: string;
   password: string;
   confirm_password: string;
   gov_id_file: File | null;
@@ -61,7 +62,7 @@ interface FormData {
 const initialData: FormData = {
   first_name: '', last_name: '', email: '', phone_number: '',
   country_code: 'NG', business_name: '', business_address: '',
-  twitter_handle: '', instagram_handle: '', facebook_handle: '', tiktok_handle: '',
+  twitter_handle: '', instagram_handle: '', facebook_handle: '', tiktok_handle: '', linkedin_handle: '',
   password: '', confirm_password: '',
   gov_id_file: null, gov_id_url: '',
   gov_id_upload_id: '',
@@ -261,6 +262,7 @@ export default function RegisterPage() {
             instagram_handle: form.instagram_handle,
             facebook_handle: form.facebook_handle,
             tiktok_handle: form.tiktok_handle,
+            linkedin_handle: form.linkedin_handle,
           });
           setRegisteredUser(user);
           login(user);
@@ -515,7 +517,10 @@ export default function RegisterPage() {
       <TextField fullWidth value={form.facebook_handle} onChange={(e) => set('facebook_handle', e.target.value)} placeholder="https://facebook.com/profile" sx={{ mb: 3 }} InputProps={{ sx: { borderRadius: 2 } }} />
 
       <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} display="block">TikTok Handle</Typography>
-      <TextField fullWidth value={form.tiktok_handle} onChange={(e) => set('tiktok_handle', e.target.value)} placeholder="https://tiktok.com/@profile" InputProps={{ sx: { borderRadius: 2 } }} />
+      <TextField fullWidth value={form.tiktok_handle} onChange={(e) => set('tiktok_handle', e.target.value)} placeholder="https://tiktok.com/@profile" sx={{ mb: 3 }} InputProps={{ sx: { borderRadius: 2 } }} />
+
+      <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} display="block">LinkedIn Profile</Typography>
+      <TextField fullWidth value={form.linkedin_handle} onChange={(e) => set('linkedin_handle', e.target.value)} placeholder="https://linkedin.com/in/profile" InputProps={{ sx: { borderRadius: 2 } }} />
     </Box>,
 
     // Step 3: Documents
