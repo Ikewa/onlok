@@ -504,7 +504,7 @@ export default function RegisterPage() {
       <TextField fullWidth value={form.business_address} onChange={(e) => set('business_address', e.target.value)} placeholder="e.g., 12 Marina Boulevard, Marina Bay, Singapore" sx={{ mb: 4 }} InputProps={{ sx: { borderRadius: 2 } }} />
 
       <Typography variant="h6" fontWeight={800} color="#0F172A" mb={0.5}>Social Media Presence</Typography>
-      <Typography variant="body2" color="#64748B" mb={1}>Used to understand your digital footprint and brand presence.</Typography>
+      <Typography variant="body2" color="#64748B" mb={1}>Helps us verify your online presence and credibility.</Typography>
       <Typography variant="body2" sx={{ color: '#1A1FE8', fontWeight: 800, mb: 3 }}>* Please provide at least one social media link.</Typography>
 
       <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} display="block">X (formerly Twitter) Handle</Typography>
@@ -548,8 +548,8 @@ export default function RegisterPage() {
         icon={<InsertDriveFileOutlinedIcon />}
       />
 
-      <Typography variant="h6" fontWeight={800} color="#0F172A" mb={0.5} mt={2}>Business Registration</Typography>
-      <Typography variant="body2" color="#64748B" mb={3}>Upload your CAC certificate or proof of business registration (Optional).</Typography>
+      <Typography variant="h6" fontWeight={800} color="#0F172A" mb={0.5} mt={2}>Business or Professional Registration</Typography>
+      <Typography variant="body2" color="#64748B" mb={3}>Upload your CAC certificate, business registration, or professional license (Optional).</Typography>
 
       <FileUploadDropzone
         file={form.cac_file}
@@ -565,14 +565,14 @@ export default function RegisterPage() {
           setCacState(initialFileState);
         }}
         title="CAC Document"
-        labels={['CAC Certificate', 'Business Registration']}
+        labels={['CAC Certificate', 'Business Registration', 'Professional License']}
         accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf"
         maxSize="15MB"
         icon={<InsertDriveFileOutlinedIcon />}
       />
 
       <Typography variant="h6" fontWeight={800} color="#0F172A" mb={0.5} mt={2}>Video Verification <Box component="span" sx={{ color: '#EF4444' }}>*</Box></Typography>
-      <Typography variant="body2" color="#64748B" mb={3}>Upload a short 1-2 minute video of you and your business environment.</Typography>
+      <Typography variant="body2" color="#64748B" mb={3}>Upload a short 1–2 minute video of yourself and your work environment.</Typography>
 
       <FileUploadDropzone
         file={form.business_video_file}
@@ -587,7 +587,7 @@ export default function RegisterPage() {
           set('business_video_url', '');
           setVideoState(initialFileState);
         }}
-        title="Business Video"
+        title="Verification Video"
         labels={['MP4', 'MOV', 'WebM', 'MKV']}
         accept=".mp4,.mov,.mkv,.webm,video/mp4,video/quicktime,video/x-matroska,video/webm"
         maxSize="100MB"
@@ -617,12 +617,12 @@ export default function RegisterPage() {
         </Box>
         <FileReviewRow label="ID Document" file={form.gov_id_file} state={govIdState} />
         <FileReviewRow label="CAC Certificate" file={form.cac_file} state={cacState} />
-        <FileReviewRow label="Business Video" file={form.business_video_file} state={videoState} />
+        <FileReviewRow label="Verification Video" file={form.business_video_file} state={videoState} />
       </Paper>
 
       <Paper elevation={0} sx={{ p: { xs: 2, sm: 3 }, borderRadius: 3, bgcolor: '#F8FAFC', mb: 4 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-          <Typography variant="subtitle2" fontWeight={800} color="#0F172A">Business Details</Typography>
+          <Typography variant="subtitle2" fontWeight={800} color="#0F172A">Business / Service Details</Typography>
           <Typography variant="caption" fontWeight={700} color="#1A1FE8" sx={{ cursor: 'pointer' }} onClick={() => setActiveStep(1)}>Edit</Typography>
         </Box>
         <GridRow label="Name/Role" value={form.business_name || '-'} />
