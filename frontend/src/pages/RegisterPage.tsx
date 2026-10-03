@@ -653,29 +653,31 @@ export default function RegisterPage() {
         <Box sx={{ width: 80, height: 80, borderRadius: '50%', bgcolor: '#E0F2FE', display: 'flex', alignItems: 'center', justifyContent: 'center', mx: 'auto', mb: 4 }}>
           <CheckCircleIcon sx={{ fontSize: 40, color: '#0284C7' }} />
         </Box>
-        <Typography variant="h4" fontWeight={800} color="#0F172A" mb={2}>Verification Submitted!</Typography>
-        <Typography variant="body1" color="#64748B" mb={5} sx={{ maxWidth: 400, mx: 'auto' }}>
-          Thank you for completing the verification process. Our team will review your application and documents within 24-48 hours.
+        <Typography variant="h4" fontWeight={800} color="#0F172A" mb={2}>You're All Set!</Typography>
+        <Typography variant="body1" color="#64748B" mb={5} sx={{ maxWidth: 440, mx: 'auto', lineHeight: 1.7 }}>
+          Your account has been created and your verification documents are now with our review team. You'll receive an email at <strong style={{ color: '#0F172A' }}>{form.email}</strong> within 1–2 business days with your verification result.
         </Typography>
 
         <Paper elevation={0} sx={{ p: 4, borderRadius: 4, mb: 5, bgcolor: '#F8FAFC', maxWidth: 400, mx: 'auto' }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-            <Typography variant="body2" color="#64748B">Application ID</Typography>
-            <Typography variant="subtitle2" fontWeight={700} color="#0F172A">
-              {applicationId ? `APP-${applicationId.slice(0, 8).toUpperCase()}` : 'Processing'}
-            </Typography>
-          </Box>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
             <Typography variant="body2" color="#64748B">Status</Typography>
             <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#D97706', display: 'flex', alignItems: 'center', gap: 1 }}>
               <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#D97706' }} />
-              Pending Review
+              Under Review
             </Typography>
+          </Box>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+            <Typography variant="body2" color="#64748B">Estimated Review</Typography>
+            <Typography variant="subtitle2" fontWeight={700} color="#0F172A">1–2 business days</Typography>
+          </Box>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+            <Typography variant="body2" color="#64748B">Confirmation Sent To</Typography>
+            <Typography variant="subtitle2" fontWeight={700} color="#0F172A" sx={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis' }}>{form.email}</Typography>
           </Box>
         </Paper>
 
         <Button variant="contained" size="large" onClick={() => navigate('/dashboard')} sx={{ px: 6, borderRadius: 2, textTransform: 'none', fontWeight: 700, bgcolor: '#1A1FE8', '&:hover': { bgcolor: '#0F14B0' } }}>
-          Dashboard (Pending)
+          Go to My Dashboard
         </Button>
       </Box>
     </Box>,
