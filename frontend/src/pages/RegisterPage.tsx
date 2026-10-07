@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import {
-  Box, Container, Typography, TextField, Button, CircularProgress, Paper, MenuItem, Select, FormControl, Stack, Chip, Switch, FormControlLabel, LinearProgress, Alert
+  Box, Container, Typography, TextField, Button, CircularProgress, Paper, MenuItem, Select, FormControl, Stack, Chip, Switch, FormControlLabel, LinearProgress, Alert, Tooltip
 } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
@@ -10,12 +10,18 @@ import InsertDriveFileOutlinedIcon from '@mui/icons-material/InsertDriveFileOutl
 import PlayCircleOutlinedIcon from '@mui/icons-material/PlayCircleOutlined';
 import VerifiedUserOutlinedIcon from '@mui/icons-material/VerifiedUserOutlined';
 import ReplayIcon from '@mui/icons-material/Replay';
+import VideocamIcon from '@mui/icons-material/Videocam';
+import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
+import StopIcon from '@mui/icons-material/Stop';
+import CameraAltIcon from '@mui/icons-material/CameraAlt';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { registerUser } from '../api/auth';
 import { createRegistrationApplication, submitVerification } from '../api/verifications';
 import { compressImageFile, formatBytes } from '../utils/fileCompressor';
 import { uploadFileInChunks } from '../utils/chunkUploader';
+import { useVideoRecorder } from '../utils/useVideoRecorder';
 import Navbar from '../components/Navbar';
 import toast from 'react-hot-toast';
 
@@ -574,7 +580,7 @@ export default function RegisterPage() {
       <Typography variant="h6" fontWeight={800} color="#0F172A" mb={0.5} mt={2}>Video Verification <Box component="span" sx={{ color: '#EF4444' }}>*</Box></Typography>
       <Typography variant="body2" color="#64748B" mb={3}>Upload a short 1–2 minute video of yourself and your work environment.</Typography>
 
-      <FileUploadDropzone
+      <VideoInput
         file={form.business_video_file}
         uploadState={videoState}
         onChange={(f: File) => {
@@ -587,11 +593,6 @@ export default function RegisterPage() {
           set('business_video_url', '');
           setVideoState(initialFileState);
         }}
-        title="Verification Video"
-        labels={['MP4', 'MOV', 'WebM', 'MKV']}
-        accept=".mp4,.mov,.mkv,.webm,video/mp4,video/quicktime,video/x-matroska,video/webm"
-        maxSize="100MB"
-        icon={<PlayCircleOutlinedIcon />}
       />
     </Box>,
 
@@ -912,6 +913,517 @@ const FileUploadDropzone = ({ file, uploadState, onChange, onRemove, title, labe
         ))}
       </Stack>
       <input ref={inputRef} type="file" accept={accept} hidden onChange={handleFileChange} style={{ display: 'none' }} id={`upload-${title}`} />
+    </Box>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// VideoInput — wraps FileUploadDropzone + VideoRecorder behind a tab toggle
+// ---------------------------------------------------------------------------
+
+interface VideoInputProps {
+  file: File | null;
+  uploadState?: FileUploadState;
+  onChange: (f: File) => void;
+  onRemove: () => void;
+}
+
+const VideoInput = ({ file, uploadState, onChange, onRemove }: VideoInputProps) => {
+  const [mode, setMode] = useState<'upload' | 'record'>('upload');
+
+  const isRecordSupported =
+    typeof window !== 'undefined' &&
+    typeof MediaRecorder !== 'undefined' &&
+    !!navigator.mediaDevices?.getUserMedia;
+
+  // Once a file is chosen (via upload OR recording) delegate entirely to the
+  // existing dropzone so the user sees the standard file-selected card + upload
+  // progress bar.
+  if (file) {
+    return (
+      <FileUploadDropzone
+        file={file}
+        uploadState={uploadState}
+        onChange={onChange}
+        onRemove={onRemove}
+        title="Verification Video"
+        labels={['MP4', 'MOV', 'WebM', 'MKV']}
+        accept=".mp4,.mov,.mkv,.webm,video/mp4,video/quicktime,video/x-matroska,video/webm"
+        maxSize="100MB"
+        icon={<PlayCircleOutlinedIcon />}
+      />
+    );
+  }
+
+  return (
+    <Box sx={{ mb: 3 }}>
+      {/* Mode Toggle */}
+      <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
+        <Button
+          size="small"
+          onClick={() => setMode('upload')}
+          variant={mode === 'upload' ? 'contained' : 'outlined'}
+          startIcon={<FileUploadOutlinedIcon />}
+          sx={{
+            textTransform: 'none',
+            borderRadius: 2,
+            fontWeight: 700,
+            ...(mode === 'upload'
+              ? { bgcolor: '#0F172A', '&:hover': { bgcolor: '#1E293B' } }
+              : { borderColor: '#CBD5E1', color: '#64748B', '&:hover': { borderColor: '#94A3B8' } }),
+          }}
+        >
+          Upload File
+        </Button>
+
+        <Tooltip
+          title={!isRecordSupported ? 'Live recording is not supported in this browser' : ''}
+          arrow
+        >
+          {/* span needed so Tooltip works on a disabled button */}
+          <span>
+            <Button
+              size="small"
+              onClick={() => setMode('record')}
+              variant={mode === 'record' ? 'contained' : 'outlined'}
+              disabled={!isRecordSupported}
+              startIcon={<VideocamIcon />}
+              sx={{
+                textTransform: 'none',
+                borderRadius: 2,
+                fontWeight: 700,
+                ...(mode === 'record'
+                  ? { bgcolor: '#EF4444', '&:hover': { bgcolor: '#DC2626' } }
+                  : { borderColor: '#CBD5E1', color: '#64748B', '&:hover': { borderColor: '#94A3B8' } }),
+              }}
+            >
+              Record Live
+            </Button>
+          </span>
+        </Tooltip>
+      </Stack>
+
+      {mode === 'upload' ? (
+        <FileUploadDropzone
+          file={null}
+          uploadState={uploadState}
+          onChange={onChange}
+          onRemove={onRemove}
+          title="Verification Video"
+          labels={['MP4', 'MOV', 'WebM', 'MKV']}
+          accept=".mp4,.mov,.mkv,.webm,video/mp4,video/quicktime,video/x-matroska,video/webm"
+          maxSize="100MB"
+          icon={<PlayCircleOutlinedIcon />}
+        />
+      ) : (
+        // VideoRecorder unmounts when mode switches back to 'upload', which
+        // triggers its cleanup (stops stream, revokes blob URL).
+        <VideoRecorder onChange={onChange} />
+      )}
+    </Box>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// VideoRecorder — full camera / recording UI
+// ---------------------------------------------------------------------------
+
+interface VideoRecorderProps {
+  onChange: (f: File) => void;
+}
+
+const VideoRecorder = ({ onChange }: VideoRecorderProps) => {
+  const {
+    status,
+    recordedBlob,
+    recordedUrl,
+    duration,
+    error,
+    devices,
+    selectedDeviceId,
+    maxDuration,
+    getStream,
+    startCamera,
+    startRecording,
+    stopRecording,
+    retake,
+    switchCamera,
+  } = useVideoRecorder();
+
+  const liveRef = useRef<HTMLVideoElement>(null);
+
+  // Attach the live MediaStream to the <video> element whenever it becomes
+  // available. Using status as the trigger is intentional — the stream ref
+  // itself is mutable and won't cause React to re-render.
+  useEffect(() => {
+    const el = liveRef.current;
+    if (!el) return;
+    if (status === 'ready' || status === 'recording') {
+      const stream = getStream();
+      if (stream && el.srcObject !== stream) {
+        el.srcObject = stream;
+        el.play().catch(() => {
+          // Autoplay may be blocked in some browsers; muted playsInline should
+          // bypass the policy but we swallow the rejection gracefully.
+        });
+      }
+    } else {
+      el.srcObject = null;
+    }
+  }, [status, getStream]);
+
+  const handleUseVideo = () => {
+    if (!recordedBlob) return;
+    const ext = recordedBlob.type.includes('mp4') ? 'mp4' : 'webm';
+    const file = new File(
+      [recordedBlob],
+      `workspace-recording-${Date.now()}.${ext}`,
+      { type: recordedBlob.type, lastModified: Date.now() },
+    );
+    onChange(file);
+  };
+
+  const fmt = (secs: number) => {
+    const m = Math.floor(secs / 60).toString().padStart(2, '0');
+    const s = (secs % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  };
+
+  const remaining = maxDuration - duration;
+
+  /* ── idle ──────────────────────────────────────────────────────────────── */
+  if (status === 'idle') {
+    return (
+      <Box
+        sx={{
+          p: 4,
+          borderRadius: 3,
+          border: '1px dashed #CBD5E1',
+          textAlign: 'center',
+          bgcolor: '#F8FAFC',
+        }}
+      >
+        <Box
+          sx={{
+            width: 56,
+            height: 56,
+            borderRadius: '50%',
+            bgcolor: '#EFF6FF',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            mx: 'auto',
+            mb: 2,
+          }}
+        >
+          <VideocamIcon sx={{ fontSize: 28, color: '#3B82F6' }} />
+        </Box>
+        <Typography variant="subtitle2" fontWeight={800} color="#0F172A" mb={0.5}>
+          Record Your Work Environment
+        </Typography>
+        <Typography
+          variant="caption"
+          color="#64748B"
+          display="block"
+          mb={3}
+          sx={{ lineHeight: 1.7 }}
+        >
+          A short 1–2 minute video of yourself and your workspace.
+          <br />
+          Make sure you are in a well-lit area with the camera facing you.
+        </Typography>
+        <Button
+          variant="contained"
+          onClick={() => startCamera()}
+          startIcon={<VideocamIcon />}
+          sx={{
+            textTransform: 'none',
+            borderRadius: 2,
+            fontWeight: 700,
+            bgcolor: '#3B82F6',
+            '&:hover': { bgcolor: '#2563EB' },
+          }}
+        >
+          Enable Camera
+        </Button>
+      </Box>
+    );
+  }
+
+  /* ── requesting ─────────────────────────────────────────────────────────── */
+  if (status === 'requesting') {
+    return (
+      <Box
+        sx={{
+          p: 4,
+          borderRadius: 3,
+          border: '1px dashed #CBD5E1',
+          textAlign: 'center',
+          bgcolor: '#F8FAFC',
+        }}
+      >
+        <CircularProgress
+          size={40}
+          sx={{ color: '#3B82F6', mb: 2, display: 'block', mx: 'auto' }}
+        />
+        <Typography variant="subtitle2" fontWeight={700} color="#0F172A">
+          Requesting camera access…
+        </Typography>
+        <Typography variant="caption" color="#64748B" display="block" mt={0.5}>
+          Please allow camera and microphone access when your browser prompts you.
+        </Typography>
+      </Box>
+    );
+  }
+
+  /* ── error ──────────────────────────────────────────────────────────────── */
+  if (status === 'error') {
+    return (
+      <Box
+        sx={{
+          p: 3,
+          borderRadius: 3,
+          border: '1px solid #EF4444',
+          bgcolor: '#FEF2F2',
+          textAlign: 'center',
+        }}
+      >
+        <WarningAmberIcon sx={{ fontSize: 36, color: '#EF4444', mb: 1 }} />
+        <Typography variant="subtitle2" fontWeight={700} color="#DC2626" mb={1}>
+          Camera Access Error
+        </Typography>
+        <Typography variant="body2" color="#64748B" mb={2.5}>
+          {error}
+        </Typography>
+        <Button
+          variant="outlined"
+          onClick={() => startCamera()}
+          sx={{
+            textTransform: 'none',
+            borderRadius: 2,
+            fontWeight: 700,
+            borderColor: '#EF4444',
+            color: '#EF4444',
+            '&:hover': { borderColor: '#DC2626', bgcolor: '#FEE2E2' },
+          }}
+        >
+          Try Again
+        </Button>
+      </Box>
+    );
+  }
+
+  /* ── stopped — review recorded clip ─────────────────────────────────────── */
+  if (status === 'stopped') {
+    return (
+      <Box
+        sx={{
+          borderRadius: 3,
+          overflow: 'hidden',
+          border: '1px solid #00BCD4',
+          bgcolor: '#F0FDFA',
+        }}
+      >
+        <Box
+          component="video"
+          src={recordedUrl || undefined}
+          controls
+          sx={{ width: '100%', display: 'block', maxHeight: 320, bgcolor: '#000' }}
+        />
+        <Box sx={{ p: 2 }}>
+          <Typography variant="caption" color="#64748B" display="block" mb={2}>
+            Recording: <strong>{fmt(duration)}</strong> — review your clip before continuing.
+          </Typography>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+            <Button
+              variant="outlined"
+              startIcon={<ReplayIcon />}
+              onClick={retake}
+              fullWidth
+              sx={{
+                textTransform: 'none',
+                borderRadius: 2,
+                fontWeight: 700,
+                borderColor: '#CBD5E1',
+                color: '#475569',
+              }}
+            >
+              Retake
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<CheckCircleIcon />}
+              onClick={handleUseVideo}
+              fullWidth
+              sx={{
+                textTransform: 'none',
+                borderRadius: 2,
+                fontWeight: 700,
+                bgcolor: '#00BCD4',
+                '&:hover': { bgcolor: '#0097A7' },
+              }}
+            >
+              Use This Video
+            </Button>
+          </Stack>
+        </Box>
+      </Box>
+    );
+  }
+
+  /* ── ready / recording — live camera feed ──────────────────────────────── */
+  const isRecording = status === 'recording';
+
+  return (
+    <Box
+      sx={{
+        borderRadius: 3,
+        overflow: 'hidden',
+        border: `1px solid ${isRecording ? '#EF4444' : '#CBD5E1'}`,
+        transition: 'border-color 0.2s ease',
+      }}
+    >
+      {/* Live video feed */}
+      <Box sx={{ position: 'relative', bgcolor: '#000', lineHeight: 0 }}>
+        <Box
+          component="video"
+          ref={liveRef}
+          autoPlay
+          muted
+          playsInline
+          sx={{ width: '100%', display: 'block', maxHeight: 320 }}
+        />
+
+        {/* REC indicator badge */}
+        {isRecording && (
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 12,
+              left: 12,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 0.75,
+              bgcolor: 'rgba(0,0,0,0.6)',
+              borderRadius: 2,
+              px: 1.5,
+              py: 0.5,
+            }}
+          >
+            <Box
+              sx={{
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                bgcolor: '#EF4444',
+                '@keyframes recPulse': {
+                  '0%,100%': { opacity: 1 },
+                  '50%': { opacity: 0.2 },
+                },
+                animation: 'recPulse 1s ease-in-out infinite',
+              }}
+            />
+            <Typography
+              variant="caption"
+              sx={{ color: '#fff', fontWeight: 700, fontSize: '0.72rem', letterSpacing: 0.5 }}
+            >
+              REC {fmt(duration)}
+            </Typography>
+          </Box>
+        )}
+
+        {/* Countdown warning — shown in the last 30 seconds */}
+        {isRecording && remaining <= 30 && (
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 12,
+              right: 12,
+              bgcolor: remaining <= 10 ? 'rgba(239,68,68,0.92)' : 'rgba(239,68,68,0.72)',
+              borderRadius: 2,
+              px: 1.5,
+              py: 0.5,
+              transition: 'background-color 0.3s',
+            }}
+          >
+            <Typography variant="caption" sx={{ color: '#fff', fontWeight: 700 }}>
+              {fmt(remaining)} left
+            </Typography>
+          </Box>
+        )}
+      </Box>
+
+      {/* Controls bar */}
+      <Box sx={{ p: 2, bgcolor: '#F8FAFC' }}>
+        {/* Camera selector — visible only when not recording and multiple cameras are available */}
+        {!isRecording && devices.length > 1 && (
+          <Box sx={{ mb: 1.5 }}>
+            <Typography variant="caption" fontWeight={700} color="#64748B" display="block" mb={0.5}>
+              <CameraAltIcon sx={{ fontSize: 14, verticalAlign: 'middle', mr: 0.5 }} />
+              Camera
+            </Typography>
+            <Select
+              size="small"
+              fullWidth
+              value={selectedDeviceId}
+              onChange={(e) => switchCamera(e.target.value)}
+              sx={{ borderRadius: 2, bgcolor: '#fff', fontSize: '0.85rem' }}
+            >
+              {devices.map((d, i) => (
+                <MenuItem key={d.deviceId} value={d.deviceId}>
+                  {d.label || `Camera ${i + 1}`}
+                </MenuItem>
+              ))}
+            </Select>
+          </Box>
+        )}
+
+        {!isRecording ? (
+          <Button
+            variant="contained"
+            fullWidth
+            startIcon={<FiberManualRecordIcon />}
+            onClick={startRecording}
+            sx={{
+              textTransform: 'none',
+              borderRadius: 2,
+              fontWeight: 700,
+              bgcolor: '#EF4444',
+              '&:hover': { bgcolor: '#DC2626' },
+            }}
+          >
+            Start Recording
+          </Button>
+        ) : (
+          <Button
+            variant="contained"
+            fullWidth
+            startIcon={<StopIcon />}
+            onClick={stopRecording}
+            sx={{
+              textTransform: 'none',
+              borderRadius: 2,
+              fontWeight: 700,
+              bgcolor: '#0F172A',
+              '&:hover': { bgcolor: '#1E293B' },
+            }}
+          >
+            Stop Recording
+          </Button>
+        )}
+
+        {!isRecording && (
+          <Typography
+            variant="caption"
+            color="#64748B"
+            display="block"
+            textAlign="center"
+            mt={1.5}
+          >
+            Max. 2 minutes · Ensure good lighting and clear audio
+          </Typography>
+        )}
+      </Box>
     </Box>
   );
 };
