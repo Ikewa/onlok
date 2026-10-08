@@ -1,25 +1,79 @@
 import { useState, useRef, useEffect } from 'react';
 import {
-  Box, Container, Typography, TextField, Button, CircularProgress, Paper, MenuItem, Select, FormControl, Stack, Chip, Switch, FormControlLabel, LinearProgress, Alert
+  Box, Container, Typography, TextField, Button, CircularProgress, Paper, MenuItem, Select, FormControl, Stack, Chip, Switch, FormControlLabel, LinearProgress, Alert, Tooltip, InputAdornment
 } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
+import StorefrontIcon from '@mui/icons-material/Storefront';
+import WorkIcon from '@mui/icons-material/Work';
+import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
+import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutlined';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlined';
+import PersonOutlineIcon from '@mui/icons-material/PersonOutlined';
+import LinkIcon from '@mui/icons-material/Link';
+import ScreenshotMonitorIcon from '@mui/icons-material/ScreenshotMonitor';
 
 import FileUploadOutlinedIcon from '@mui/icons-material/FileUploadOutlined';
 import InsertDriveFileOutlinedIcon from '@mui/icons-material/InsertDriveFileOutlined';
 import PlayCircleOutlinedIcon from '@mui/icons-material/PlayCircleOutlined';
 import VerifiedUserOutlinedIcon from '@mui/icons-material/VerifiedUserOutlined';
 import ReplayIcon from '@mui/icons-material/Replay';
+import VideocamIcon from '@mui/icons-material/Videocam';
+import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
+import StopIcon from '@mui/icons-material/Stop';
+import CameraAltIcon from '@mui/icons-material/CameraAlt';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { registerUser } from '../api/auth';
 import { createRegistrationApplication, submitVerification } from '../api/verifications';
 import { compressImageFile, formatBytes } from '../utils/fileCompressor';
 import { uploadFileInChunks } from '../utils/chunkUploader';
+import { useVideoRecorder } from '../utils/useVideoRecorder';
 import Navbar from '../components/Navbar';
 import toast from 'react-hot-toast';
 
-const STEPS = ['Personal Info', 'Business', 'Documents', 'Review'];
+// Base steps always shown. Service provider/Both accounts get 3 extra steps between Business and Documents.
+const BASE_STEPS = ['Personal Info', 'Business', 'Documents', 'Review'];
+const SP_EXTRA_STEPS = ['Service Info', 'Portfolio', 'References'];
+
+// Returns the ordered step labels depending on account type
+const getSteps = (accountType: 'vendor' | 'service_provider' | 'both') =>
+  accountType === 'vendor'
+    ? BASE_STEPS
+    : ['Personal Info', 'Business', ...SP_EXTRA_STEPS, 'Documents', 'Review'];
+
+// Step indices for non-vendor accounts
+const SP_STEP = { PERSONAL: 0, BUSINESS: 1, SERVICE_INFO: 2, PORTFOLIO: 3, REFERENCES: 4, DOCUMENTS: 5, REVIEW: 6 };
+const V_STEP  = { PERSONAL: 0, BUSINESS: 1, DOCUMENTS: 2, REVIEW: 3 };
+
+const SERVICE_CATEGORIES = [
+  'Architecture & Interior Design',
+  'Auto & Mechanical Services',
+  'Beauty & Personal Care',
+  'Catering & Food Services',
+  'Cleaning & Sanitation',
+  'Construction & Building',
+  'Consulting & Advisory',
+  'Creative Arts & Design',
+  'Education & Tutoring',
+  'Electrical & Electronics',
+  'Event Planning & Management',
+  'Fashion & Tailoring',
+  'Fitness & Wellness',
+  'Healthcare & Medical',
+  'IT & Software Development',
+  'Legal & Compliance',
+  'Logistics & Delivery',
+  'Marketing & Advertising',
+  'Media & Photography',
+  'Plumbing & Water Services',
+  'Real Estate & Property',
+  'Security Services',
+  'Translation & Languages',
+  'Writing & Content Creation',
+  'Other',
+];
 
 interface FileUploadState {
   status: 'idle' | 'compressing' | 'uploading' | 'retrying' | 'resuming' | 'completed' | 'error';
@@ -30,12 +84,32 @@ interface FileUploadState {
   compressedSize?: number;
 }
 
+type AccountType = 'vendor' | 'service_provider' | 'both';
+
+interface PortfolioItem {
+  title: string;
+  url: string;  // link OR will hold uploaded file name as placeholder
+  description: string;
+  file: File | null;
+}
+
+interface ReferenceItem {
+  name: string;
+  role: string;    // e.g. "Project Manager at Acme Ltd"
+  contact: string; // phone or email
+  project: string; // brief project description
+}
+
 interface FormData {
+  // Account type
+  account_type: AccountType;
+  // Personal
   first_name: string;
   last_name: string;
   email: string;
   phone_number: string;
   country_code: string;
+  // Business
   business_name: string;
   business_address: string;
   twitter_handle: string;
@@ -43,8 +117,18 @@ interface FormData {
   facebook_handle: string;
   tiktok_handle: string;
   linkedin_handle: string;
+  // Service Provider info
+  service_category: string;
+  years_experience: string;
+  service_description: string;
+  // Portfolio (2–5 items)
+  portfolio: PortfolioItem[];
+  // References (1–2)
+  references: ReferenceItem[];
+  // Auth
   password: string;
   confirm_password: string;
+  // Documents
   gov_id_file: File | null;
   gov_id_url: string;
   gov_id_upload_id: string;
@@ -54,20 +138,33 @@ interface FormData {
   cac_file: File | null;
   cac_url: string;
   cac_upload_id: string;
+  // Testimonials (optional screen recordings)
+  testimonial_file: File | null;
+  testimonial_url: string;
+  testimonial_upload_id: string;
+  // Legacy
   category: string;
   nin: string;
   rc_number: string;
 }
 
+const emptyPortfolioItem = (): PortfolioItem => ({ title: '', url: '', description: '', file: null });
+const emptyReference = (): ReferenceItem => ({ name: '', role: '', contact: '', project: '' });
+
 const initialData: FormData = {
+  account_type: 'vendor',
   first_name: '', last_name: '', email: '', phone_number: '',
   country_code: 'NG', business_name: '', business_address: '',
   twitter_handle: '', instagram_handle: '', facebook_handle: '', tiktok_handle: '', linkedin_handle: '',
+  service_category: '', years_experience: '', service_description: '',
+  portfolio: [emptyPortfolioItem(), emptyPortfolioItem()],
+  references: [emptyReference()],
   password: '', confirm_password: '',
   gov_id_file: null, gov_id_url: '',
   gov_id_upload_id: '',
   business_video_file: null, business_video_url: '', video_upload_id: '',
   cac_file: null, cac_url: '', cac_upload_id: '',
+  testimonial_file: null, testimonial_url: '', testimonial_upload_id: '',
   category: 'Consumer', nin: '', rc_number: ''
 };
 
@@ -101,11 +198,13 @@ export default function RegisterPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [submissionProgressLabel, setSubmissionProgressLabel] = useState<string>('');
   const [applicationId, setApplicationId] = useState<string>(() => localStorage.getItem('onlok_registration_application_id') || '');
+  const [accountCreatedPartialError, setAccountCreatedPartialError] = useState<string | null>(null);
 
   // Per-file upload tracking
   const [govIdState, setGovIdState] = useState<FileUploadState>(initialFileState);
   const [cacState, setCacState] = useState<FileUploadState>(initialFileState);
   const [videoState, setVideoState] = useState<FileUploadState>(initialFileState);
+  const [testimonialState, setTestimonialState] = useState<FileUploadState>(initialFileState);
 
   const [fullNameInput, setFullNameInput] = useState('');
 
@@ -121,6 +220,11 @@ export default function RegisterPage() {
   };
 
   const validateStep = (): boolean => {
+    const steps = getSteps(form.account_type);
+    const isVendor = form.account_type === 'vendor';
+    const reviewIdx = steps.length - 1;
+    const docIdx = steps.indexOf('Documents');
+
     if (activeStep === 0) {
       if (!form.first_name || !form.last_name || !form.email || !form.phone_number) {
         toast.error('Please enter your full First and Last name, email, and phone number.');
@@ -140,7 +244,30 @@ export default function RegisterPage() {
       toast.error('Business name or professional role is required.');
       return false;
     }
-    if (activeStep === 2) {
+    // Service Info step (SP/Both only)
+    if (!isVendor && activeStep === SP_STEP.SERVICE_INFO) {
+      if (!form.service_category) { toast.error('Please select your service category.'); return false; }
+      if (!form.years_experience) { toast.error('Please enter your years of experience.'); return false; }
+      if (!form.service_description || form.service_description.trim().length < 30) {
+        toast.error('Please write at least 30 characters describing your service.'); return false;
+      }
+    }
+    // Portfolio step (SP/Both only)
+    if (!isVendor && activeStep === SP_STEP.PORTFOLIO) {
+      const filled = form.portfolio.filter(p => p.title.trim() && (p.url.trim() || p.file));
+      if (filled.length < 2) {
+        toast.error('Please add at least 2 portfolio items (title + link or file each).'); return false;
+      }
+    }
+    // References step (SP/Both only)
+    if (!isVendor && activeStep === SP_STEP.REFERENCES) {
+      const filled = form.references.filter(r => r.name.trim() && r.contact.trim());
+      if (filled.length < 1) {
+        toast.error('Please add at least 1 reference with a name and contact.'); return false;
+      }
+    }
+    // Documents step
+    if (activeStep === docIdx) {
       if (!form.gov_id_file && !form.gov_id_url) {
         toast.error('Please select your Government ID.');
         return false;
@@ -152,6 +279,7 @@ export default function RegisterPage() {
     }
     return true;
   };
+
 
   // Upload handler for single documents (with client compression)
   // Returns the upload id directly: React state updates are not visible to the
@@ -233,14 +361,42 @@ export default function RegisterPage() {
     return { url: result.url, uploadId: result.uploadId || '' };
   };
 
+  // Upload handler for testimonial screen recording
+  const processAndUploadTestimonial = async (
+    file: File,
+    activeApplicationId: string,
+  ): Promise<{ url: string; uploadId: string }> => {
+    setTestimonialState({ status: 'uploading', progress: 0, error: null, originalSize: file.size });
+    setSubmissionProgressLabel('Uploading testimonial...');
+
+    const result = await uploadFileInChunks(file, 'testimonial', {
+      applicationId: activeApplicationId,
+      onStatus: (status) => setTestimonialState((prev) => ({ ...prev, status })),
+      onProgress: (pct) => {
+        setTestimonialState((prev) => ({ ...prev, progress: pct }));
+        setSubmissionProgressLabel(`Uploading testimonial... ${pct}%`);
+      },
+    });
+
+    setTestimonialState((prev) => ({ ...prev, status: 'completed', progress: 100, uploadedUrl: result.url }));
+    set('testimonial_url', result.url);
+    set('testimonial_upload_id', result.uploadId || '');
+    return { url: result.url, uploadId: result.uploadId || '' };
+  };
+
+
   const handleNext = async () => {
     if (!validateStep()) return;
 
-    // Moving from Review (Step 3) to Final Submission
-    if (activeStep === 3) {
+    const steps = getSteps(form.account_type);
+    const reviewIdx = steps.length - 1; // last real step before success
+
+    // Moving from Review step to Final Submission
+    if (activeStep === reviewIdx) {
       setLoading(true);
       try {
         let user = registeredUser || authUser;
+        let activeApplicationId = applicationId;
 
         // 1. Register or retrieve user session
         if (!user) {
@@ -254,7 +410,12 @@ export default function RegisterPage() {
             password: form.password,
             phone_number: form.phone_number,
             country_code: form.country_code,
-            category: form.category,
+            category: form.account_type === 'vendor' ? 'Vendor' : form.account_type === 'service_provider' ? 'Service Provider' : 'Both',
+            service_category: isSp ? form.service_category : undefined,
+            years_experience: isSp && form.years_experience ? parseInt(form.years_experience) : undefined,
+            service_description: isSp ? form.service_description : undefined,
+            portfolio: isSp ? form.portfolio : undefined,
+            references: isSp ? form.references : undefined,
             nin: form.nin,
             rc_number: form.rc_number,
             referred_by: refCode || undefined,
@@ -268,9 +429,9 @@ export default function RegisterPage() {
           login(user);
           localStorage.removeItem('onlok_registration_application_id');
           setApplicationId('');
+          activeApplicationId = '';
         }
 
-        let activeApplicationId = applicationId;
         if (!activeApplicationId) {
           setSubmissionProgressLabel('Preparing your application...');
           const application = await createRegistrationApplication();
@@ -283,7 +444,7 @@ export default function RegisterPage() {
         // Values already recorded by an earlier attempt are reused; everything
         // produced during *this* attempt comes from the helpers' return values,
         // because the `form` state object is stale inside this async handler.
-        const pendingUploads: { gov_id_upload_id?: string; cac_upload_id?: string; video_upload_id?: string } = {};
+        const pendingUploads: { gov_id_upload_id?: string; cac_upload_id?: string; video_upload_id?: string; testimonial_upload_id?: string } = {};
 
         let govIdUploadId = govIdState.status === 'completed' ? form.gov_id_upload_id : '';
         if (!govIdUploadId) {
@@ -314,6 +475,14 @@ export default function RegisterPage() {
         }
         pendingUploads.video_upload_id = videoUploadId;
 
+        // Optional: testimonial upload
+        let testimonialUploadId = testimonialState.status === 'completed' ? form.testimonial_upload_id : '';
+        if (!testimonialUploadId && form.testimonial_file) {
+          const tUpload = await processAndUploadTestimonial(form.testimonial_file, activeApplicationId);
+          testimonialUploadId = tUpload.uploadId;
+        }
+        if (testimonialUploadId) pendingUploads.testimonial_upload_id = testimonialUploadId;
+
         // 5. Finalize Verification Record
         setSubmissionProgressLabel('Finalizing application review...');
         await submitVerification({
@@ -323,12 +492,13 @@ export default function RegisterPage() {
 
         toast.success('Verification submitted successfully!');
         localStorage.removeItem('onlok_registration_application_id');
-        setActiveStep(4); // Success screen
+        setActiveStep(steps.length); // Success screen index = steps.length
       } catch (err: any) {
         console.error('Submission error:', err);
         setGovIdState((prev) => prev.status === 'uploading' || prev.status === 'retrying' || prev.status === 'resuming' ? { ...prev, status: 'error', error: 'Upload interrupted. You can retry safely.' } : prev);
         setCacState((prev) => prev.status === 'uploading' || prev.status === 'retrying' || prev.status === 'resuming' ? { ...prev, status: 'error', error: 'Upload interrupted. You can retry safely.' } : prev);
         setVideoState((prev) => prev.status === 'uploading' || prev.status === 'retrying' || prev.status === 'resuming' ? { ...prev, status: 'error', error: 'Upload interrupted. You can retry safely.' } : prev);
+        setTestimonialState((prev) => prev.status === 'uploading' || prev.status === 'retrying' || prev.status === 'resuming' ? { ...prev, status: 'error', error: 'Upload interrupted. You can retry safely.' } : prev);
         let msg = err?.serverMessage || err?.response?.data?.message;
         if (err?.response?.status === 413 || err?.status === 413) {
           msg = 'File size is too large. Please select a smaller video or image.';
@@ -337,7 +507,14 @@ export default function RegisterPage() {
         }
         // Quoting the trace id makes a failed upload traceable in the server log.
         const traceId = err?.traceId || err?.response?.headers?.['x-trace-id'] || err?.response?.data?.traceId;
-        toast.error(traceId ? `${msg} (ref: ${traceId})` : msg);
+        const formattedMsg = traceId ? `${msg} (ref: ${traceId})` : msg;
+        toast.error(formattedMsg);
+
+        // If user account was successfully registered before this error, show partial success screen
+        const currentUser = registeredUser || authUser || user;
+        if (currentUser) {
+          setAccountCreatedPartialError(formattedMsg);
+        }
       } finally {
         setLoading(false);
         setSubmissionProgressLabel('');
@@ -350,25 +527,30 @@ export default function RegisterPage() {
 
   const handleBack = () => setActiveStep((s) => s - 1);
 
+  const steps = getSteps(form.account_type);
+  const reviewIdx = steps.length - 1;
+  const isSp = form.account_type !== 'vendor';
+
   // Stepper Header
   const renderStepper = () => {
-    if (activeStep === 4) return null;
+    if (activeStep >= steps.length || accountCreatedPartialError) return null;
 
     return (
       <Box sx={{ mb: 6, position: 'relative', width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Box sx={{ position: 'absolute', top: 15, left: '5%', right: '5%', height: 2, bgcolor: '#E2E8F0', zIndex: 0 }}>
-          <Box sx={{ height: '100%', bgcolor: '#00BCD4', width: `${(activeStep / (STEPS.length - 1)) * 100}%`, transition: 'width 0.3s ease' }} />
+          <Box sx={{ height: '100%', bgcolor: '#00BCD4', width: `${(activeStep / (steps.length - 1)) * 100}%`, transition: 'width 0.3s ease' }} />
         </Box>
 
-        {STEPS.map((label, index) => {
+        {steps.map((label, index) => {
           const isCompleted = index < activeStep;
           const isActive = index === activeStep;
+          const isCompact = steps.length > 5;
           return (
-            <Box key={label} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 1, width: { xs: 65, sm: 80 } }}>
+            <Box key={label} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 1, width: isCompact ? { xs: 40, sm: 60 } : { xs: 65, sm: 80 } }}>
               <Box
                 sx={{
-                  width: 32,
-                  height: 32,
+                  width: isCompact ? 28 : 32,
+                  height: isCompact ? 28 : 32,
                   borderRadius: '50%',
                   display: 'flex',
                   alignItems: 'center',
@@ -380,9 +562,9 @@ export default function RegisterPage() {
                   transition: 'all 0.3s',
                 }}
               >
-                {isCompleted ? <CheckCircleIcon sx={{ fontSize: 20 }} /> : <Typography variant="caption" fontWeight={700}>{index + 1}</Typography>}
+                {isCompleted ? <CheckCircleIcon sx={{ fontSize: isCompact ? 16 : 20 }} /> : <Typography variant="caption" fontWeight={700} sx={{ fontSize: isCompact ? '0.75rem' : '0.85rem' }}>{index + 1}</Typography>}
               </Box>
-              <Typography variant="caption" sx={{ color: isActive ? '#0F172A' : '#64748B', fontWeight: isActive ? 700 : 500, fontSize: { xs: '0.65rem', sm: '0.7rem' }, textTransform: 'capitalize', textAlign: 'center' }}>
+              <Typography variant="caption" sx={{ color: isActive ? '#0F172A' : '#64748B', fontWeight: isActive ? 700 : 500, fontSize: isCompact ? { xs: '0.55rem', sm: '0.65rem' } : { xs: '0.65rem', sm: '0.7rem' }, textTransform: 'capitalize', textAlign: 'center', lineHeight: 1.1 }}>
                 {label}
               </Typography>
             </Box>
@@ -392,9 +574,9 @@ export default function RegisterPage() {
     );
   };
 
-  const stepContent = [
-    // Step 1: Personal Info
-    <Box key="step1">
+  // Step 1: Personal Info
+  const personalStep = (
+    <Box key="step-personal">
       <Typography variant="h5" fontWeight={800} color="#0F172A" mb={0.5}>Personal Information</Typography>
       <Typography variant="body2" color="#64748B" mb={4}>Please provide your legal name exactly as it appears on your ID.</Typography>
 
@@ -407,7 +589,7 @@ export default function RegisterPage() {
       <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} display="block">Phone Number <Box component="span" sx={{ color: '#EF4444' }}>*</Box></Typography>
       <Stack direction="row" spacing={1} mb={4}>
         <FormControl sx={{ minWidth: 100 }}>
-          <Select value={form.country_code} onChange={(e) => set('country_code', e.target.value)} sx={{ borderRadius: 2, bgcolor: '#F8FAFC' }}>
+          <Select value={form.country_code} onChange={(e) => set('country_code', e.target.value as string)} sx={{ borderRadius: 2, bgcolor: '#F8FAFC' }}>
             {countryCodes.map((c) => (
               <MenuItem key={c.code} value={c.code}>{c.dial}</MenuItem>
             ))}
@@ -490,12 +672,115 @@ export default function RegisterPage() {
         label={<Typography variant="body2" sx={{ color: '#475569', fontWeight: 600 }}>Show Passwords</Typography>}
         sx={{ mb: 3 }}
       />
-    </Box>,
+    </Box>
+  );
 
-    // Step 2: Business
-    <Box key="step2">
+  // Step 2: Business Details with Account Type Selector
+  const accountTypes: Array<{
+    type: AccountType;
+    title: string;
+    description: string;
+    icon: React.ReactNode;
+  }> = [
+    {
+      type: 'vendor',
+      title: 'Vendor / Business Owner',
+      description: 'Sells physical products or goods',
+      icon: <StorefrontIcon sx={{ fontSize: 28 }} />,
+    },
+    {
+      type: 'service_provider',
+      title: 'Service Provider',
+      description: 'Provides skills, professional services, or creative services',
+      icon: <WorkIcon sx={{ fontSize: 28 }} />,
+    },
+    {
+      type: 'both',
+      title: 'Both',
+      description: 'Sells products AND provides services',
+      icon: <SwapHorizIcon sx={{ fontSize: 28 }} />,
+    },
+  ];
+
+  const businessStep = (
+    <Box key="step-business">
       <Typography variant="h5" fontWeight={800} color="#0F172A" mb={0.5}>Business / Service Details</Typography>
       <Typography variant="body2" color="#64748B" mb={4}>Tell us about what you do so we can display it on your public profile.</Typography>
+
+      {/* Account Type Selector */}
+      <Box sx={{ mb: 4 }}>
+        <Typography variant="subtitle1" fontWeight={800} color="#0F172A" mb={0.5}>What best describes you? <Box component="span" sx={{ color: '#EF4444' }}>*</Box></Typography>
+        <Typography variant="body2" color="#64748B" mb={2}>Select your account type:</Typography>
+
+        <Stack spacing={2}>
+          {accountTypes.map((item) => {
+            const isSelected = form.account_type === item.type;
+            return (
+              <Paper
+                key={item.type}
+                elevation={0}
+                onClick={() => set('account_type', item.type)}
+                sx={{
+                  p: 2.5,
+                  borderRadius: 3,
+                  cursor: 'pointer',
+                  border: '2px solid',
+                  borderColor: isSelected ? '#1A1FE8' : '#E2E8F0',
+                  bgcolor: isSelected ? '#F4F5FF' : '#FFFFFF',
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    borderColor: isSelected ? '#1A1FE8' : '#CBD5E1',
+                    bgcolor: isSelected ? '#F4F5FF' : '#F8FAFC',
+                  },
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 2,
+                }}
+              >
+                <Box
+                  sx={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: 2,
+                    bgcolor: isSelected ? '#1A1FE8' : '#F1F5F9',
+                    color: isSelected ? '#FFFFFF' : '#64748B',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}
+                >
+                  {item.icon}
+                </Box>
+                <Box sx={{ flexGrow: 1 }}>
+                  <Typography variant="subtitle2" fontWeight={800} color={isSelected ? '#1A1FE8' : '#0F172A'}>
+                    {item.title}
+                  </Typography>
+                  <Typography variant="caption" color="#64748B">
+                    {item.description}
+                  </Typography>
+                </Box>
+                <Box
+                  sx={{
+                    width: 22,
+                    height: 22,
+                    borderRadius: '50%',
+                    border: '2px solid',
+                    borderColor: isSelected ? '#1A1FE8' : '#CBD5E1',
+                    bgcolor: isSelected ? '#1A1FE8' : 'transparent',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}
+                >
+                  {isSelected && <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#FFF' }} />}
+                </Box>
+              </Paper>
+            );
+          })}
+        </Stack>
+      </Box>
 
       <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} display="block">Business Name or Professional Role <Box component="span" sx={{ color: '#EF4444' }}>*</Box></Typography>
       <TextField fullWidth value={form.business_name} onChange={(e) => set('business_name', e.target.value)} placeholder="e.g., Chen Design Studio OR UX Designer" sx={{ mb: 3 }} InputProps={{ sx: { borderRadius: 2 } }} />
@@ -504,7 +789,7 @@ export default function RegisterPage() {
       <TextField fullWidth value={form.business_address} onChange={(e) => set('business_address', e.target.value)} placeholder="e.g., 12 Marina Boulevard, Marina Bay, Singapore" sx={{ mb: 4 }} InputProps={{ sx: { borderRadius: 2 } }} />
 
       <Typography variant="h6" fontWeight={800} color="#0F172A" mb={0.5}>Social Media Presence</Typography>
-      <Typography variant="body2" color="#64748B" mb={1}>Used to understand your digital footprint and brand presence.</Typography>
+      <Typography variant="body2" color="#64748B" mb={1}>Helps us verify your online presence and credibility.</Typography>
       <Typography variant="body2" sx={{ color: '#1A1FE8', fontWeight: 800, mb: 3 }}>* Please provide at least one social media link.</Typography>
 
       <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} display="block">X (formerly Twitter) Handle</Typography>
@@ -521,10 +806,258 @@ export default function RegisterPage() {
 
       <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} display="block">LinkedIn Profile</Typography>
       <TextField fullWidth value={form.linkedin_handle} onChange={(e) => set('linkedin_handle', e.target.value)} placeholder="https://linkedin.com/in/profile" InputProps={{ sx: { borderRadius: 2 } }} />
-    </Box>,
+    </Box>
+  );
 
-    // Step 3: Documents
-    <Box key="step3">
+  // Step 3 (SP Only): Service Info
+  const serviceInfoStep = (
+    <Box key="step-service-info">
+      <Typography variant="h5" fontWeight={800} color="#0F172A" mb={0.5}>Step 1 — Tell us about your service</Typography>
+      <Typography variant="body2" color="#64748B" mb={4}>Provide details about your core service, expertise, and background.</Typography>
+
+      <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} display="block">Primary Service Category <Box component="span" sx={{ color: '#EF4444' }}>*</Box></Typography>
+      <FormControl fullWidth sx={{ mb: 3 }}>
+        <Select
+          value={form.service_category}
+          onChange={(e) => set('service_category', e.target.value as string)}
+          displayEmpty
+          sx={{ borderRadius: 2, bgcolor: '#FFFFFF' }}
+        >
+          <MenuItem value="" disabled><em>Select primary service category</em></MenuItem>
+          {SERVICE_CATEGORIES.map((cat) => (
+            <MenuItem key={cat} value={cat}>{cat}</MenuItem>
+          ))}
+        </Select>
+      </FormControl>
+
+      <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} display="block">Years of Experience <Box component="span" sx={{ color: '#EF4444' }}>*</Box></Typography>
+      <TextField
+        fullWidth
+        type="number"
+        value={form.years_experience}
+        onChange={(e) => set('years_experience', e.target.value)}
+        placeholder="e.g. 5"
+        inputProps={{ min: 0, max: 60 }}
+        InputProps={{
+          sx: { borderRadius: 2 },
+          endAdornment: <InputAdornment position="end">years</InputAdornment>
+        }}
+        sx={{ mb: 3 }}
+      />
+
+      <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} display="block">Service Description <Box component="span" sx={{ color: '#EF4444' }}>*</Box></Typography>
+      <TextField
+        fullWidth
+        multiline
+        rows={4}
+        value={form.service_description}
+        onChange={(e) => set('service_description', e.target.value)}
+        placeholder="Describe what you do, who your target clients are, and what sets your work apart... (minimum 30 characters)"
+        sx={{ mb: 1 }}
+        InputProps={{ sx: { borderRadius: 2 } }}
+      />
+      <Typography variant="caption" color={form.service_description.trim().length >= 30 ? '#059669' : '#64748B'} display="block" mb={4}>
+        {form.service_description.trim().length} / 30 minimum characters {form.service_description.trim().length >= 30 ? '✓' : ''}
+      </Typography>
+    </Box>
+  );
+
+  // Step 4 (SP Only): Portfolio
+  const updatePortfolioItem = (index: number, key: keyof PortfolioItem, val: string) => {
+    const updated = [...form.portfolio];
+    updated[index] = { ...updated[index], [key]: val };
+    set('portfolio', updated);
+  };
+
+  const removePortfolioItem = (index: number) => {
+    if (form.portfolio.length <= 2) {
+      toast.error('At least 2 portfolio items are required for Service Provider verification.');
+      return;
+    }
+    set('portfolio', form.portfolio.filter((_, i) => i !== index));
+  };
+
+  const portfolioStep = (
+    <Box key="step-portfolio">
+      <Typography variant="h5" fontWeight={800} color="#0F172A" mb={0.5}>Step 2 — Show us your work</Typography>
+      <Typography variant="body2" color="#64748B" mb={3}>Upload or link 2–5 past projects or portfolio samples.</Typography>
+
+      <Box sx={{ p: 2.5, borderRadius: 3, bgcolor: '#F0FDFA', border: '1px solid #99F6E4', mb: 4 }}>
+        <Stack direction="row" spacing={2} alignItems="flex-start">
+          <WorkIcon sx={{ color: '#0D9488', mt: 0.2 }} />
+          <Box>
+            <Typography variant="subtitle2" fontWeight={700} color="#0F172A">Portfolio Guidelines</Typography>
+            <Typography variant="caption" color="#475569" sx={{ lineHeight: 1.5, display: 'block' }}>
+              Add 2 to 5 portfolio items showcasing your recent client work or creative projects. Provide clear titles, live URLs, or brief project summaries.
+            </Typography>
+          </Box>
+        </Stack>
+      </Box>
+
+      {form.portfolio.map((item, idx) => (
+        <Paper elevation={0} key={idx} sx={{ p: 3, borderRadius: 3, border: '1px solid #E2E8F0', bgcolor: '#F8FAFC', mb: 3, position: 'relative' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Chip label={`Project #${idx + 1}`} size="small" sx={{ fontWeight: 800, bgcolor: '#1A1FE8', color: '#FFF' }} />
+            {form.portfolio.length > 2 && (
+              <Button size="small" color="error" onClick={() => removePortfolioItem(idx)} startIcon={<DeleteOutlineIcon />}>
+                Remove
+              </Button>
+            )}
+          </Box>
+
+          <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} display="block">Project Title <Box component="span" sx={{ color: '#EF4444' }}>*</Box></Typography>
+          <TextField
+            fullWidth
+            value={item.title}
+            onChange={(e) => updatePortfolioItem(idx, 'title', e.target.value)}
+            placeholder="e.g., E-commerce Mobile App Redesign"
+            sx={{ mb: 2.5 }}
+            InputProps={{ sx: { borderRadius: 2, bgcolor: '#FFF' } }}
+          />
+
+          <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} display="block">Project URL or Link</Typography>
+          <TextField
+            fullWidth
+            value={item.url}
+            onChange={(e) => updatePortfolioItem(idx, 'url', e.target.value)}
+            placeholder="https://github.com/myproject OR https://behance.net/sample"
+            sx={{ mb: 2.5 }}
+            InputProps={{
+              sx: { borderRadius: 2, bgcolor: '#FFF' },
+              startAdornment: <InputAdornment position="start"><LinkIcon sx={{ color: '#94A3B8' }} /></InputAdornment>
+            }}
+          />
+
+          <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} display="block">Short Description</Typography>
+          <TextField
+            fullWidth
+            multiline
+            rows={2}
+            value={item.description}
+            onChange={(e) => updatePortfolioItem(idx, 'description', e.target.value)}
+            placeholder="Brief overview of tools used, role, or outcome..."
+            InputProps={{ sx: { borderRadius: 2, bgcolor: '#FFF' } }}
+          />
+        </Paper>
+      ))}
+
+      {form.portfolio.length < 5 && (
+        <Button
+          fullWidth
+          variant="outlined"
+          startIcon={<AddCircleOutlineIcon />}
+          onClick={() => set('portfolio', [...form.portfolio, emptyPortfolioItem()])}
+          sx={{ py: 1.5, borderRadius: 2.5, textTransform: 'none', fontWeight: 700, borderColor: '#1A1FE8', color: '#1A1FE8', '&:hover': { bgcolor: '#F4F5FF' } }}
+        >
+          Add Another Project ({form.portfolio.length}/5)
+        </Button>
+      )}
+    </Box>
+  );
+
+  // Step 5 (SP Only): References
+  const updateReferenceItem = (index: number, key: keyof ReferenceItem, val: string) => {
+    const updated = [...form.references];
+    updated[index] = { ...updated[index], [key]: val };
+    set('references', updated);
+  };
+
+  const removeReferenceItem = (index: number) => {
+    if (form.references.length <= 1) {
+      toast.error('At least 1 reference is required for Service Provider verification.');
+      return;
+    }
+    set('references', form.references.filter((_, i) => i !== index));
+  };
+
+  const referencesStep = (
+    <Box key="step-references">
+      <Typography variant="h5" fontWeight={800} color="#0F172A" mb={0.5}>Step 3 — Provide a reference</Typography>
+      <Typography variant="body2" color="#64748B" mb={3}>Provide 1–2 previous clients or project managers we may contact to verify your work.</Typography>
+
+      <Box sx={{ p: 2.5, borderRadius: 3, bgcolor: '#FEF3C7', border: '1px solid #FDE68A', mb: 4 }}>
+        <Stack direction="row" spacing={2} alignItems="flex-start">
+          <PersonOutlineIcon sx={{ color: '#D97706', mt: 0.2 }} />
+          <Box>
+            <Typography variant="subtitle2" fontWeight={700} color="#0F172A">Reference Verification Notice</Typography>
+            <Typography variant="caption" color="#78350F" sx={{ lineHeight: 1.5, display: 'block' }}>
+              Onlok reviews submitted evidence and may contact your reference before issuing the verified service badge. Please notify your client in advance.
+            </Typography>
+          </Box>
+        </Stack>
+      </Box>
+
+      {form.references.map((item, idx) => (
+        <Paper elevation={0} key={idx} sx={{ p: 3, borderRadius: 3, border: '1px solid #E2E8F0', bgcolor: '#F8FAFC', mb: 3, position: 'relative' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Chip label={`Reference #${idx + 1}`} size="small" sx={{ fontWeight: 800, bgcolor: '#0F172A', color: '#FFF' }} />
+            {form.references.length > 1 && (
+              <Button size="small" color="error" onClick={() => removeReferenceItem(idx)} startIcon={<DeleteOutlineIcon />}>
+                Remove
+              </Button>
+            )}
+          </Box>
+
+          <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} display="block">Client / Reference Name <Box component="span" sx={{ color: '#EF4444' }}>*</Box></Typography>
+          <TextField
+            fullWidth
+            value={item.name}
+            onChange={(e) => updateReferenceItem(idx, 'name', e.target.value)}
+            placeholder="e.g., Johnathan Smith"
+            sx={{ mb: 2.5 }}
+            InputProps={{ sx: { borderRadius: 2, bgcolor: '#FFF' } }}
+          />
+
+          <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} display="block">Role & Company / Organization <Box component="span" sx={{ color: '#EF4444' }}>*</Box></Typography>
+          <TextField
+            fullWidth
+            value={item.role}
+            onChange={(e) => updateReferenceItem(idx, 'role', e.target.value)}
+            placeholder="e.g., Head of Engineering at Acme Corp"
+            sx={{ mb: 2.5 }}
+            InputProps={{ sx: { borderRadius: 2, bgcolor: '#FFF' } }}
+          />
+
+          <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} display="block">Contact (Email or Phone Number) <Box component="span" sx={{ color: '#EF4444' }}>*</Box></Typography>
+          <TextField
+            fullWidth
+            value={item.contact}
+            onChange={(e) => updateReferenceItem(idx, 'contact', e.target.value)}
+            placeholder="johnathan@acme.com or +234 800 123 4567"
+            sx={{ mb: 2.5 }}
+            InputProps={{ sx: { borderRadius: 2, bgcolor: '#FFF' } }}
+          />
+
+          <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} display="block">Project Details / Scope <Box component="span" sx={{ color: '#EF4444' }}>*</Box></Typography>
+          <TextField
+            fullWidth
+            multiline
+            rows={2}
+            value={item.project}
+            onChange={(e) => updateReferenceItem(idx, 'project', e.target.value)}
+            placeholder="Briefly describe the project completed for this client..."
+            InputProps={{ sx: { borderRadius: 2, bgcolor: '#FFF' } }}
+          />
+        </Paper>
+      ))}
+
+      {form.references.length < 2 && (
+        <Button
+          fullWidth
+          variant="outlined"
+          startIcon={<AddCircleOutlineIcon />}
+          onClick={() => set('references', [...form.references, emptyReference()])}
+          sx={{ py: 1.5, borderRadius: 2.5, textTransform: 'none', fontWeight: 700, borderColor: '#0F172A', color: '#0F172A', '&:hover': { bgcolor: '#F1F5F9' } }}
+        >
+          Add Second Reference ({form.references.length}/2)
+        </Button>
+      )}
+    </Box>
+  );
+
+  // Documents Step
+  const documentsStep = (
+    <Box key="step-documents">
       <Typography variant="h5" fontWeight={800} color="#0F172A" mb={0.5}>Identity Verification <Box component="span" sx={{ color: '#EF4444' }}>*</Box></Typography>
       <Typography variant="body2" color="#64748B" mb={4}>Upload a valid, unexpired government-issued ID.</Typography>
 
@@ -548,8 +1081,8 @@ export default function RegisterPage() {
         icon={<InsertDriveFileOutlinedIcon />}
       />
 
-      <Typography variant="h6" fontWeight={800} color="#0F172A" mb={0.5} mt={2}>Business Registration</Typography>
-      <Typography variant="body2" color="#64748B" mb={3}>Upload your CAC certificate or proof of business registration (Optional).</Typography>
+      <Typography variant="h6" fontWeight={800} color="#0F172A" mb={0.5} mt={3}>Business or Professional Registration</Typography>
+      <Typography variant="body2" color="#64748B" mb={3}>Upload your CAC certificate, business registration, or professional license (Optional).</Typography>
 
       <FileUploadDropzone
         file={form.cac_file}
@@ -565,16 +1098,16 @@ export default function RegisterPage() {
           setCacState(initialFileState);
         }}
         title="CAC Document"
-        labels={['CAC Certificate', 'Business Registration']}
+        labels={['CAC Certificate', 'Business Registration', 'Professional License']}
         accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf"
         maxSize="15MB"
         icon={<InsertDriveFileOutlinedIcon />}
       />
 
-      <Typography variant="h6" fontWeight={800} color="#0F172A" mb={0.5} mt={2}>Video Verification <Box component="span" sx={{ color: '#EF4444' }}>*</Box></Typography>
-      <Typography variant="body2" color="#64748B" mb={3}>Upload a short 1-2 minute video of you and your business environment.</Typography>
+      <Typography variant="h6" fontWeight={800} color="#0F172A" mb={0.5} mt={3}>Video Verification <Box component="span" sx={{ color: '#EF4444' }}>*</Box></Typography>
+      <Typography variant="body2" color="#64748B" mb={3}>Upload a short 1–2 minute video of yourself and your work environment.</Typography>
 
-      <FileUploadDropzone
+      <VideoInput
         file={form.business_video_file}
         uploadState={videoState}
         onChange={(f: File) => {
@@ -587,16 +1120,49 @@ export default function RegisterPage() {
           set('business_video_url', '');
           setVideoState(initialFileState);
         }}
-        title="Business Video"
-        labels={['MP4', 'MOV', 'WebM', 'MKV']}
-        accept=".mp4,.mov,.mkv,.webm,video/mp4,video/quicktime,video/x-matroska,video/webm"
-        maxSize="100MB"
-        icon={<PlayCircleOutlinedIcon />}
       />
-    </Box>,
 
-    // Step 4: Review
-    <Box key="step4">
+      {/* Client Testimonials Upload Box */}
+      <Typography variant="h6" fontWeight={800} color="#0F172A" mb={0.5} mt={4}>Client Testimonials (Optional)</Typography>
+      <Typography variant="body2" color="#64748B" mb={2}>Provide screen recordings or proof of client feedback to boost your verification rating.</Typography>
+
+      <Box sx={{ p: 2.5, borderRadius: 3, bgcolor: '#F0F9FF', border: '1px solid #BAE6FD', mb: 3 }}>
+        <Stack direction="row" spacing={2} alignItems="flex-start">
+          <ScreenshotMonitorIcon sx={{ color: '#0284C7', mt: 0.2 }} />
+          <Box>
+            <Typography variant="subtitle2" fontWeight={700} color="#0F172A">Anti-Falsification Testimonial Requirement</Typography>
+            <Typography variant="caption" color="#0369A1" sx={{ lineHeight: 1.5, display: 'block' }}>
+              We accept screen recordings showing timestamp and date clearly visible (optionally with a daily story attached) to reduce falsification. Live client interaction or app dashboard video proof is highly recommended.
+            </Typography>
+          </Box>
+        </Stack>
+      </Box>
+
+      <FileUploadDropzone
+        file={form.testimonial_file}
+        uploadState={testimonialState}
+        onChange={(f: File) => {
+          set('testimonial_file', f);
+          set('testimonial_url', '');
+          setTestimonialState(initialFileState);
+        }}
+        onRemove={() => {
+          set('testimonial_file', null);
+          set('testimonial_url', '');
+          setTestimonialState(initialFileState);
+        }}
+        title="Testimonial Screen Recording or Proof"
+        labels={['Screen Recording (MP4/WebM)', 'Date & Timestamp Visible', 'Max 50MB']}
+        accept="video/*,image/*,.mp4,.webm,.mov,.png,.jpg,.jpeg"
+        maxSize="50MB"
+        icon={<ScreenshotMonitorIcon />}
+      />
+    </Box>
+  );
+
+  // Review Step
+  const reviewStep = (
+    <Box key="step-review">
       <Typography variant="h5" fontWeight={800} color="#0F172A" mb={0.5}>Review & Submit</Typography>
       <Typography variant="body2" color="#64748B" mb={4}>Please review your information before submitting for verification.</Typography>
 
@@ -612,21 +1178,57 @@ export default function RegisterPage() {
 
       <Paper elevation={0} sx={{ p: { xs: 2, sm: 3 }, borderRadius: 3, bgcolor: '#F8FAFC', mb: 3 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+          <Typography variant="subtitle2" fontWeight={800} color="#0F172A">Business & Account Details</Typography>
+          <Typography variant="caption" fontWeight={700} color="#1A1FE8" sx={{ cursor: 'pointer' }} onClick={() => setActiveStep(1)}>Edit</Typography>
+        </Box>
+        <GridRow label="Account Type" value={form.account_type === 'vendor' ? 'Vendor / Business Owner' : form.account_type === 'service_provider' ? 'Service Provider' : 'Both (Vendor & Service Provider)'} />
+        <GridRow label="Name/Role" value={form.business_name || '-'} />
+        <GridRow label="Address" value={form.business_address || '-'} />
+      </Paper>
+
+      {isSp && (
+        <>
+          <Paper elevation={0} sx={{ p: { xs: 2, sm: 3 }, borderRadius: 3, bgcolor: '#F8FAFC', mb: 3 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+              <Typography variant="subtitle2" fontWeight={800} color="#0F172A">Service Details</Typography>
+              <Typography variant="caption" fontWeight={700} color="#1A1FE8" sx={{ cursor: 'pointer' }} onClick={() => setActiveStep(SP_STEP.SERVICE_INFO)}>Edit</Typography>
+            </Box>
+            <GridRow label="Category" value={form.service_category || '-'} />
+            <GridRow label="Experience" value={form.years_experience ? `${form.years_experience} years` : '-'} />
+            <GridRow label="Description" value={form.service_description || '-'} />
+          </Paper>
+
+          <Paper elevation={0} sx={{ p: { xs: 2, sm: 3 }, borderRadius: 3, bgcolor: '#F8FAFC', mb: 3 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+              <Typography variant="subtitle2" fontWeight={800} color="#0F172A">Portfolio ({form.portfolio.length} projects)</Typography>
+              <Typography variant="caption" fontWeight={700} color="#1A1FE8" sx={{ cursor: 'pointer' }} onClick={() => setActiveStep(SP_STEP.PORTFOLIO)}>Edit</Typography>
+            </Box>
+            {form.portfolio.map((p, i) => (
+              <GridRow key={i} label={`Project #${i + 1}`} value={`${p.title}${p.url ? ` (${p.url})` : ''}`} />
+            ))}
+          </Paper>
+
+          <Paper elevation={0} sx={{ p: { xs: 2, sm: 3 }, borderRadius: 3, bgcolor: '#F8FAFC', mb: 3 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+              <Typography variant="subtitle2" fontWeight={800} color="#0F172A">References ({form.references.length})</Typography>
+              <Typography variant="caption" fontWeight={700} color="#1A1FE8" sx={{ cursor: 'pointer' }} onClick={() => setActiveStep(SP_STEP.REFERENCES)}>Edit</Typography>
+            </Box>
+            {form.references.map((r, i) => (
+              <GridRow key={i} label={`Ref #${i + 1}`} value={`${r.name} (${r.role}) - ${r.contact}`} />
+            ))}
+          </Paper>
+        </>
+      )}
+
+      <Paper elevation={0} sx={{ p: { xs: 2, sm: 3 }, borderRadius: 3, bgcolor: '#F8FAFC', mb: 3 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
           <Typography variant="subtitle2" fontWeight={800} color="#0F172A">Documents</Typography>
-          <Typography variant="caption" fontWeight={700} color="#1A1FE8" sx={{ cursor: 'pointer' }} onClick={() => setActiveStep(2)}>Edit</Typography>
+          <Typography variant="caption" fontWeight={700} color="#1A1FE8" sx={{ cursor: 'pointer' }} onClick={() => setActiveStep(isSp ? SP_STEP.DOCUMENTS : V_STEP.DOCUMENTS)}>Edit</Typography>
         </Box>
         <FileReviewRow label="ID Document" file={form.gov_id_file} state={govIdState} />
         <FileReviewRow label="CAC Certificate" file={form.cac_file} state={cacState} />
-        <FileReviewRow label="Business Video" file={form.business_video_file} state={videoState} />
-      </Paper>
-
-      <Paper elevation={0} sx={{ p: { xs: 2, sm: 3 }, borderRadius: 3, bgcolor: '#F8FAFC', mb: 4 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-          <Typography variant="subtitle2" fontWeight={800} color="#0F172A">Business Details</Typography>
-          <Typography variant="caption" fontWeight={700} color="#1A1FE8" sx={{ cursor: 'pointer' }} onClick={() => setActiveStep(1)}>Edit</Typography>
-        </Box>
-        <GridRow label="Name/Role" value={form.business_name || '-'} />
-        <GridRow label="Address" value={form.business_address || '-'} />
+        <FileReviewRow label="Verification Video" file={form.business_video_file} state={videoState} />
+        <FileReviewRow label="Client Testimonial" file={form.testimonial_file} state={testimonialState} />
       </Paper>
 
       {loading && submissionProgressLabel && (
@@ -645,41 +1247,132 @@ export default function RegisterPage() {
           </Typography>
         </Box>
       </Box>
-    </Box>,
+    </Box>
+  );
 
-    // Step 5: Success (Index 4)
-    <Box key="step5">
+  // Success Step
+  const successStep = (
+    <Box key="step-success">
       <Box sx={{ textAlign: 'center', py: 6 }}>
         <Box sx={{ width: 80, height: 80, borderRadius: '50%', bgcolor: '#E0F2FE', display: 'flex', alignItems: 'center', justifyContent: 'center', mx: 'auto', mb: 4 }}>
           <CheckCircleIcon sx={{ fontSize: 40, color: '#0284C7' }} />
         </Box>
-        <Typography variant="h4" fontWeight={800} color="#0F172A" mb={2}>Verification Submitted!</Typography>
-        <Typography variant="body1" color="#64748B" mb={5} sx={{ maxWidth: 400, mx: 'auto' }}>
-          Thank you for completing the verification process. Our team will review your application and documents within 24-48 hours.
+        <Typography variant="h4" fontWeight={800} color="#0F172A" mb={2}>You're All Set!</Typography>
+        <Typography variant="body1" color="#64748B" mb={5} sx={{ maxWidth: 440, mx: 'auto', lineHeight: 1.7 }}>
+          Your account has been created and your verification documents are now with our review team. You'll receive an email at <strong style={{ color: '#0F172A' }}>{form.email}</strong> within 1–2 business days with your verification result.
         </Typography>
 
         <Paper elevation={0} sx={{ p: 4, borderRadius: 4, mb: 5, bgcolor: '#F8FAFC', maxWidth: 400, mx: 'auto' }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-            <Typography variant="body2" color="#64748B">Application ID</Typography>
-            <Typography variant="subtitle2" fontWeight={700} color="#0F172A">
-              {applicationId ? `APP-${applicationId.slice(0, 8).toUpperCase()}` : 'Processing'}
-            </Typography>
-          </Box>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
             <Typography variant="body2" color="#64748B">Status</Typography>
             <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#D97706', display: 'flex', alignItems: 'center', gap: 1 }}>
               <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#D97706' }} />
-              Pending Review
+              Under Review
             </Typography>
+          </Box>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+            <Typography variant="body2" color="#64748B">Estimated Review</Typography>
+            <Typography variant="subtitle2" fontWeight={700} color="#0F172A">1–2 business days</Typography>
+          </Box>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+            <Typography variant="body2" color="#64748B">Confirmation Sent To</Typography>
+            <Typography variant="subtitle2" fontWeight={700} color="#0F172A" sx={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis' }}>{form.email}</Typography>
           </Box>
         </Paper>
 
         <Button variant="contained" size="large" onClick={() => navigate('/dashboard')} sx={{ px: 6, borderRadius: 2, textTransform: 'none', fontWeight: 700, bgcolor: '#1A1FE8', '&:hover': { bgcolor: '#0F14B0' } }}>
-          Dashboard (Pending)
+          Go to My Dashboard
         </Button>
       </Box>
-    </Box>,
-  ];
+    </Box>
+  );
+
+  // Partial Success Step (Account created, document upload incomplete)
+  const partialSuccessStep = (
+    <Box key="step-partial-success">
+      <Box sx={{ textAlign: 'center', py: 5 }}>
+        <Box sx={{ width: 80, height: 80, borderRadius: '50%', bgcolor: '#D1FAE5', display: 'flex', alignItems: 'center', justifyContent: 'center', mx: 'auto', mb: 3 }}>
+          <CheckCircleIcon sx={{ fontSize: 44, color: '#059669' }} />
+        </Box>
+
+        <Chip
+          label="Account Active • Verification Action Required"
+          size="small"
+          sx={{ bgcolor: '#FEF3C7', color: '#B45309', fontWeight: 800, mb: 2.5, px: 2, py: 0.75 }}
+        />
+
+        <Typography variant="h4" fontWeight={800} color="#0F172A" mb={1.5}>
+          Account Created Successfully!
+        </Typography>
+
+        <Typography variant="body1" color="#64748B" mb={4} sx={{ maxWidth: 500, mx: 'auto', lineHeight: 1.6 }}>
+          Welcome to Onlok! Your user account (<strong style={{ color: '#0F172A' }}>{form.email}</strong>) has been created and you are now logged in.
+        </Typography>
+
+        <Paper elevation={0} sx={{ p: 3, borderRadius: 3, bgcolor: '#FFFBEB', border: '1px solid #FDE68A', mb: 4, maxWidth: 480, mx: 'auto', textAlign: 'left' }}>
+          <Stack direction="row" spacing={2} alignItems="flex-start">
+            <WarningAmberIcon sx={{ color: '#D97706', mt: 0.2 }} />
+            <Box>
+              <Typography variant="subtitle2" fontWeight={800} color="#92400E" mb={0.5}>
+                Document Upload Interrupted
+              </Typography>
+              <Typography variant="caption" color="#78350F" sx={{ lineHeight: 1.5, display: 'block', mb: 1.5 }}>
+                {accountCreatedPartialError || 'Your verification document upload could not be finalized right now.'}
+              </Typography>
+              <Typography variant="caption" color="#92400E" fontWeight={700} sx={{ display: 'block' }}>
+                Don't worry — your user account is safe. You can complete document verification anytime from your dashboard.
+              </Typography>
+            </Box>
+          </Stack>
+        </Paper>
+
+        <Paper elevation={0} sx={{ p: 3, borderRadius: 3, bgcolor: '#F8FAFC', maxWidth: 420, mx: 'auto', mb: 4 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1.5 }}>
+            <Typography variant="body2" color="#64748B">Account Email</Typography>
+            <Typography variant="subtitle2" fontWeight={700} color="#0F172A" sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>{form.email}</Typography>
+          </Box>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1.5 }}>
+            <Typography variant="body2" color="#64748B">Account Status</Typography>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#059669', display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#059669' }} />
+              Active
+            </Typography>
+          </Box>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+            <Typography variant="body2" color="#64748B">Verification Status</Typography>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#D97706', display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#D97706' }} />
+              Incomplete (Upload Pending)
+            </Typography>
+          </Box>
+        </Paper>
+
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} justifyContent="center">
+          <Button
+            variant="contained"
+            size="large"
+            onClick={() => navigate('/dashboard')}
+            sx={{ px: 5, py: 1.5, borderRadius: 2, textTransform: 'none', fontWeight: 700, bgcolor: '#1A1FE8', '&:hover': { bgcolor: '#0F14B0' } }}
+          >
+            Go to My Dashboard
+          </Button>
+
+          <Button
+            variant="outlined"
+            size="large"
+            onClick={() => setAccountCreatedPartialError(null)}
+            sx={{ px: 4, py: 1.5, borderRadius: 2, textTransform: 'none', fontWeight: 700, borderColor: '#CBD5E1', color: '#475569', '&:hover': { bgcolor: '#F1F5F9' } }}
+          >
+            Retry Document Upload
+          </Button>
+        </Stack>
+      </Box>
+    </Box>
+  );
+
+  const stepContent = isSp
+    ? [personalStep, businessStep, serviceInfoStep, portfolioStep, referencesStep, documentsStep, reviewStep, successStep]
+    : [personalStep, businessStep, documentsStep, reviewStep, successStep];
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: '#F8FAFC', display: 'flex', flexDirection: 'column' }}>
@@ -697,9 +1390,11 @@ export default function RegisterPage() {
         >
           {renderStepper()}
 
-          <Box>{stepContent[activeStep]}</Box>
+          <Box>
+            {accountCreatedPartialError ? partialSuccessStep : stepContent[activeStep]}
+          </Box>
 
-          {activeStep < 4 && (
+          {!accountCreatedPartialError && activeStep < steps.length && (
             <Box sx={{ mt: 5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               {activeStep === 0 ? (
                 <Box />
@@ -714,7 +1409,7 @@ export default function RegisterPage() {
                 </Button>
               )}
 
-              {activeStep === 3 ? (
+              {activeStep === reviewIdx ? (
                 <Button
                   onClick={handleNext}
                   variant="contained"
@@ -910,6 +1605,517 @@ const FileUploadDropzone = ({ file, uploadState, onChange, onRemove, title, labe
         ))}
       </Stack>
       <input ref={inputRef} type="file" accept={accept} hidden onChange={handleFileChange} style={{ display: 'none' }} id={`upload-${title}`} />
+    </Box>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// VideoInput — wraps FileUploadDropzone + VideoRecorder behind a tab toggle
+// ---------------------------------------------------------------------------
+
+interface VideoInputProps {
+  file: File | null;
+  uploadState?: FileUploadState;
+  onChange: (f: File) => void;
+  onRemove: () => void;
+}
+
+const VideoInput = ({ file, uploadState, onChange, onRemove }: VideoInputProps) => {
+  const [mode, setMode] = useState<'upload' | 'record'>('upload');
+
+  const isRecordSupported =
+    typeof window !== 'undefined' &&
+    typeof MediaRecorder !== 'undefined' &&
+    !!navigator.mediaDevices?.getUserMedia;
+
+  // Once a file is chosen (via upload OR recording) delegate entirely to the
+  // existing dropzone so the user sees the standard file-selected card + upload
+  // progress bar.
+  if (file) {
+    return (
+      <FileUploadDropzone
+        file={file}
+        uploadState={uploadState}
+        onChange={onChange}
+        onRemove={onRemove}
+        title="Verification Video"
+        labels={['MP4', 'MOV', 'WebM', 'MKV']}
+        accept=".mp4,.mov,.mkv,.webm,video/mp4,video/quicktime,video/x-matroska,video/webm"
+        maxSize="100MB"
+        icon={<PlayCircleOutlinedIcon />}
+      />
+    );
+  }
+
+  return (
+    <Box sx={{ mb: 3 }}>
+      {/* Mode Toggle */}
+      <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
+        <Button
+          size="small"
+          onClick={() => setMode('upload')}
+          variant={mode === 'upload' ? 'contained' : 'outlined'}
+          startIcon={<FileUploadOutlinedIcon />}
+          sx={{
+            textTransform: 'none',
+            borderRadius: 2,
+            fontWeight: 700,
+            ...(mode === 'upload'
+              ? { bgcolor: '#0F172A', '&:hover': { bgcolor: '#1E293B' } }
+              : { borderColor: '#CBD5E1', color: '#64748B', '&:hover': { borderColor: '#94A3B8' } }),
+          }}
+        >
+          Upload File
+        </Button>
+
+        <Tooltip
+          title={!isRecordSupported ? 'Live recording is not supported in this browser' : ''}
+          arrow
+        >
+          {/* span needed so Tooltip works on a disabled button */}
+          <span>
+            <Button
+              size="small"
+              onClick={() => setMode('record')}
+              variant={mode === 'record' ? 'contained' : 'outlined'}
+              disabled={!isRecordSupported}
+              startIcon={<VideocamIcon />}
+              sx={{
+                textTransform: 'none',
+                borderRadius: 2,
+                fontWeight: 700,
+                ...(mode === 'record'
+                  ? { bgcolor: '#EF4444', '&:hover': { bgcolor: '#DC2626' } }
+                  : { borderColor: '#CBD5E1', color: '#64748B', '&:hover': { borderColor: '#94A3B8' } }),
+              }}
+            >
+              Record Live
+            </Button>
+          </span>
+        </Tooltip>
+      </Stack>
+
+      {mode === 'upload' ? (
+        <FileUploadDropzone
+          file={null}
+          uploadState={uploadState}
+          onChange={onChange}
+          onRemove={onRemove}
+          title="Verification Video"
+          labels={['MP4', 'MOV', 'WebM', 'MKV']}
+          accept=".mp4,.mov,.mkv,.webm,video/mp4,video/quicktime,video/x-matroska,video/webm"
+          maxSize="100MB"
+          icon={<PlayCircleOutlinedIcon />}
+        />
+      ) : (
+        // VideoRecorder unmounts when mode switches back to 'upload', which
+        // triggers its cleanup (stops stream, revokes blob URL).
+        <VideoRecorder onChange={onChange} />
+      )}
+    </Box>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// VideoRecorder — full camera / recording UI
+// ---------------------------------------------------------------------------
+
+interface VideoRecorderProps {
+  onChange: (f: File) => void;
+}
+
+const VideoRecorder = ({ onChange }: VideoRecorderProps) => {
+  const {
+    status,
+    recordedBlob,
+    recordedUrl,
+    duration,
+    error,
+    devices,
+    selectedDeviceId,
+    maxDuration,
+    getStream,
+    startCamera,
+    startRecording,
+    stopRecording,
+    retake,
+    switchCamera,
+  } = useVideoRecorder();
+
+  const liveRef = useRef<HTMLVideoElement>(null);
+
+  // Attach the live MediaStream to the <video> element whenever it becomes
+  // available. Using status as the trigger is intentional — the stream ref
+  // itself is mutable and won't cause React to re-render.
+  useEffect(() => {
+    const el = liveRef.current;
+    if (!el) return;
+    if (status === 'ready' || status === 'recording') {
+      const stream = getStream();
+      if (stream && el.srcObject !== stream) {
+        el.srcObject = stream;
+        el.play().catch(() => {
+          // Autoplay may be blocked in some browsers; muted playsInline should
+          // bypass the policy but we swallow the rejection gracefully.
+        });
+      }
+    } else {
+      el.srcObject = null;
+    }
+  }, [status, getStream]);
+
+  const handleUseVideo = () => {
+    if (!recordedBlob) return;
+    const ext = recordedBlob.type.includes('mp4') ? 'mp4' : 'webm';
+    const file = new File(
+      [recordedBlob],
+      `workspace-recording-${Date.now()}.${ext}`,
+      { type: recordedBlob.type, lastModified: Date.now() },
+    );
+    onChange(file);
+  };
+
+  const fmt = (secs: number) => {
+    const m = Math.floor(secs / 60).toString().padStart(2, '0');
+    const s = (secs % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  };
+
+  const remaining = maxDuration - duration;
+
+  /* ── idle ──────────────────────────────────────────────────────────────── */
+  if (status === 'idle') {
+    return (
+      <Box
+        sx={{
+          p: 4,
+          borderRadius: 3,
+          border: '1px dashed #CBD5E1',
+          textAlign: 'center',
+          bgcolor: '#F8FAFC',
+        }}
+      >
+        <Box
+          sx={{
+            width: 56,
+            height: 56,
+            borderRadius: '50%',
+            bgcolor: '#EFF6FF',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            mx: 'auto',
+            mb: 2,
+          }}
+        >
+          <VideocamIcon sx={{ fontSize: 28, color: '#3B82F6' }} />
+        </Box>
+        <Typography variant="subtitle2" fontWeight={800} color="#0F172A" mb={0.5}>
+          Record Your Work Environment
+        </Typography>
+        <Typography
+          variant="caption"
+          color="#64748B"
+          display="block"
+          mb={3}
+          sx={{ lineHeight: 1.7 }}
+        >
+          A short 1–2 minute video of yourself and your workspace.
+          <br />
+          Make sure you are in a well-lit area with the camera facing you.
+        </Typography>
+        <Button
+          variant="contained"
+          onClick={() => startCamera()}
+          startIcon={<VideocamIcon />}
+          sx={{
+            textTransform: 'none',
+            borderRadius: 2,
+            fontWeight: 700,
+            bgcolor: '#3B82F6',
+            '&:hover': { bgcolor: '#2563EB' },
+          }}
+        >
+          Enable Camera
+        </Button>
+      </Box>
+    );
+  }
+
+  /* ── requesting ─────────────────────────────────────────────────────────── */
+  if (status === 'requesting') {
+    return (
+      <Box
+        sx={{
+          p: 4,
+          borderRadius: 3,
+          border: '1px dashed #CBD5E1',
+          textAlign: 'center',
+          bgcolor: '#F8FAFC',
+        }}
+      >
+        <CircularProgress
+          size={40}
+          sx={{ color: '#3B82F6', mb: 2, display: 'block', mx: 'auto' }}
+        />
+        <Typography variant="subtitle2" fontWeight={700} color="#0F172A">
+          Requesting camera access…
+        </Typography>
+        <Typography variant="caption" color="#64748B" display="block" mt={0.5}>
+          Please allow camera and microphone access when your browser prompts you.
+        </Typography>
+      </Box>
+    );
+  }
+
+  /* ── error ──────────────────────────────────────────────────────────────── */
+  if (status === 'error') {
+    return (
+      <Box
+        sx={{
+          p: 3,
+          borderRadius: 3,
+          border: '1px solid #EF4444',
+          bgcolor: '#FEF2F2',
+          textAlign: 'center',
+        }}
+      >
+        <WarningAmberIcon sx={{ fontSize: 36, color: '#EF4444', mb: 1 }} />
+        <Typography variant="subtitle2" fontWeight={700} color="#DC2626" mb={1}>
+          Camera Access Error
+        </Typography>
+        <Typography variant="body2" color="#64748B" mb={2.5}>
+          {error}
+        </Typography>
+        <Button
+          variant="outlined"
+          onClick={() => startCamera()}
+          sx={{
+            textTransform: 'none',
+            borderRadius: 2,
+            fontWeight: 700,
+            borderColor: '#EF4444',
+            color: '#EF4444',
+            '&:hover': { borderColor: '#DC2626', bgcolor: '#FEE2E2' },
+          }}
+        >
+          Try Again
+        </Button>
+      </Box>
+    );
+  }
+
+  /* ── stopped — review recorded clip ─────────────────────────────────────── */
+  if (status === 'stopped') {
+    return (
+      <Box
+        sx={{
+          borderRadius: 3,
+          overflow: 'hidden',
+          border: '1px solid #00BCD4',
+          bgcolor: '#F0FDFA',
+        }}
+      >
+        <Box
+          component="video"
+          src={recordedUrl || undefined}
+          controls
+          sx={{ width: '100%', display: 'block', maxHeight: 320, bgcolor: '#000' }}
+        />
+        <Box sx={{ p: 2 }}>
+          <Typography variant="caption" color="#64748B" display="block" mb={2}>
+            Recording: <strong>{fmt(duration)}</strong> — review your clip before continuing.
+          </Typography>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+            <Button
+              variant="outlined"
+              startIcon={<ReplayIcon />}
+              onClick={retake}
+              fullWidth
+              sx={{
+                textTransform: 'none',
+                borderRadius: 2,
+                fontWeight: 700,
+                borderColor: '#CBD5E1',
+                color: '#475569',
+              }}
+            >
+              Retake
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<CheckCircleIcon />}
+              onClick={handleUseVideo}
+              fullWidth
+              sx={{
+                textTransform: 'none',
+                borderRadius: 2,
+                fontWeight: 700,
+                bgcolor: '#00BCD4',
+                '&:hover': { bgcolor: '#0097A7' },
+              }}
+            >
+              Use This Video
+            </Button>
+          </Stack>
+        </Box>
+      </Box>
+    );
+  }
+
+  /* ── ready / recording — live camera feed ──────────────────────────────── */
+  const isRecording = status === 'recording';
+
+  return (
+    <Box
+      sx={{
+        borderRadius: 3,
+        overflow: 'hidden',
+        border: `1px solid ${isRecording ? '#EF4444' : '#CBD5E1'}`,
+        transition: 'border-color 0.2s ease',
+      }}
+    >
+      {/* Live video feed */}
+      <Box sx={{ position: 'relative', bgcolor: '#000', lineHeight: 0 }}>
+        <Box
+          component="video"
+          ref={liveRef}
+          autoPlay
+          muted
+          playsInline
+          sx={{ width: '100%', display: 'block', maxHeight: 320 }}
+        />
+
+        {/* REC indicator badge */}
+        {isRecording && (
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 12,
+              left: 12,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 0.75,
+              bgcolor: 'rgba(0,0,0,0.6)',
+              borderRadius: 2,
+              px: 1.5,
+              py: 0.5,
+            }}
+          >
+            <Box
+              sx={{
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                bgcolor: '#EF4444',
+                '@keyframes recPulse': {
+                  '0%,100%': { opacity: 1 },
+                  '50%': { opacity: 0.2 },
+                },
+                animation: 'recPulse 1s ease-in-out infinite',
+              }}
+            />
+            <Typography
+              variant="caption"
+              sx={{ color: '#fff', fontWeight: 700, fontSize: '0.72rem', letterSpacing: 0.5 }}
+            >
+              REC {fmt(duration)}
+            </Typography>
+          </Box>
+        )}
+
+        {/* Countdown warning — shown in the last 30 seconds */}
+        {isRecording && remaining <= 30 && (
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 12,
+              right: 12,
+              bgcolor: remaining <= 10 ? 'rgba(239,68,68,0.92)' : 'rgba(239,68,68,0.72)',
+              borderRadius: 2,
+              px: 1.5,
+              py: 0.5,
+              transition: 'background-color 0.3s',
+            }}
+          >
+            <Typography variant="caption" sx={{ color: '#fff', fontWeight: 700 }}>
+              {fmt(remaining)} left
+            </Typography>
+          </Box>
+        )}
+      </Box>
+
+      {/* Controls bar */}
+      <Box sx={{ p: 2, bgcolor: '#F8FAFC' }}>
+        {/* Camera selector — visible only when not recording and multiple cameras are available */}
+        {!isRecording && devices.length > 1 && (
+          <Box sx={{ mb: 1.5 }}>
+            <Typography variant="caption" fontWeight={700} color="#64748B" display="block" mb={0.5}>
+              <CameraAltIcon sx={{ fontSize: 14, verticalAlign: 'middle', mr: 0.5 }} />
+              Camera
+            </Typography>
+            <Select
+              size="small"
+              fullWidth
+              value={selectedDeviceId}
+              onChange={(e) => switchCamera(e.target.value)}
+              sx={{ borderRadius: 2, bgcolor: '#fff', fontSize: '0.85rem' }}
+            >
+              {devices.map((d, i) => (
+                <MenuItem key={d.deviceId} value={d.deviceId}>
+                  {d.label || `Camera ${i + 1}`}
+                </MenuItem>
+              ))}
+            </Select>
+          </Box>
+        )}
+
+        {!isRecording ? (
+          <Button
+            variant="contained"
+            fullWidth
+            startIcon={<FiberManualRecordIcon />}
+            onClick={startRecording}
+            sx={{
+              textTransform: 'none',
+              borderRadius: 2,
+              fontWeight: 700,
+              bgcolor: '#EF4444',
+              '&:hover': { bgcolor: '#DC2626' },
+            }}
+          >
+            Start Recording
+          </Button>
+        ) : (
+          <Button
+            variant="contained"
+            fullWidth
+            startIcon={<StopIcon />}
+            onClick={stopRecording}
+            sx={{
+              textTransform: 'none',
+              borderRadius: 2,
+              fontWeight: 700,
+              bgcolor: '#0F172A',
+              '&:hover': { bgcolor: '#1E293B' },
+            }}
+          >
+            Stop Recording
+          </Button>
+        )}
+
+        {!isRecording && (
+          <Typography
+            variant="caption"
+            color="#64748B"
+            display="block"
+            textAlign="center"
+            mt={1.5}
+          >
+            Max. 2 minutes · Ensure good lighting and clear audio
+          </Typography>
+        )}
+      </Box>
     </Box>
   );
 };

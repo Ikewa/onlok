@@ -23,7 +23,12 @@ const generateToken = (id, role, vendor_id, email) => {
 // @access  Public
 const registerUser = async (req, res) => {
     try {
-        const { first_name, last_name, business_name, email, password, phone_number, business_address, country_code, category, nin, rc_number, twitter_handle, instagram_handle, facebook_handle, tiktok_handle, linkedin_handle, referred_by } = req.body;
+        const {
+            first_name, last_name, business_name, email, password, phone_number,
+            business_address, country_code, category,
+            service_category, years_experience, service_description, portfolio, references_data, references,
+            nin, rc_number, twitter_handle, instagram_handle, facebook_handle, tiktok_handle, linkedin_handle, referred_by
+        } = req.body;
 
         if (!first_name || !last_name || !business_name || !email || !password || !phone_number) {
             return res.status(400).json({ message: 'Please add all fields' });
@@ -57,12 +62,23 @@ const registerUser = async (req, res) => {
             }
         }
 
+        const portfolioJson = portfolio ? JSON.stringify(portfolio) : null;
+        const refsObj = references_data || references;
+        const referencesJson = refsObj ? JSON.stringify(refsObj) : null;
+
         // Create user with null vendor_id (will be generated later upon admin approval)
         const query = `
-            INSERT INTO users (vendor_id, referred_by, first_name, last_name, business_name, email, password_hash, phone_number, business_address, country_code, category, nin, rc_number, twitter_handle, instagram_handle, facebook_handle, tiktok_handle, linkedin_handle)
-            VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO users (vendor_id, referred_by, first_name, last_name, business_name, email, password_hash, phone_number, business_address, country_code, category, service_category, years_experience, service_description, portfolio, references_data, nin, rc_number, twitter_handle, instagram_handle, facebook_handle, tiktok_handle, linkedin_handle)
+            VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
-        const [result] = await pool.execute(query, [referrerId, first_name, last_name, business_name, email, hashedPassword, phone_number, business_address || null, country_code || null, category || null, nin || null, rc_number || null, twitter_handle || null, instagram_handle || null, facebook_handle || null, tiktok_handle || null, linkedin_handle || null]);
+        const [result] = await pool.execute(query, [
+            referrerId, first_name, last_name, business_name, email, hashedPassword, phone_number,
+            business_address || null, country_code || null, category || 'Vendor',
+            service_category || null, years_experience ? Number(years_experience) : null, service_description || null,
+            portfolioJson, referencesJson,
+            nin || null, rc_number || null,
+            twitter_handle || null, instagram_handle || null, facebook_handle || null, tiktok_handle || null, linkedin_handle || null
+        ]);
 
         const newUserId = result.insertId;
 
@@ -179,7 +195,7 @@ const magicLogin = async (req, res) => {
 const getMe = async (req, res) => {
     try {
         const [rows] = await pool.query(
-            'SELECT id, vendor_id, first_name, last_name, business_name, email, phone_number, business_address, country, role, status, badge_type, subscription_expires_at, active_subscription_id, profile_picture_url FROM users WHERE id = ?',
+            'SELECT id, vendor_id, first_name, last_name, business_name, email, phone_number, business_address, country, role, status, badge_type, subscription_expires_at, active_subscription_id, profile_picture_url, category, service_category, years_experience, service_description, portfolio, references_data FROM users WHERE id = ?',
             [req.user.id]
         );
 
@@ -187,7 +203,15 @@ const getMe = async (req, res) => {
             return res.status(404).json({ message: 'User not found' });
         }
 
-        res.status(200).json(rows[0]);
+        const user = rows[0];
+        if (typeof user.portfolio === 'string') {
+            try { user.portfolio = JSON.parse(user.portfolio); } catch (e) { user.portfolio = []; }
+        }
+        if (typeof user.references_data === 'string') {
+            try { user.references_data = JSON.parse(user.references_data); } catch (e) { user.references_data = []; }
+        }
+
+        res.status(200).json(user);
     } catch (error) {
         logger.error('Get Me Error', { error });
         res.status(500).json({ message: 'Server error fetching profile', error: error.message });
@@ -217,7 +241,10 @@ const updateUser = async (req, res) => {
             return res.status(403).json({ message: 'Not authorized to update this profile' });
         }
 
-        const { first_name, last_name, business_name, phone_number, business_address, country } = req.body;
+        const {
+            first_name, last_name, business_name, phone_number, business_address, country,
+            category, service_category, years_experience, service_description, portfolio, references_data
+        } = req.body;
 
         // Build query dynamically
         let updates = [];
@@ -228,6 +255,18 @@ const updateUser = async (req, res) => {
         if (phone_number) { updates.push('phone_number = ?'); values.push(phone_number); }
         if (business_address !== undefined) { updates.push('business_address = ?'); values.push(business_address); }
         if (country !== undefined) { updates.push('country = ?'); values.push(country); }
+        if (category !== undefined) { updates.push('category = ?'); values.push(category); }
+        if (service_category !== undefined) { updates.push('service_category = ?'); values.push(service_category); }
+        if (years_experience !== undefined) { updates.push('years_experience = ?'); values.push(years_experience ? parseInt(years_experience) : null); }
+        if (service_description !== undefined) { updates.push('service_description = ?'); values.push(service_description); }
+        if (portfolio !== undefined) {
+            updates.push('portfolio = ?');
+            values.push(portfolio ? JSON.stringify(portfolio) : null);
+        }
+        if (references_data !== undefined) {
+            updates.push('references_data = ?');
+            values.push(references_data ? JSON.stringify(references_data) : null);
+        }
 
         if (updates.length === 0) {
             return res.status(400).json({ message: 'No valid fields provided for update' });

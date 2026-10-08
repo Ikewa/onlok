@@ -16,6 +16,12 @@ import MusicNoteIcon from '@mui/icons-material/MusicNote';
 import AccessTimeOutlinedIcon from '@mui/icons-material/AccessTimeOutlined';
 import { useNavigate, useParams } from 'react-router-dom';
 import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import FolderSpecialIcon from '@mui/icons-material/FolderSpecial';
+import PeopleAltIcon from '@mui/icons-material/PeopleAlt';
+import EmailIcon from '@mui/icons-material/Email';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import WorkIcon from '@mui/icons-material/Work';
 import { getVerificationDetails, updateVerificationStatus, deleteAdminUser, type AdminVerification } from '../../api/admin';
 import { MenuItem, Select } from '@mui/material';
 import toast from 'react-hot-toast';
@@ -208,6 +214,18 @@ export default function AdminVerificationReview() {
   const isTierAssigned = details.status === 'tier_assigned';
   const isRevoked = details.status === 'revoked';
 
+  const parseJsonSafe = (val: any) => {
+    if (!val) return [];
+    if (Array.isArray(val)) return val;
+    if (typeof val === 'string') {
+      try { return JSON.parse(val); } catch (e) { return []; }
+    }
+    return [];
+  };
+
+  const parsedPortfolio = details ? parseJsonSafe(details.portfolio) : [];
+  const parsedReferences = details ? parseJsonSafe(details.references_data) : [];
+
   return (
     <Box sx={{ maxWidth: 1100, pb: 10, fontFamily: 'Inter, sans-serif' }}>
       <Button 
@@ -358,8 +376,239 @@ export default function AdminVerificationReview() {
                 </Box>
               </Grid>
 
-              {/* TEST CARDS REMOVED */}
             </Grid>
+          </Paper>
+
+          {/* Service Provider Profile Info */}
+          <Paper elevation={0} sx={{ p: 3, borderRadius: '12px', border: '1px solid #E5E7EB', mb: 3, bgcolor: '#FFFFFF' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2.5 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2 }}>
+                <WorkIcon sx={{ color: '#1A1FE8', fontSize: 22 }} />
+                <Typography variant="subtitle1" fontWeight={700} color="#111827" sx={{ fontSize: '1.05rem' }}>
+                  Service Provider & Work Profile
+                </Typography>
+              </Box>
+              <Box
+                sx={{
+                  px: 1.5,
+                  py: 0.4,
+                  borderRadius: '16px',
+                  bgcolor: details.category === 'Service Provider' || details.category === 'both' ? '#EEF2FF' : '#F3F4F6',
+                  color: details.category === 'Service Provider' || details.category === 'both' ? '#1A1FE8' : '#4B5563',
+                  fontSize: '0.78rem',
+                  fontWeight: 700,
+                  textTransform: 'capitalize'
+                }}
+              >
+                {details.category || 'Vendor'}
+              </Box>
+            </Box>
+
+            <Grid container spacing={2} sx={{ mb: 2 }}>
+              <Grid item xs={12} sm={4}>
+                <Box sx={{ p: 1.5, bgcolor: '#F9FAFB', borderRadius: '8px', border: '1px solid #F3F4F6' }}>
+                  <Typography variant="caption" color="#6B7280" display="block" sx={{ fontSize: '0.75rem', fontWeight: 600 }}>Account Category</Typography>
+                  <Typography variant="body2" fontWeight={700} color="#111827" sx={{ mt: 0.3 }}>
+                    {details.category || 'Vendor'}
+                  </Typography>
+                </Box>
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <Box sx={{ p: 1.5, bgcolor: '#F9FAFB', borderRadius: '8px', border: '1px solid #F3F4F6' }}>
+                  <Typography variant="caption" color="#6B7280" display="block" sx={{ fontSize: '0.75rem', fontWeight: 600 }}>Service Category</Typography>
+                  <Typography variant="body2" fontWeight={700} color="#111827" sx={{ mt: 0.3 }}>
+                    {details.service_category || 'N/A'}
+                  </Typography>
+                </Box>
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <Box sx={{ p: 1.5, bgcolor: '#F9FAFB', borderRadius: '8px', border: '1px solid #F3F4F6' }}>
+                  <Typography variant="caption" color="#6B7280" display="block" sx={{ fontSize: '0.75rem', fontWeight: 600 }}>Years of Experience</Typography>
+                  <Typography variant="body2" fontWeight={700} color="#111827" sx={{ mt: 0.3 }}>
+                    {details.years_experience !== null && details.years_experience !== undefined ? `${details.years_experience} Years` : 'N/A'}
+                  </Typography>
+                </Box>
+              </Grid>
+              {details.service_description && (
+                <Grid item xs={12}>
+                  <Typography variant="caption" color="#6B7280" display="block" sx={{ fontSize: '0.78rem', fontWeight: 600, mb: 0.5 }}>Service Description</Typography>
+                  <Typography variant="body2" color="#374151" sx={{ whiteSpace: 'pre-line', bgcolor: '#F9FAFB', p: 2, borderRadius: '8px', border: '1px solid #E5E7EB', lineHeight: 1.6, fontSize: '0.88rem' }}>
+                    {details.service_description}
+                  </Typography>
+                </Grid>
+              )}
+            </Grid>
+
+            <Divider sx={{ my: 2.5, borderColor: '#F3F4F6' }} />
+
+            {/* Portfolio & Previous Projects */}
+            <Box sx={{ mb: 3 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                <FolderSpecialIcon sx={{ color: '#4F46E5', fontSize: 20 }} />
+                <Typography variant="subtitle2" fontWeight={700} color="#111827" sx={{ fontSize: '0.92rem' }}>
+                  Portfolio & Previous Projects
+                </Typography>
+                <Box sx={{ px: 1, py: 0.2, bgcolor: '#EEF2FF', color: '#4F46E5', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 700 }}>
+                  {parsedPortfolio.length}
+                </Box>
+              </Box>
+
+              {parsedPortfolio.length === 0 ? (
+                <Box sx={{ p: 2, bgcolor: '#F9FAFB', borderRadius: '8px', border: '1px dashed #D1D5DB', textAlign: 'center' }}>
+                  <Typography variant="caption" color="#6B7280" sx={{ fontSize: '0.82rem' }}>
+                    No portfolio projects submitted by this applicant.
+                  </Typography>
+                </Box>
+              ) : (
+                <Grid container spacing={2}>
+                  {parsedPortfolio.map((item: any, idx: number) => {
+                    const projectUrl = item.url || item.link;
+                    return (
+                      <Grid item xs={12} key={idx}>
+                        <Paper elevation={0} sx={{ p: 2, bgcolor: '#F8FAFC', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Box sx={{ width: 24, height: 24, borderRadius: '50%', bgcolor: '#E0E7FF', color: '#3730A3', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 800 }}>
+                                {idx + 1}
+                              </Box>
+                              <Typography variant="body2" fontWeight={700} color="#0F172A" sx={{ fontSize: '0.92rem' }}>
+                                {item.title || `Project #${idx + 1}`}
+                              </Typography>
+                            </Box>
+                            {projectUrl && (
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                component="a"
+                                href={projectUrl.startsWith('http') ? projectUrl : `https://${projectUrl}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                startIcon={<OpenInNewIcon sx={{ fontSize: 14 }} />}
+                                sx={{ textTransform: 'none', fontSize: '0.75rem', fontWeight: 600, py: 0.3, px: 1.2, borderRadius: '6px', borderColor: '#C7D2FE', color: '#4338CA', '&:hover': { bgcolor: '#EEF2FF' } }}
+                              >
+                                View Project Link
+                              </Button>
+                            )}
+                          </Box>
+
+                          {item.description && (
+                            <Typography variant="body2" color="#475569" sx={{ fontSize: '0.85rem', lineHeight: 1.5, mt: 1, bgcolor: '#FFFFFF', p: 1.5, borderRadius: '6px', border: '1px solid #F1F5F9' }}>
+                              {item.description}
+                            </Typography>
+                          )}
+
+                          {projectUrl && (
+                            <Typography variant="caption" color="#64748B" display="block" sx={{ mt: 1, wordBreak: 'break-all', fontSize: '0.75rem' }}>
+                              URL: <span style={{ color: '#2563EB' }}>{projectUrl}</span>
+                            </Typography>
+                          )}
+                        </Paper>
+                      </Grid>
+                    );
+                  })}
+                </Grid>
+              )}
+            </Box>
+
+            <Divider sx={{ my: 2.5, borderColor: '#F3F4F6' }} />
+
+            {/* Work References (Verification Action Cards) */}
+            <Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                <PeopleAltIcon sx={{ color: '#059669', fontSize: 20 }} />
+                <Typography variant="subtitle2" fontWeight={700} color="#111827" sx={{ fontSize: '0.92rem' }}>
+                  Work References & Verification Contacts
+                </Typography>
+                <Box sx={{ px: 1, py: 0.2, bgcolor: '#ECFDF5', color: '#059669', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 700 }}>
+                  {parsedReferences.length}
+                </Box>
+              </Box>
+
+              {parsedReferences.length === 0 ? (
+                <Box sx={{ p: 2, bgcolor: '#F9FAFB', borderRadius: '8px', border: '1px dashed #D1D5DB', textAlign: 'center' }}>
+                  <Typography variant="caption" color="#6B7280" sx={{ fontSize: '0.82rem' }}>
+                    No work references submitted by this applicant.
+                  </Typography>
+                </Box>
+              ) : (
+                <Grid container spacing={2}>
+                  {parsedReferences.map((ref: any, idx: number) => {
+                    const contactStr = ref.contact || ref.email || ref.phone || '';
+                    const isEmail = contactStr.includes('@');
+                    const isPhone = /^[0-9+\s()-]+$/.test(contactStr.trim());
+
+                    return (
+                      <Grid item xs={12} sm={6} key={idx}>
+                        <Paper elevation={0} sx={{ p: 2, bgcolor: '#F0FDF4', borderRadius: '10px', border: '1px solid #BBF7D0' }}>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+                            <Typography variant="body2" fontWeight={700} color="#065F46" sx={{ fontSize: '0.92rem' }}>
+                              {ref.name || `Reference #${idx + 1}`}
+                            </Typography>
+                            {(ref.role || ref.relationship) && (
+                              <Box sx={{ px: 1, py: 0.2, bgcolor: '#DCFCE7', color: '#166534', borderRadius: '4px', fontSize: '0.72rem', fontWeight: 700 }}>
+                                {ref.role || ref.relationship}
+                              </Box>
+                            )}
+                          </Box>
+
+                          {ref.project && (
+                            <Typography variant="caption" color="#047857" display="block" sx={{ fontSize: '0.78rem', mb: 1, fontWeight: 500 }}>
+                              Project / Employer: <strong style={{ color: '#065F46' }}>{ref.project}</strong>
+                            </Typography>
+                          )}
+
+                          {contactStr && (
+                            <Box sx={{ mt: 1, pt: 1, borderTop: '1px dashed #A7F3D0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+                              <Typography variant="caption" fontWeight={600} color="#065F46" sx={{ fontSize: '0.8rem', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                Contact: {contactStr}
+                              </Typography>
+                              <Box sx={{ display: 'flex', gap: 0.8 }}>
+                                {isEmail && (
+                                  <Button
+                                    size="small"
+                                    variant="contained"
+                                    component="a"
+                                    href={`mailto:${contactStr}`}
+                                    startIcon={<EmailIcon sx={{ fontSize: 14 }} />}
+                                    sx={{ textTransform: 'none', fontSize: '0.7rem', fontWeight: 700, py: 0.2, px: 1, bgcolor: '#059669', color: '#FFFFFF', '&:hover': { bgcolor: '#047857' } }}
+                                  >
+                                    Email
+                                  </Button>
+                                )}
+                                {isPhone && (
+                                  <Button
+                                    size="small"
+                                    variant="contained"
+                                    component="a"
+                                    href={`tel:${contactStr}`}
+                                    startIcon={<PhoneIcon sx={{ fontSize: 14 }} />}
+                                    sx={{ textTransform: 'none', fontSize: '0.7rem', fontWeight: 700, py: 0.2, px: 1, bgcolor: '#0284C7', color: '#FFFFFF', '&:hover': { bgcolor: '#0369A1' } }}
+                                  >
+                                    Call
+                                  </Button>
+                                )}
+                                <Button
+                                  size="small"
+                                  variant="outlined"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(contactStr);
+                                    toast.success('Contact copied to clipboard');
+                                  }}
+                                  startIcon={<ContentCopyIcon sx={{ fontSize: 13 }} />}
+                                  sx={{ textTransform: 'none', fontSize: '0.7rem', fontWeight: 600, py: 0.2, px: 0.8, borderColor: '#A7F3D0', color: '#047857', '&:hover': { bgcolor: '#DCFCE7' } }}
+                                >
+                                  Copy
+                                </Button>
+                              </Box>
+                            </Box>
+                          )}
+                        </Paper>
+                      </Grid>
+                    );
+                  })}
+                </Grid>
+              )}
+            </Box>
           </Paper>
 
           {/* Uploaded Documents */}
@@ -370,7 +619,7 @@ export default function AdminVerificationReview() {
             <Grid container spacing={2.5}>
 
               {/* ID Document */}
-              <Grid item xs={12} sm={4}>
+              <Grid item xs={12} sm={3}>
                 <Typography variant="caption" color="#6B7280" display="block" mb={1} sx={{ fontSize: '0.78rem', fontWeight: 600 }}>ID Document</Typography>
                 <Box 
                   sx={{ 
@@ -421,7 +670,7 @@ export default function AdminVerificationReview() {
               </Grid>
               
               {/* CAC Document */}
-              <Grid item xs={12} sm={4}>
+              <Grid item xs={12} sm={3}>
                 <Typography variant="caption" color="#6B7280" display="block" mb={1} sx={{ fontSize: '0.78rem', fontWeight: 600 }}>CAC Document</Typography>
                 <Box 
                   sx={{ 
@@ -472,7 +721,7 @@ export default function AdminVerificationReview() {
               </Grid>
 
               {/* Business Video */}
-              <Grid item xs={12} sm={4}>
+              <Grid item xs={12} sm={3}>
                 <Typography variant="caption" color="#6B7280" display="block" mb={1} sx={{ fontSize: '0.78rem', fontWeight: 600 }}>Business Video</Typography>
                 <Box 
                   sx={{ 
@@ -518,6 +767,21 @@ export default function AdminVerificationReview() {
                   onChange={(e) => setVideoNotes(e.target.value)}
                   inputProps={{ style: { fontSize: '0.8rem' } }}
                 />
+              </Grid>
+
+              {/* Testimonial / Recommendation Video */}
+              <Grid item xs={12} sm={3}>
+                <Typography variant="caption" color="#6B7280" display="block" mb={1} sx={{ fontSize: '0.78rem', fontWeight: 600 }}>Testimonial Video</Typography>
+                <Box 
+                  sx={{ 
+                    width: '100%', height: 160, bgcolor: '#111827', borderRadius: '8px', overflow: 'hidden', 
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1.5 
+                  }}
+                >
+                  {details.testimonial_url ? (
+                    <video controls src={getMediaUrl(details.testimonial_url)} onClick={() => setMediaPreview({ url: getMediaUrl(details.testimonial_url), type: 'video' })} style={{ width: '100%', height: '100%', objectFit: 'contain', cursor: 'pointer' }} />
+                  ) : <Typography variant="caption" color="#9CA3AF">No testimonial uploaded</Typography>}
+                </Box>
               </Grid>
 
             </Grid>

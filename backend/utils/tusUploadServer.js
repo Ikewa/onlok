@@ -4,7 +4,7 @@ const jwt = require('jsonwebtoken');
 const pool = require('../config/db');
 const logger = require('./logger');
 const { UPLOAD_DIR } = require('../middlewares/uploadMiddleware');
-const { getCategoryConfig, validateDocument, validateVideo, assertContentMatchesCategory } = require('./fileValidator');
+const { getCategoryConfig, validateDocument, validateVideo, validateMedia, assertContentMatchesCategory } = require('./fileValidator');
 const { setContextRegistration, setContextUser } = require('../middlewares/requestContextMiddleware');
 
 const TUS_PATH = '/';
@@ -238,6 +238,8 @@ async function createTusUploadServer() {
 
             const validation = categoryConfig.kind === 'video'
                 ? validateVideo(fileName, fileType)
+                : categoryConfig.kind === 'media'
+                ? validateMedia(fileName, fileType)
                 : validateDocument(fileName, fileType);
             if (!validation.valid) {
                 throw tusError(validation.error || 'Unsupported upload format.', 422);

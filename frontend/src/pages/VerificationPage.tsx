@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Box, Typography, CircularProgress, Button, Stack, LinearProgress } from '@mui/material';
+import { Box, Typography, CircularProgress, Button, Stack, LinearProgress, Grid } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import VerifiedUserOutlinedIcon from '@mui/icons-material/VerifiedUserOutlined';
 import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined';
@@ -148,6 +148,13 @@ function buildDocuments(record: VerificationRecord) {
       icon: <CameraAltOutlinedIcon sx={{ color: '#64748B' }} />,
       ...vidMeta,
     },
+    ...(record.testimonial_url ? [{
+      key: 'testimonial',
+      title: 'Testimonial / Recommendation Video',
+      meta: `Recommendation • Submitted ${fmt(record.submitted_at)}`,
+      icon: <CameraAltOutlinedIcon sx={{ color: '#64748B' }} />,
+      ...getDocMeta(record.testimonial_url, undefined, null),
+    }] : []),
   ];
 }
 
@@ -758,6 +765,41 @@ export default function VerificationPage() {
                     </Box>
                   ))}
                 </Box>
+
+                {/* Service Provider & Profile Info Card */}
+                {(user?.category || user?.service_category || user?.service_description) && (
+                  <Box sx={{ mt: 3, border: '1px solid #E2E8F0', borderRadius: 4, p: { xs: 2, md: 3 }, bgcolor: '#FFFFFF' }}>
+                    <Typography sx={{ fontWeight: 700, fontSize: '1rem', color: '#0F172A', mb: 2 }}>
+                      Service Provider Details
+                    </Typography>
+                    <Grid container spacing={2}>
+                      <Grid item xs={6}>
+                        <Typography variant="caption" color="#64748B" display="block">Account Category</Typography>
+                        <Typography variant="body2" fontWeight={600} color="#0F172A">{user?.category || 'Vendor'}</Typography>
+                      </Grid>
+                      {user?.service_category && (
+                        <Grid item xs={6}>
+                          <Typography variant="caption" color="#64748B" display="block">Service Category</Typography>
+                          <Typography variant="body2" fontWeight={600} color="#0F172A">{user.service_category}</Typography>
+                        </Grid>
+                      )}
+                      {user?.years_experience !== null && user?.years_experience !== undefined && (
+                        <Grid item xs={6}>
+                          <Typography variant="caption" color="#64748B" display="block">Years of Experience</Typography>
+                          <Typography variant="body2" fontWeight={600} color="#0F172A">{user.years_experience} Years</Typography>
+                        </Grid>
+                      )}
+                      {user?.service_description && (
+                        <Grid item xs={12}>
+                          <Typography variant="caption" color="#64748B" display="block">Service Description</Typography>
+                          <Typography variant="body2" color="#334155" sx={{ mt: 0.3, whiteSpace: 'pre-line', bgcolor: '#F8FAFC', p: 1.5, borderRadius: 2 }}>
+                            {user.service_description}
+                          </Typography>
+                        </Grid>
+                      )}
+                    </Grid>
+                  </Box>
+                )}
               </Box>
 
             </Box>

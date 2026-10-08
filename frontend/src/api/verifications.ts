@@ -10,9 +10,11 @@ export interface VerificationRecord extends VerificationStatus {
   gov_id_url: string;
   cac_url?: string;
   video_url: string;
+  testimonial_url?: string;
   gov_id_mime?: string | null;
   cac_mime?: string | null;
   video_mime?: string | null;
+  testimonial_mime?: string | null;
 }
 
 export interface UploadResult {
@@ -43,6 +45,7 @@ export interface SubmitVerificationPayload {
   gov_id_upload_id?: string;
   cac_upload_id?: string;
   video_upload_id?: string;
+  testimonial_upload_id?: string;
 }
 
 /**

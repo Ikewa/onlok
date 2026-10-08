@@ -12,7 +12,8 @@ const TUS_URL_PREFIX = '/uploads/tus/';
 const DOCUMENT_FIELDS = [
     { field: 'gov_id', category: 'gov_id', uploadIdKey: 'gov_id_upload_id', urlKey: 'gov_id_url', label: 'government ID' },
     { field: 'cac_document', category: 'cac_document', uploadIdKey: 'cac_upload_id', urlKey: 'cac_url', label: 'CAC document' },
-    { field: 'video', category: 'video', uploadIdKey: 'video_upload_id', urlKey: 'video_url', label: 'business video' }
+    { field: 'video', category: 'video', uploadIdKey: 'video_upload_id', urlKey: 'video_url', label: 'business video' },
+    { field: 'testimonial', category: 'testimonial', uploadIdKey: 'testimonial_upload_id', urlKey: 'testimonial_url', label: 'client testimonial' }
 ];
 
 class ApiError extends Error {
@@ -97,7 +98,7 @@ const resolveUploadReferences = async (executor, userId, references, { applicati
 
 const loadVerificationRecord = async (executor, userId) => {
     const [rows] = await executor.query(
-        `SELECT id, gov_id_url, cac_url, video_url
+        `SELECT id, gov_id_url, cac_url, video_url, testimonial_url
          FROM verifications
          WHERE user_id = ?
          ORDER BY submitted_at DESC
@@ -123,12 +124,14 @@ const applyVerificationDocuments = async (executor, { verificationId, userId, ur
                  cac_status = IF(?, 'pending', cac_status), cac_notes = IF(?, NULL, cac_notes),
                  video_url = ?,
                  video_status = IF(?, 'pending', video_status), video_notes = IF(?, NULL, video_notes),
+                 testimonial_url = IF(?, ?, testimonial_url),
                  submitted_at = CURRENT_TIMESTAMP
              WHERE id = ?`,
             [
                 urls.gov_id, provided.gov_id ? 1 : 0, provided.gov_id ? 1 : 0,
                 urls.cac_document, provided.cac_document ? 1 : 0, provided.cac_document ? 1 : 0,
                 urls.video, provided.video ? 1 : 0, provided.video ? 1 : 0,
+                provided.testimonial ? 1 : 0, urls.testimonial || null,
                 verificationId
             ]
         );
@@ -136,9 +139,9 @@ const applyVerificationDocuments = async (executor, { verificationId, userId, ur
     }
 
     const [result] = await executor.query(
-        `INSERT INTO verifications (user_id, gov_id_url, cac_url, video_url, status)
-         VALUES (?, ?, ?, ?, 'pending')`,
-        [userId, urls.gov_id, urls.cac_document, urls.video]
+        `INSERT INTO verifications (user_id, gov_id_url, cac_url, video_url, testimonial_url, status)
+         VALUES (?, ?, ?, ?, ?, 'pending')`,
+        [userId, urls.gov_id, urls.cac_document, urls.video, urls.testimonial || null]
     );
     return result.insertId;
 };

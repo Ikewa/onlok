@@ -27,9 +27,9 @@ const uploadIdFromUrl = (url) => {
  * PDFs, images and video without guessing from a file extension.
  */
 const loadVerificationDocumentMimes = async (details) => {
-    const fields = { gov_id: details.gov_id_url, cac: details.cac_url, video: details.video_url };
+    const fields = { gov_id: details.gov_id_url, cac: details.cac_url, video: details.video_url, testimonial: details.testimonial_url };
     const uploadIds = Object.values(fields).map(uploadIdFromUrl).filter(Boolean);
-    const mimes = { gov_id: null, cac: null, video: null };
+    const mimes = { gov_id: null, cac: null, video: null, testimonial: null };
 
     if (uploadIds.length === 0) return mimes;
 
@@ -110,7 +110,7 @@ const getVerificationQueue = async (req, res) => {
                      ELSE v.status 
                    END as status,
                    v.submitted_at, 
-                   u.id as user_id, u.first_name, u.last_name, u.email, u.vendor_id, u.business_name,
+                   u.id as user_id, u.first_name, u.last_name, u.email, u.vendor_id, u.business_name, u.category,
                    (CASE WHEN u.business_name IS NOT NULL AND u.business_name != '' THEN 'Business' ELSE 'Individual' END) as type
             FROM verifications v
             JOIN users u ON v.user_id = u.id
@@ -177,7 +177,7 @@ const getVerificationDetails = async (req, res) => {
     try {
         const { id } = req.params;
         const query = `
-            SELECT v.id as verification_id, v.gov_id_url, v.cac_url, v.video_url,
+            SELECT v.id as verification_id, v.gov_id_url, v.cac_url, v.video_url, v.testimonial_url,
                    v.gov_id_status, v.gov_id_notes,
                    v.cac_status, v.cac_notes,
                    v.video_status, v.video_notes,
@@ -188,7 +188,8 @@ const getVerificationDetails = async (req, res) => {
                    v.assigned_tier, v.payment_status,
                    v.admin_notes, v.submitted_at, v.reviewed_at,
                    u.id as user_id, u.first_name, u.last_name, u.email, u.vendor_id, u.business_name,
-                   u.phone_number, u.business_address, u.country,
+                   u.phone_number, u.business_address, u.country, u.category,
+                   u.service_category, u.years_experience, u.service_description, u.portfolio, u.references_data,
                    u.twitter_handle, u.instagram_handle, u.facebook_handle, u.tiktok_handle, u.linkedin_handle,
                    (CASE WHEN u.business_name IS NOT NULL AND u.business_name != '' THEN 'Business' ELSE 'Individual' END) as type
             FROM verifications v
@@ -209,9 +210,11 @@ const getVerificationDetails = async (req, res) => {
             gov_id_mime: mimes.gov_id,
             cac_mime: mimes.cac,
             video_mime: mimes.video,
+            testimonial_mime: mimes.testimonial,
             gov_id_url: signMediaPath(details.gov_id_url),
             cac_url: signMediaPath(details.cac_url),
-            video_url: signMediaPath(details.video_url)
+            video_url: signMediaPath(details.video_url),
+            testimonial_url: signMediaPath(details.testimonial_url)
         });
     } catch (error) {
         logger.error('Admin Details Error', { error });
