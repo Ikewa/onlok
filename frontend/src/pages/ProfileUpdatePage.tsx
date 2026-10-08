@@ -128,6 +128,37 @@ export default function ProfileUpdatePage() {
           })}
         </Box>
 
+        {/* Account Profile Summary */}
+        <Box sx={{ maxWidth: 600, mb: 4, p: 2.5, borderRadius: 3, border: '1px solid #E2E8F0', bgcolor: '#F8FAFC' }}>
+          <Typography sx={{ fontWeight: 800, fontSize: '0.95rem', color: '#0F172A', mb: 1 }}>
+            Current Account Information
+          </Typography>
+          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5, fontSize: '0.82rem' }}>
+            <Box>
+              <Typography variant="caption" color="#64748B" display="block">Category</Typography>
+              <Typography fontWeight={700} color="#0F172A">{user?.category || 'Vendor'}</Typography>
+            </Box>
+            {user?.service_category && (
+              <Box>
+                <Typography variant="caption" color="#64748B" display="block">Service Category</Typography>
+                <Typography fontWeight={700} color="#0F172A">{user.service_category}</Typography>
+              </Box>
+            )}
+            {user?.years_experience !== null && user?.years_experience !== undefined && (
+              <Box>
+                <Typography variant="caption" color="#64748B" display="block">Experience</Typography>
+                <Typography fontWeight={700} color="#0F172A">{user.years_experience} Years</Typography>
+              </Box>
+            )}
+          </Box>
+          {user?.service_description && (
+            <Box sx={{ mt: 1.5 }}>
+              <Typography variant="caption" color="#64748B" display="block">Service Description</Typography>
+              <Typography variant="body2" color="#334155" sx={{ fontSize: '0.8rem', mt: 0.3 }}>{user.service_description}</Typography>
+            </Box>
+          )}
+        </Box>
+
         {/* Choose Preference */}
         <Box sx={{ maxWidth: 600 }}>
           <Typography sx={{ fontWeight: 900, fontSize: '1.25rem', color: '#0F172A', mb: 0.5 }}>

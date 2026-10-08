@@ -48,6 +48,11 @@ async function createTables() {
             profile_picture_url    VARCHAR(500) NULL,
             country_code           VARCHAR(10) NULL,
             category               VARCHAR(100) NULL,
+            service_category       VARCHAR(100) NULL,
+            years_experience       INT NULL,
+            service_description    TEXT NULL,
+            portfolio              JSON NULL,
+            references_data        JSON NULL,
             nin                    VARCHAR(100) NULL,
             rc_number              VARCHAR(100) NULL,
             created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -186,6 +191,11 @@ async function createTables() {
     // Each statement has its own try/catch so one failure doesn't skip the rest.
     const alterQueries = [
         "ALTER TABLE users MODIFY COLUMN vendor_id VARCHAR(20) NULL",
+        "ALTER TABLE users ADD COLUMN service_category VARCHAR(100) NULL AFTER category",
+        "ALTER TABLE users ADD COLUMN years_experience INT NULL AFTER service_category",
+        "ALTER TABLE users ADD COLUMN service_description TEXT NULL AFTER years_experience",
+        "ALTER TABLE users ADD COLUMN portfolio JSON NULL AFTER service_description",
+        "ALTER TABLE users ADD COLUMN references_data JSON NULL AFTER portfolio",
         "ALTER TABLE verifications ADD COLUMN cac_url VARCHAR(255) NULL AFTER gov_id_url",
         "ALTER TABLE verifications ADD COLUMN testimonial_url VARCHAR(255) NULL AFTER video_url",
         "ALTER TABLE reports ADD COLUMN reference_number VARCHAR(50) UNIQUE NULL AFTER id",

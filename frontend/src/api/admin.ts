@@ -16,9 +16,11 @@ export interface AdminVerification {
   gov_id_url?: string;
   cac_url?: string;
   video_url?: string;
+  testimonial_url?: string;
   gov_id_mime?: string | null;
   cac_mime?: string | null;
   video_mime?: string | null;
+  testimonial_mime?: string | null;
   admin_notes?: string;
   assigned_tier?: string;
   gov_id_status?: string;
@@ -30,6 +32,12 @@ export interface AdminVerification {
   phone_number?: string;
   business_address?: string;
   country?: string;
+  category?: string;
+  service_category?: string;
+  years_experience?: number;
+  service_description?: string;
+  portfolio?: any;
+  references_data?: any;
   twitter_handle?: string;
   instagram_handle?: string;
   facebook_handle?: string;

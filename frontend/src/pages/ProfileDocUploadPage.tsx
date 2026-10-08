@@ -101,12 +101,13 @@ export default function ProfileDocUploadPage() {
   const [govId, setGovId] = useState<File | null>(null);
   const [cacDoc, setCacDoc] = useState<File | null>(null);
   const [video, setVideo] = useState<File | null>(null);
+  const [testimonial, setTestimonial] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [uploadPhase, setUploadPhase] = useState<string>('');
 
   const handleSubmit = async () => {
-    if (!govId && !cacDoc && !video) {
+    if (!govId && !cacDoc && !video && !testimonial) {
       toast.error('Please upload at least one document to submit');
       return;
     }
@@ -117,7 +118,7 @@ export default function ProfileDocUploadPage() {
     try {
       const application = await createRegistrationApplication();
       const applicationId = application.application_id;
-      const uploadIds: { gov_id_upload_id?: string; cac_upload_id?: string; video_upload_id?: string } = {};
+      const uploadIds: { gov_id_upload_id?: string; cac_upload_id?: string; video_upload_id?: string; testimonial_upload_id?: string } = {};
 
       if (govId) {
         setUploadPhase('Optimizing & uploading Government ID...');
@@ -140,7 +141,7 @@ export default function ProfileDocUploadPage() {
       }
 
       if (video) {
-        setUploadPhase('Uploading video in resilient chunks...');
+        setUploadPhase('Uploading business video in resilient chunks...');
         const res = await uploadFileInChunks(video, 'video', {
           applicationId,
           onProgress: (pct, cur, tot) => {
@@ -151,7 +152,19 @@ export default function ProfileDocUploadPage() {
         uploadIds.video_upload_id = res.uploadId;
       }
 
-      if (!uploadIds.gov_id_upload_id && !uploadIds.cac_upload_id && !uploadIds.video_upload_id) {
+      if (testimonial) {
+        setUploadPhase('Uploading testimonial video...');
+        const res = await uploadFileInChunks(testimonial, 'testimonial', {
+          applicationId,
+          onProgress: (pct, cur, tot) => {
+            setUploadProgress(pct);
+            setUploadPhase(`Uploading testimonial chunk ${cur}/${tot} (${pct}%)...`);
+          },
+        });
+        uploadIds.testimonial_upload_id = res.uploadId;
+      }
+
+      if (!uploadIds.gov_id_upload_id && !uploadIds.cac_upload_id && !uploadIds.video_upload_id && !uploadIds.testimonial_upload_id) {
         throw new Error('No documents were uploaded. Please try again.');
       }
 
@@ -299,6 +312,13 @@ export default function ProfileDocUploadPage() {
               accept="video/mp4,video/quicktime,video/mov,video/x-m4v,video/*,.mp4,.mov"
               labels={['Video (MP4, MOV)']}
               onFile={setVideo}
+            />
+            <UploadZone
+              title="Testimonial / Recommendation Video"
+              subtitle="Upload a short client testimonial or recommendation video"
+              accept="video/mp4,video/quicktime,video/mov,video/x-m4v,video/*,.mp4,.mov"
+              labels={['Testimonial Video (MP4, MOV)']}
+              onFile={setTestimonial}
             />
           </Box>
 

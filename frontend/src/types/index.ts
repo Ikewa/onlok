@@ -1,5 +1,17 @@
 // Shared TypeScript interfaces for the Onlok frontend
 
+export interface PortfolioItem {
+  title: string;
+  link?: string;
+  description?: string;
+}
+
+export interface ReferenceItem {
+  name: string;
+  contact: string;
+  relationship?: string;
+}
+
 export interface User {
   id: number;
   vendor_id: string;
@@ -15,6 +27,12 @@ export interface User {
   badge_type?: string | null;
   profile_picture_url?: string | null;
   subscription_expires_at?: string | null;
+  category?: string;
+  service_category?: string;
+  years_experience?: number | null;
+  service_description?: string;
+  portfolio?: PortfolioItem[] | null;
+  references_data?: ReferenceItem[] | null;
   token: string;
 }
 
@@ -106,6 +124,11 @@ export interface RegisterPayload {
   business_address?: string;
   country_code?: string;
   category?: string;
+  service_category?: string;
+  years_experience?: number;
+  service_description?: string;
+  portfolio?: any[];
+  references?: any[];
   nin?: string;
   rc_number?: string;
   referred_by?: string;

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Box, Typography, Button, TextField, Avatar, Breadcrumbs, Link as MuiLink, Paper } from '@mui/material';
+import { Box, Typography, Button, TextField, Avatar, Breadcrumbs, Link as MuiLink, Paper, MenuItem, Select } from '@mui/material';
 import NotificationsNoneIcon from '@mui/icons-material/NotificationsNone';
 import EditNoteIcon from '@mui/icons-material/EditNote';
 import FactCheckIcon from '@mui/icons-material/FactCheck';
@@ -36,6 +36,10 @@ export default function ProfileBioEditPage() {
     fullName: `${user?.first_name || ''} ${user?.last_name || ''}`.trim(),
     businessName: user?.business_name || '',
     businessAddress: user?.business_address || '',
+    category: user?.category || 'Vendor',
+    serviceCategory: user?.service_category || '',
+    yearsExperience: user?.years_experience !== null && user?.years_experience !== undefined ? String(user.years_experience) : '',
+    serviceDescription: user?.service_description || '',
     twitter: '',
     instagram: '',
     facebook: '',
@@ -43,7 +47,7 @@ export default function ProfileBioEditPage() {
   });
   const [loading, setLoading] = useState(false);
 
-  const handleChange = (f: string) => (e: React.ChangeEvent<HTMLInputElement>) => setForm(p => ({ ...p, [f]: e.target.value }));
+  const handleChange = (f: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setForm(p => ({ ...p, [f]: e.target.value }));
 
   const handleSubmit = async () => {
     if (!user) return;
@@ -57,7 +61,11 @@ export default function ProfileBioEditPage() {
         first_name: first_name || undefined,
         last_name: last_name || undefined,
         business_name: form.businessName || undefined,
-        business_address: form.businessAddress || undefined
+        business_address: form.businessAddress || undefined,
+        category: form.category || undefined,
+        service_category: form.serviceCategory || undefined,
+        years_experience: form.yearsExperience ? parseInt(form.yearsExperience) : undefined,
+        service_description: form.serviceDescription || undefined,
       });
       
       await refreshUser();
@@ -223,9 +231,79 @@ export default function ProfileBioEditPage() {
               placeholder="e.g., 12 Marina Boulevard, Marina Bay, Singapore"
               value={form.businessAddress}
               onChange={handleChange('businessAddress')}
-              sx={inputSx}
+              sx={{ ...inputSx, mb: 2.5 }}
               size="small"
             />
+
+            <Typography
+              component="label"
+              sx={{ fontSize: '0.78rem', color: '#0F172A', fontWeight: 600, display: 'block', mb: 0.8 }}
+            >
+              Account Category
+            </Typography>
+            <Select
+              fullWidth
+              size="small"
+              value={form.category}
+              onChange={(e) => setForm(p => ({ ...p, category: e.target.value }))}
+              sx={{ ...inputSx, mb: 2.5 }}
+            >
+              <MenuItem value="Vendor">Vendor (Sells goods / products)</MenuItem>
+              <MenuItem value="Service Provider">Service Provider (Offers professional services)</MenuItem>
+              <MenuItem value="Both">Both (Vendor & Service Provider)</MenuItem>
+            </Select>
+
+            {(form.category === 'Service Provider' || form.category === 'Both') && (
+              <>
+                <Typography
+                  component="label"
+                  sx={{ fontSize: '0.78rem', color: '#0F172A', fontWeight: 600, display: 'block', mb: 0.8 }}
+                >
+                  Service Category
+                </Typography>
+                <TextField
+                  fullWidth
+                  placeholder="e.g., Graphic Design, Software Engineering, Catering"
+                  value={form.serviceCategory}
+                  onChange={handleChange('serviceCategory')}
+                  sx={{ ...inputSx, mb: 2.5 }}
+                  size="small"
+                />
+
+                <Typography
+                  component="label"
+                  sx={{ fontSize: '0.78rem', color: '#0F172A', fontWeight: 600, display: 'block', mb: 0.8 }}
+                >
+                  Years of Experience
+                </Typography>
+                <TextField
+                  fullWidth
+                  type="number"
+                  placeholder="e.g., 5"
+                  value={form.yearsExperience}
+                  onChange={handleChange('yearsExperience')}
+                  sx={{ ...inputSx, mb: 2.5 }}
+                  size="small"
+                />
+
+                <Typography
+                  component="label"
+                  sx={{ fontSize: '0.78rem', color: '#0F172A', fontWeight: 600, display: 'block', mb: 0.8 }}
+                >
+                  Service Description
+                </Typography>
+                <TextField
+                  fullWidth
+                  multiline
+                  rows={3}
+                  placeholder="Describe the services you offer..."
+                  value={form.serviceDescription}
+                  onChange={handleChange('serviceDescription')}
+                  sx={inputSx}
+                  size="small"
+                />
+              </>
+            )}
           </Box>
 
           {/* Social Media */}

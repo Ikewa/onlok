@@ -117,7 +117,6 @@ interface FormData {
   facebook_handle: string;
   tiktok_handle: string;
   linkedin_handle: string;
-  website_url: string;
   // Service Provider info
   service_category: string;
   years_experience: string;
@@ -157,7 +156,6 @@ const initialData: FormData = {
   first_name: '', last_name: '', email: '', phone_number: '',
   country_code: 'NG', business_name: '', business_address: '',
   twitter_handle: '', instagram_handle: '', facebook_handle: '', tiktok_handle: '', linkedin_handle: '',
-  website_url: '',
   service_category: '', years_experience: '', service_description: '',
   portfolio: [emptyPortfolioItem(), emptyPortfolioItem()],
   references: [emptyReference()],
@@ -200,6 +198,7 @@ export default function RegisterPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [submissionProgressLabel, setSubmissionProgressLabel] = useState<string>('');
   const [applicationId, setApplicationId] = useState<string>(() => localStorage.getItem('onlok_registration_application_id') || '');
+  const [accountCreatedPartialError, setAccountCreatedPartialError] = useState<string | null>(null);
 
   // Per-file upload tracking
   const [govIdState, setGovIdState] = useState<FileUploadState>(initialFileState);
@@ -397,6 +396,7 @@ export default function RegisterPage() {
       setLoading(true);
       try {
         let user = registeredUser || authUser;
+        let activeApplicationId = applicationId;
 
         // 1. Register or retrieve user session
         if (!user) {
@@ -411,6 +411,11 @@ export default function RegisterPage() {
             phone_number: form.phone_number,
             country_code: form.country_code,
             category: form.account_type === 'vendor' ? 'Vendor' : form.account_type === 'service_provider' ? 'Service Provider' : 'Both',
+            service_category: isSp ? form.service_category : undefined,
+            years_experience: isSp && form.years_experience ? parseInt(form.years_experience) : undefined,
+            service_description: isSp ? form.service_description : undefined,
+            portfolio: isSp ? form.portfolio : undefined,
+            references: isSp ? form.references : undefined,
             nin: form.nin,
             rc_number: form.rc_number,
             referred_by: refCode || undefined,
@@ -424,9 +429,9 @@ export default function RegisterPage() {
           login(user);
           localStorage.removeItem('onlok_registration_application_id');
           setApplicationId('');
+          activeApplicationId = '';
         }
 
-        let activeApplicationId = applicationId;
         if (!activeApplicationId) {
           setSubmissionProgressLabel('Preparing your application...');
           const application = await createRegistrationApplication();
@@ -502,7 +507,14 @@ export default function RegisterPage() {
         }
         // Quoting the trace id makes a failed upload traceable in the server log.
         const traceId = err?.traceId || err?.response?.headers?.['x-trace-id'] || err?.response?.data?.traceId;
-        toast.error(traceId ? `${msg} (ref: ${traceId})` : msg);
+        const formattedMsg = traceId ? `${msg} (ref: ${traceId})` : msg;
+        toast.error(formattedMsg);
+
+        // If user account was successfully registered before this error, show partial success screen
+        const currentUser = registeredUser || authUser || user;
+        if (currentUser) {
+          setAccountCreatedPartialError(formattedMsg);
+        }
       } finally {
         setLoading(false);
         setSubmissionProgressLabel('');
@@ -521,7 +533,7 @@ export default function RegisterPage() {
 
   // Stepper Header
   const renderStepper = () => {
-    if (activeStep >= steps.length) return null;
+    if (activeStep >= steps.length || accountCreatedPartialError) return null;
 
     return (
       <Box sx={{ mb: 6, position: 'relative', width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -672,19 +684,19 @@ export default function RegisterPage() {
   }> = [
     {
       type: 'vendor',
-      title: '🏪 Vendor / Business Owner',
+      title: 'Vendor / Business Owner',
       description: 'Sells physical products or goods',
       icon: <StorefrontIcon sx={{ fontSize: 28 }} />,
     },
     {
       type: 'service_provider',
-      title: '💼 Service Provider',
+      title: 'Service Provider',
       description: 'Provides skills, professional services, or creative services',
       icon: <WorkIcon sx={{ fontSize: 28 }} />,
     },
     {
       type: 'both',
-      title: '🔄 Both',
+      title: 'Both',
       description: 'Sells products AND provides services',
       icon: <SwapHorizIcon sx={{ fontSize: 28 }} />,
     },
@@ -774,10 +786,7 @@ export default function RegisterPage() {
       <TextField fullWidth value={form.business_name} onChange={(e) => set('business_name', e.target.value)} placeholder="e.g., Chen Design Studio OR UX Designer" sx={{ mb: 3 }} InputProps={{ sx: { borderRadius: 2 } }} />
 
       <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} display="block">Business Address / Location</Typography>
-      <TextField fullWidth value={form.business_address} onChange={(e) => set('business_address', e.target.value)} placeholder="e.g., 12 Marina Boulevard, Marina Bay, Singapore" sx={{ mb: 3 }} InputProps={{ sx: { borderRadius: 2 } }} />
-
-      <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} display="block">Website URL (Optional)</Typography>
-      <TextField fullWidth value={form.website_url} onChange={(e) => set('website_url', e.target.value)} placeholder="https://yourwebsite.com" sx={{ mb: 4 }} InputProps={{ sx: { borderRadius: 2 }, startAdornment: <InputAdornment position="start"><LinkIcon sx={{ color: '#94A3B8' }} /></InputAdornment> }} />
+      <TextField fullWidth value={form.business_address} onChange={(e) => set('business_address', e.target.value)} placeholder="e.g., 12 Marina Boulevard, Marina Bay, Singapore" sx={{ mb: 4 }} InputProps={{ sx: { borderRadius: 2 } }} />
 
       <Typography variant="h6" fontWeight={800} color="#0F172A" mb={0.5}>Social Media Presence</Typography>
       <Typography variant="body2" color="#64748B" mb={1}>Helps us verify your online presence and credibility.</Typography>
@@ -1175,7 +1184,6 @@ export default function RegisterPage() {
         <GridRow label="Account Type" value={form.account_type === 'vendor' ? 'Vendor / Business Owner' : form.account_type === 'service_provider' ? 'Service Provider' : 'Both (Vendor & Service Provider)'} />
         <GridRow label="Name/Role" value={form.business_name || '-'} />
         <GridRow label="Address" value={form.business_address || '-'} />
-        {form.website_url && <GridRow label="Website" value={form.website_url} />}
       </Paper>
 
       {isSp && (
@@ -1279,6 +1287,89 @@ export default function RegisterPage() {
     </Box>
   );
 
+  // Partial Success Step (Account created, document upload incomplete)
+  const partialSuccessStep = (
+    <Box key="step-partial-success">
+      <Box sx={{ textAlign: 'center', py: 5 }}>
+        <Box sx={{ width: 80, height: 80, borderRadius: '50%', bgcolor: '#D1FAE5', display: 'flex', alignItems: 'center', justifyContent: 'center', mx: 'auto', mb: 3 }}>
+          <CheckCircleIcon sx={{ fontSize: 44, color: '#059669' }} />
+        </Box>
+
+        <Chip
+          label="Account Active • Verification Action Required"
+          size="small"
+          sx={{ bgcolor: '#FEF3C7', color: '#B45309', fontWeight: 800, mb: 2.5, px: 2, py: 0.75 }}
+        />
+
+        <Typography variant="h4" fontWeight={800} color="#0F172A" mb={1.5}>
+          Account Created Successfully!
+        </Typography>
+
+        <Typography variant="body1" color="#64748B" mb={4} sx={{ maxWidth: 500, mx: 'auto', lineHeight: 1.6 }}>
+          Welcome to Onlok! Your user account (<strong style={{ color: '#0F172A' }}>{form.email}</strong>) has been created and you are now logged in.
+        </Typography>
+
+        <Paper elevation={0} sx={{ p: 3, borderRadius: 3, bgcolor: '#FFFBEB', border: '1px solid #FDE68A', mb: 4, maxWidth: 480, mx: 'auto', textAlign: 'left' }}>
+          <Stack direction="row" spacing={2} alignItems="flex-start">
+            <WarningAmberIcon sx={{ color: '#D97706', mt: 0.2 }} />
+            <Box>
+              <Typography variant="subtitle2" fontWeight={800} color="#92400E" mb={0.5}>
+                Document Upload Interrupted
+              </Typography>
+              <Typography variant="caption" color="#78350F" sx={{ lineHeight: 1.5, display: 'block', mb: 1.5 }}>
+                {accountCreatedPartialError || 'Your verification document upload could not be finalized right now.'}
+              </Typography>
+              <Typography variant="caption" color="#92400E" fontWeight={700} sx={{ display: 'block' }}>
+                Don't worry — your user account is safe. You can complete document verification anytime from your dashboard.
+              </Typography>
+            </Box>
+          </Stack>
+        </Paper>
+
+        <Paper elevation={0} sx={{ p: 3, borderRadius: 3, bgcolor: '#F8FAFC', maxWidth: 420, mx: 'auto', mb: 4 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1.5 }}>
+            <Typography variant="body2" color="#64748B">Account Email</Typography>
+            <Typography variant="subtitle2" fontWeight={700} color="#0F172A" sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>{form.email}</Typography>
+          </Box>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1.5 }}>
+            <Typography variant="body2" color="#64748B">Account Status</Typography>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#059669', display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#059669' }} />
+              Active
+            </Typography>
+          </Box>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+            <Typography variant="body2" color="#64748B">Verification Status</Typography>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#D97706', display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#D97706' }} />
+              Incomplete (Upload Pending)
+            </Typography>
+          </Box>
+        </Paper>
+
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} justifyContent="center">
+          <Button
+            variant="contained"
+            size="large"
+            onClick={() => navigate('/dashboard')}
+            sx={{ px: 5, py: 1.5, borderRadius: 2, textTransform: 'none', fontWeight: 700, bgcolor: '#1A1FE8', '&:hover': { bgcolor: '#0F14B0' } }}
+          >
+            Go to My Dashboard
+          </Button>
+
+          <Button
+            variant="outlined"
+            size="large"
+            onClick={() => setAccountCreatedPartialError(null)}
+            sx={{ px: 4, py: 1.5, borderRadius: 2, textTransform: 'none', fontWeight: 700, borderColor: '#CBD5E1', color: '#475569', '&:hover': { bgcolor: '#F1F5F9' } }}
+          >
+            Retry Document Upload
+          </Button>
+        </Stack>
+      </Box>
+    </Box>
+  );
+
   const stepContent = isSp
     ? [personalStep, businessStep, serviceInfoStep, portfolioStep, referencesStep, documentsStep, reviewStep, successStep]
     : [personalStep, businessStep, documentsStep, reviewStep, successStep];
@@ -1299,9 +1390,11 @@ export default function RegisterPage() {
         >
           {renderStepper()}
 
-          <Box>{stepContent[activeStep]}</Box>
+          <Box>
+            {accountCreatedPartialError ? partialSuccessStep : stepContent[activeStep]}
+          </Box>
 
-          {activeStep < steps.length && (
+          {!accountCreatedPartialError && activeStep < steps.length && (
             <Box sx={{ mt: 5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               {activeStep === 0 ? (
                 <Box />
