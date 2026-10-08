@@ -63,6 +63,7 @@ async function createTables() {
             gov_id_url    VARCHAR(255) NOT NULL,
             cac_url       VARCHAR(255) NULL,
             video_url     VARCHAR(255) NOT NULL,
+            testimonial_url VARCHAR(255) NULL,
             status        ENUM('pending','tier_assigned','payment_received','approved','rejected','flagged','revoked') DEFAULT 'pending',
             assigned_tier VARCHAR(50) NULL,
             payment_status ENUM('unpaid','paid') DEFAULT 'unpaid',
@@ -186,6 +187,7 @@ async function createTables() {
     const alterQueries = [
         "ALTER TABLE users MODIFY COLUMN vendor_id VARCHAR(20) NULL",
         "ALTER TABLE verifications ADD COLUMN cac_url VARCHAR(255) NULL AFTER gov_id_url",
+        "ALTER TABLE verifications ADD COLUMN testimonial_url VARCHAR(255) NULL AFTER video_url",
         "ALTER TABLE reports ADD COLUMN reference_number VARCHAR(50) UNIQUE NULL AFTER id",
         "ALTER TABLE reports ADD COLUMN contact_email VARCHAR(255) NULL AFTER reported_vendor_id",
         "ALTER TABLE reports ADD COLUMN phone_number VARCHAR(20) NULL AFTER contact_email",

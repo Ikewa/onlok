@@ -25,7 +25,8 @@ const ALLOWED_VIDEO_MIMES = [
 const UPLOAD_CATEGORIES = {
     gov_id: { kind: 'document', maxSize: 15 * 1024 * 1024 },
     cac_document: { kind: 'document', maxSize: 15 * 1024 * 1024 },
-    video: { kind: 'video', maxSize: 100 * 1024 * 1024 }
+    video: { kind: 'video', maxSize: 100 * 1024 * 1024 },
+    testimonial: { kind: 'media', maxSize: 50 * 1024 * 1024 }
 };
 
 const GENERIC_MIME = 'application/octet-stream';
@@ -86,6 +87,13 @@ function validateVideo(originalname, mimetype) {
     });
 }
 
+function validateMedia(originalname, mimetype) {
+    const isDoc = validateDocument(originalname, mimetype).valid;
+    const isVid = validateVideo(originalname, mimetype).valid;
+    if (isDoc || isVid) return { valid: true };
+    return { valid: false, error: 'Invalid file format. Allowed formats: MP4, MOV, WebM, JPG, PNG, WebP, PDF.' };
+}
+
 function getCategoryConfig(category) {
     return UPLOAD_CATEGORIES[category] || null;
 }
@@ -99,7 +107,11 @@ function resolveSafeExtension(category, originalname) {
     const config = getCategoryConfig(category);
     if (!config) return null;
     const ext = normalizeExtension(originalname);
-    const allowed = config.kind === 'video' ? ALLOWED_VIDEO_EXTENSIONS : ALLOWED_DOC_EXTENSIONS;
+    const allowed = config.kind === 'video'
+        ? ALLOWED_VIDEO_EXTENSIONS
+        : config.kind === 'media'
+        ? [...ALLOWED_VIDEO_EXTENSIONS, ...ALLOWED_DOC_EXTENSIONS]
+        : ALLOWED_DOC_EXTENSIONS;
     return allowed.includes(ext) ? ext : null;
 }
 
@@ -137,7 +149,8 @@ const SIGNATURES = [
 
 const ALLOWED_CONTENT_FAMILIES = {
     document: new Set(['image', 'document']),
-    video: new Set(['video'])
+    video: new Set(['video']),
+    media: new Set(['image', 'document', 'video'])
 };
 
 /**
@@ -200,6 +213,7 @@ module.exports = {
     UPLOAD_CATEGORIES,
     validateDocument,
     validateVideo,
+    validateMedia,
     getCategoryConfig,
     resolveSafeExtension,
     detectContentFamily,
