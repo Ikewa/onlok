@@ -17,11 +17,11 @@ import AccessTimeOutlinedIcon from '@mui/icons-material/AccessTimeOutlined';
 import { useNavigate, useParams } from 'react-router-dom';
 import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
-import FolderSpecialOutlinedIcon from '@mui/icons-material/FolderSpecialOutlined';
-import PeopleAltOutlinedIcon from '@mui/icons-material/PeopleAltOutlined';
-import MailOutlineIcon from '@mui/icons-material/MailOutline';
+import FolderSpecialIcon from '@mui/icons-material/FolderSpecial';
+import PeopleAltIcon from '@mui/icons-material/PeopleAlt';
+import EmailIcon from '@mui/icons-material/Email';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import WorkOutlineIcon from '@mui/icons-material/WorkOutline';
+import WorkIcon from '@mui/icons-material/Work';
 import { getVerificationDetails, updateVerificationStatus, deleteAdminUser, type AdminVerification } from '../../api/admin';
 import { MenuItem, Select } from '@mui/material';
 import toast from 'react-hot-toast';
@@ -383,7 +383,7 @@ export default function AdminVerificationReview() {
           <Paper elevation={0} sx={{ p: 3, borderRadius: '12px', border: '1px solid #E5E7EB', mb: 3, bgcolor: '#FFFFFF' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2.5 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2 }}>
-                <WorkOutlineIcon sx={{ color: '#1A1FE8', fontSize: 22 }} />
+                <WorkIcon sx={{ color: '#1A1FE8', fontSize: 22 }} />
                 <Typography variant="subtitle1" fontWeight={700} color="#111827" sx={{ fontSize: '1.05rem' }}>
                   Service Provider & Work Profile
                 </Typography>
@@ -444,7 +444,7 @@ export default function AdminVerificationReview() {
             {/* Portfolio & Previous Projects */}
             <Box sx={{ mb: 3 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
-                <FolderSpecialOutlinedIcon sx={{ color: '#4F46E5', fontSize: 20 }} />
+                <FolderSpecialIcon sx={{ color: '#4F46E5', fontSize: 20 }} />
                 <Typography variant="subtitle2" fontWeight={700} color="#111827" sx={{ fontSize: '0.92rem' }}>
                   Portfolio & Previous Projects
                 </Typography>
@@ -515,7 +515,7 @@ export default function AdminVerificationReview() {
             {/* Work References (Verification Action Cards) */}
             <Box>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
-                <PeopleAltOutlinedIcon sx={{ color: '#059669', fontSize: 20 }} />
+                <PeopleAltIcon sx={{ color: '#059669', fontSize: 20 }} />
                 <Typography variant="subtitle2" fontWeight={700} color="#111827" sx={{ fontSize: '0.92rem' }}>
                   Work References & Verification Contacts
                 </Typography>
@@ -569,7 +569,7 @@ export default function AdminVerificationReview() {
                                     variant="contained"
                                     component="a"
                                     href={`mailto:${contactStr}`}
-                                    startIcon={<MailOutlineIcon sx={{ fontSize: 14 }} />}
+                                    startIcon={<EmailIcon sx={{ fontSize: 14 }} />}
                                     sx={{ textTransform: 'none', fontSize: '0.7rem', fontWeight: 700, py: 0.2, px: 1, bgcolor: '#059669', color: '#FFFFFF', '&:hover': { bgcolor: '#047857' } }}
                                   >
                                     Email
