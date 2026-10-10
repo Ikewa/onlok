@@ -304,31 +304,34 @@ export default function ReferralsPage() {
               }
               value={selectedVerifiedUser}
               onChange={(_, newValue) => setSelectedVerifiedUser(newValue)}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="Search Verified User (Name, Business, Vendor ID, Email)"
-                  variant="outlined"
-                  placeholder="Type to search verified user..."
-                  size="small"
-                  InputProps={{
-                    ...params.InputProps,
-                    startAdornment: (
-                      <>
-                        <SearchIcon sx={{ color: '#64748B', mr: 1, fontSize: 20 }} />
-                        {params.InputProps.startAdornment}
-                      </>
-                    ),
-                    endAdornment: (
-                      <>
-                        {loadingUsers ? <CircularProgress color="inherit" size={18} /> : null}
-                        {params.InputProps.endAdornment}
-                      </>
-                    ),
-                  }}
-                  sx={{ bgcolor: '#FFFFFF', borderRadius: 2 }}
-                />
-              )}
+              renderInput={(params) => {
+                const inputProps = params?.InputProps || (params as any)?.slotProps?.input || {};
+                return (
+                  <TextField
+                    {...params}
+                    label="Search Verified User (Name, Business, Vendor ID, Email)"
+                    variant="outlined"
+                    placeholder="Type to search verified user..."
+                    size="small"
+                    InputProps={{
+                      ...inputProps,
+                      startAdornment: (
+                        <>
+                          <SearchIcon sx={{ color: '#64748B', mr: 1, fontSize: 20 }} />
+                          {inputProps?.startAdornment}
+                        </>
+                      ),
+                      endAdornment: (
+                        <>
+                          {loadingUsers ? <CircularProgress color="inherit" size={18} /> : null}
+                          {inputProps?.endAdornment}
+                        </>
+                      ),
+                    }}
+                    sx={{ bgcolor: '#FFFFFF', borderRadius: 2 }}
+                  />
+                );
+              }}
             />
           </Box>
 
