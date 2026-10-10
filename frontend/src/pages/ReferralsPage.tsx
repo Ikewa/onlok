@@ -381,7 +381,7 @@ export default function ReferralsPage() {
                         }}
                         sx={{ bgcolor: '#1A1FE8', textTransform: 'none', fontWeight: 700, borderRadius: 2, px: 2.5 }}
                       >
-                        Copy {selectedVerifiedUser.first_name}'s Link
+                        {`Copy ${selectedVerifiedUser.first_name}'s Link`}
                       </Button>
                       <Button
                         variant="outlined"
