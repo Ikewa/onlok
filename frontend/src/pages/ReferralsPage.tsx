@@ -20,6 +20,7 @@ import {
   InputLabel,
   FormHelperText,
   Alert,
+  Autocomplete,
 } from '@mui/material';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import GroupOutlinedIcon from '@mui/icons-material/GroupOutlined';
@@ -30,6 +31,8 @@ import SavingsOutlinedIcon from '@mui/icons-material/SavingsOutlined';
 import PriceCheckOutlinedIcon from '@mui/icons-material/PriceCheckOutlined';
 import MoneyOffCsredOutlinedIcon from '@mui/icons-material/MoneyOffCsredOutlined';
 import VerifiedIcon from '@mui/icons-material/Verified';
+import SearchIcon from '@mui/icons-material/Search';
+import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import { useAuth } from '../context/AuthContext';
 import { Navigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -38,7 +41,7 @@ import axiosInstance from '../api/axiosInstance';
 
 export default function ReferralsPage() {
   const { user } = useAuth();
-  
+
   if (user && user.role !== 'admin') {
     return <Navigate to="/dashboard" replace />;
   }
@@ -57,6 +60,30 @@ export default function ReferralsPage() {
   const [resolvedAccountName, setResolvedAccountName] = useState<string>('');
   const [verifyingAccount, setVerifyingAccount] = useState<boolean>(false);
   const [accountError, setAccountError] = useState<string>('');
+
+  // Admin lookup state for verified users
+  const [allUsers, setAllUsers] = useState<any[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState<boolean>(false);
+  const [selectedVerifiedUser, setSelectedVerifiedUser] = useState<any | null>(null);
+
+  useEffect(() => {
+    if (user?.role === 'admin') {
+      setLoadingUsers(true);
+      axiosInstance.get('/users')
+        .then(res => {
+          if (Array.isArray(res.data)) {
+            const verified = res.data.filter((u: any) => 
+              u.status === 'verified' || u.status === 'approved' || u.badge_type
+            );
+            setAllUsers(verified.length > 0 ? verified : res.data);
+          }
+        })
+        .catch(err => {
+          console.error('Failed to fetch users for admin lookup', err);
+        })
+        .finally(() => setLoadingUsers(false));
+    }
+  }, [user?.role]);
 
   const fetchReferrals = () => {
     setLoading(true);
@@ -243,7 +270,150 @@ export default function ReferralsPage() {
             </Button>
           </Box>
         </Box>
-      </Box>
+      {/* Admin Tool: Get Referral Link of Any Verified User */}
+      {user?.role === 'admin' && (
+        <Paper 
+          elevation={0} 
+          sx={{ 
+            p: { xs: 2.5, md: 3.5 }, 
+            mb: 4, 
+            borderRadius: 3, 
+            border: '2px solid #3B82F6', 
+            bgcolor: '#F0F6FF' 
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
+            <AdminPanelSettingsIcon sx={{ color: '#1A1FE8', fontSize: 26 }} />
+            <Typography sx={{ fontWeight: 800, fontSize: '1.15rem', color: '#0F172A' }}>
+              Admin Tool: Get Referral Link of Any Verified User
+            </Typography>
+            <Chip label="Admin Exclusive" color="primary" size="small" sx={{ fontWeight: 700, fontSize: '0.72rem' }} />
+          </Box>
+
+          <Typography sx={{ color: '#475569', fontSize: '0.88rem', mb: 2.5 }}>
+            Search or select any verified user below to generate and copy their unique referral link.
+          </Typography>
+
+          <Box sx={{ mb: 3, maxWidth: 650 }}>
+            <Autocomplete
+              options={allUsers}
+              loading={loadingUsers}
+              getOptionLabel={(option: any) => 
+                `${option.first_name} ${option.last_name} (${option.business_name || 'Individual'}) - Vendor ID: ${option.vendor_id}`
+              }
+              value={selectedVerifiedUser}
+              onChange={(_, newValue) => setSelectedVerifiedUser(newValue)}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Search Verified User (Name, Business, Vendor ID, Email)"
+                  variant="outlined"
+                  placeholder="Type to search verified user..."
+                  size="small"
+                  InputProps={{
+                    ...params.InputProps,
+                    startAdornment: (
+                      <>
+                        <SearchIcon sx={{ color: '#64748B', mr: 1, fontSize: 20 }} />
+                        {params.InputProps.startAdornment}
+                      </>
+                    ),
+                    endAdornment: (
+                      <>
+                        {loadingUsers ? <CircularProgress color="inherit" size={18} /> : null}
+                        {params.InputProps.endAdornment}
+                      </>
+                    ),
+                  }}
+                  sx={{ bgcolor: '#FFFFFF', borderRadius: 2 }}
+                />
+              )}
+            />
+          </Box>
+
+          {selectedVerifiedUser ? (
+            <Box sx={{ bgcolor: '#FFFFFF', p: 3, borderRadius: 2.5, border: '1px solid #BFDBFE' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1, mb: 1.5 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <VerifiedIcon sx={{ color: '#22C55E', fontSize: 22 }} />
+                  <Typography sx={{ fontWeight: 700, fontSize: '1.05rem', color: '#0F172A' }}>
+                    {selectedVerifiedUser.first_name} {selectedVerifiedUser.last_name}
+                  </Typography>
+                  {selectedVerifiedUser.business_name && (
+                    <Typography sx={{ color: '#64748B', fontSize: '0.88rem' }}>
+                      • {selectedVerifiedUser.business_name}
+                    </Typography>
+                  )}
+                </Box>
+                <Chip 
+                  label={`Vendor ID: ${selectedVerifiedUser.vendor_id}`} 
+                  variant="outlined" 
+                  size="small" 
+                  sx={{ fontWeight: 700, color: '#1E40AF', borderColor: '#93C5FD' }} 
+                />
+              </Box>
+
+              <Typography sx={{ fontSize: '0.82rem', color: '#64748B', mb: 2 }}>
+                Email: {selectedVerifiedUser.email} {selectedVerifiedUser.phone_number ? ` | Phone: ${selectedVerifiedUser.phone_number}` : ''}
+              </Typography>
+
+              {/* Verified User Referral Link Box */}
+              {(() => {
+                const userLink = `https://app.onlok.net/register?ref=${selectedVerifiedUser.vendor_id || selectedVerifiedUser.id}`;
+                return (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                    <Box sx={{ bgcolor: '#EFF6FF', border: '1px solid #DBEAFE', borderRadius: 2, px: 2.5, py: 1.8, wordBreak: 'break-all' }}>
+                      <Typography variant="caption" sx={{ color: '#1E40AF', fontWeight: 700, display: 'block', mb: 0.3 }}>
+                        Referral Link for {selectedVerifiedUser.first_name} {selectedVerifiedUser.last_name}:
+                      </Typography>
+                      <Typography sx={{ color: '#0F172A', fontSize: '0.95rem', fontWeight: 600 }}>
+                        {userLink}
+                      </Typography>
+                    </Box>
+
+                    <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+                      <Button
+                        variant="contained"
+                        startIcon={<ContentCopyIcon sx={{ fontSize: 16 }} />}
+                        onClick={() => {
+                          navigator.clipboard.writeText(userLink);
+                          toast.success(`Copied referral link for ${selectedVerifiedUser.first_name}!`);
+                        }}
+                        sx={{ bgcolor: '#1A1FE8', textTransform: 'none', fontWeight: 700, borderRadius: 2, px: 2.5 }}
+                      >
+                        Copy {selectedVerifiedUser.first_name}'s Link
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        startIcon={<ShareIcon sx={{ fontSize: 16 }} />}
+                        onClick={() => {
+                          if (navigator.share) {
+                            navigator.share({
+                              title: `Join Onlok - ${selectedVerifiedUser.business_name || selectedVerifiedUser.first_name}`,
+                              text: `Sign up on Onlok using ${selectedVerifiedUser.first_name}'s referral link!`,
+                              url: userLink,
+                            }).catch(() => {});
+                          } else {
+                            navigator.clipboard.writeText(userLink);
+                            toast.success(`Copied referral link for ${selectedVerifiedUser.first_name}!`);
+                          }
+                        }}
+                        sx={{ borderColor: '#3B82F6', color: '#3B82F6', textTransform: 'none', fontWeight: 700, borderRadius: 2, px: 2.5 }}
+                      >
+                        Share Link
+                      </Button>
+                    </Box>
+                  </Box>
+                );
+              })()}
+            </Box>
+          ) : (
+            <Alert severity="info" sx={{ borderRadius: 2, bgcolor: '#FFFFFF' }}>
+              Select a verified user from the search dropdown above to view and copy their referral link.
+            </Alert>
+          )}
+        </Paper>
+      )}
 
       {/* Stat Grid */}
       <Box sx={{ display: 'flex', gap: 2, mb: 5, flexWrap: 'wrap' }}>
