@@ -270,6 +270,7 @@ export default function ReferralsPage() {
             </Button>
           </Box>
         </Box>
+      </Box>
       {/* Admin Tool: Get Referral Link of Any Verified User */}
       {user?.role === 'admin' && (
         <Paper 
