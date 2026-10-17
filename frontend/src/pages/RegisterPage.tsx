@@ -23,9 +23,9 @@ import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
 import StopIcon from '@mui/icons-material/Stop';
 import CameraAltIcon from '@mui/icons-material/CameraAlt';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { registerUser } from '../api/auth';
+import { registerUser, checkEmailAvailability } from '../api/auth';
 import { createRegistrationApplication, submitVerification } from '../api/verifications';
 import { compressImageFile, formatBytes } from '../utils/fileCompressor';
 import { uploadFileInChunks } from '../utils/chunkUploader';
@@ -191,6 +191,16 @@ export default function RegisterPage() {
   const refCode = queryParams.get('ref');
 
   const [activeStep, setActiveStep] = useState(0);
+  const [maxStepReached, setMaxStepReached] = useState(0);
+
+  useEffect(() => {
+    setMaxStepReached((prev) => Math.max(prev, activeStep));
+  }, [activeStep]);
+
+  useEffect(() => {
+    setMaxStepReached((prev) => Math.min(prev, activeStep));
+  }, [form.account_type, activeStep]);
+
   const [form, setForm] = useState<FormData>(initialData);
   const [loading, setLoading] = useState(false);
   const [registeredUser, setRegisteredUser] = useState<any>(null);
@@ -207,6 +217,57 @@ export default function RegisterPage() {
   const [testimonialState, setTestimonialState] = useState<FileUploadState>(initialFileState);
 
   const [fullNameInput, setFullNameInput] = useState('');
+
+  // Real-time email availability tracking
+  const [emailStatus, setEmailStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle');
+  const [emailErrorMsg, setEmailErrorMsg] = useState<string>('');
+  const emailCheckAbortRef = useRef<number>(0);
+
+  useEffect(() => {
+    const trimmed = form.email.trim();
+    if (!trimmed) {
+      setEmailStatus('idle');
+      setEmailErrorMsg('');
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmed)) {
+      setEmailStatus('idle');
+      setEmailErrorMsg('');
+      return;
+    }
+
+    setEmailStatus('checking');
+    setEmailErrorMsg('');
+    const currentReqId = ++emailCheckAbortRef.current;
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await checkEmailAvailability(trimmed);
+        if (currentReqId !== emailCheckAbortRef.current) return;
+
+        if (res.available) {
+          setEmailStatus('available');
+          setEmailErrorMsg('');
+        } else {
+          setEmailStatus('taken');
+          setEmailErrorMsg(res.message || 'This email is already registered.');
+        }
+      } catch (err: any) {
+        if (currentReqId !== emailCheckAbortRef.current) return;
+        if (err.response?.status === 400 && err.response?.data?.available === false) {
+          setEmailStatus('taken');
+          setEmailErrorMsg(err.response.data.message || 'This email is already registered.');
+        } else {
+          setEmailStatus('idle');
+          setEmailErrorMsg('');
+        }
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [form.email]);
 
   const set = (field: keyof FormData, value: any) =>
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -228,6 +289,19 @@ export default function RegisterPage() {
     if (activeStep === 0) {
       if (!form.first_name || !form.last_name || !form.email || !form.phone_number) {
         toast.error('Please enter your full First and Last name, email, and phone number.');
+        return false;
+      }
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(form.email.trim())) {
+        toast.error('Please enter a valid email address.');
+        return false;
+      }
+      if (emailStatus === 'taken') {
+        toast.error('This email is already registered. Please log in or use another email.');
+        return false;
+      }
+      if (emailStatus === 'checking') {
+        toast.error('Verifying email availability, please wait...');
         return false;
       }
       const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
@@ -388,6 +462,30 @@ export default function RegisterPage() {
   const handleNext = async () => {
     if (!validateStep()) return;
 
+    if (activeStep === 0 && emailStatus !== 'available') {
+      const trimmedEmail = form.email.trim();
+      try {
+        setEmailStatus('checking');
+        const res = await checkEmailAvailability(trimmedEmail);
+        if (!res.available) {
+          setEmailStatus('taken');
+          setEmailErrorMsg(res.message || 'This email is already registered.');
+          toast.error(res.message || 'This email is already registered. Please log in or use another email.');
+          return;
+        }
+        setEmailStatus('available');
+        setEmailErrorMsg('');
+      } catch (err: any) {
+        if (err.response?.data?.available === false) {
+          setEmailStatus('taken');
+          setEmailErrorMsg(err.response.data.message || 'This email is already registered.');
+          toast.error(err.response.data.message || 'This email is already registered.');
+          return;
+        }
+        setEmailStatus('idle');
+      }
+    }
+
     const steps = getSteps(form.account_type);
     const reviewIdx = steps.length - 1; // last real step before success
 
@@ -527,6 +625,43 @@ export default function RegisterPage() {
 
   const handleBack = () => setActiveStep((s) => s - 1);
 
+  const handleStepClick = async (targetStep: number) => {
+    if (loading) return;
+    if (targetStep === activeStep) return;
+
+    if (targetStep < activeStep) {
+      setActiveStep(targetStep);
+    } else if (targetStep <= maxStepReached) {
+      if (!validateStep()) return;
+
+      if (activeStep === 0 && emailStatus !== 'available') {
+        const trimmedEmail = form.email.trim();
+        try {
+          setEmailStatus('checking');
+          const res = await checkEmailAvailability(trimmedEmail);
+          if (!res.available) {
+            setEmailStatus('taken');
+            setEmailErrorMsg(res.message || 'This email is already registered.');
+            toast.error(res.message || 'This email is already registered. Please log in or use another email.');
+            return;
+          }
+          setEmailStatus('available');
+          setEmailErrorMsg('');
+        } catch (err: any) {
+          if (err.response?.data?.available === false) {
+            setEmailStatus('taken');
+            setEmailErrorMsg(err.response.data.message || 'This email is already registered.');
+            toast.error(err.response.data.message || 'This email is already registered.');
+            return;
+          }
+          setEmailStatus('idle');
+        }
+      }
+
+      setActiveStep(targetStep);
+    }
+  };
+
   const steps = getSteps(form.account_type);
   const reviewIdx = steps.length - 1;
   const isSp = form.account_type !== 'vendor';
@@ -544,30 +679,100 @@ export default function RegisterPage() {
         {steps.map((label, index) => {
           const isCompleted = index < activeStep;
           const isActive = index === activeStep;
+          const isReachable = index <= maxStepReached && !isActive;
+          const isClickable = !loading && (isCompleted || isReachable);
           const isCompact = steps.length > 5;
+          const tooltipTitle = isClickable
+            ? index < activeStep
+              ? `Go back to ${label}`
+              : `Jump to ${label}`
+            : '';
+
           return (
-            <Box key={label} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 1, width: isCompact ? { xs: 40, sm: 60 } : { xs: 65, sm: 80 } }}>
+            <Tooltip
+              key={label}
+              title={tooltipTitle}
+              arrow
+              disableHoverListener={!isClickable}
+            >
               <Box
+                role={isClickable ? 'button' : undefined}
+                tabIndex={isClickable ? 0 : undefined}
+                aria-label={`Step ${index + 1}: ${label}${isCompleted ? ' (Completed)' : isActive ? ' (Current)' : ''}`}
+                onClick={() => isClickable && handleStepClick(index)}
+                onKeyDown={(e) => {
+                  if (isClickable && (e.key === 'Enter' || e.key === ' ')) {
+                    e.preventDefault();
+                    handleStepClick(index);
+                  }
+                }}
                 sx={{
-                  width: isCompact ? 28 : 32,
-                  height: isCompact ? 28 : 32,
-                  borderRadius: '50%',
                   display: 'flex',
+                  flexDirection: 'column',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  bgcolor: isCompleted ? '#00BCD4' : (isActive ? '#0F172A' : '#fff'),
-                  color: isCompleted || isActive ? '#fff' : '#64748B',
-                  border: isCompleted || isActive ? 'none' : '2px solid #E2E8F0',
-                  mb: 1,
-                  transition: 'all 0.3s',
+                  zIndex: 1,
+                  width: isCompact ? { xs: 40, sm: 60 } : { xs: 65, sm: 80 },
+                  cursor: isClickable ? 'pointer' : 'default',
+                  outline: 'none',
+                  transition: 'transform 0.2s ease',
+                  '&:hover': isClickable
+                    ? {
+                        transform: 'translateY(-2px)',
+                        '& .stepper-circle': {
+                          boxShadow: isCompleted
+                            ? '0 4px 12px rgba(0, 188, 212, 0.4)'
+                            : '0 4px 12px rgba(26, 31, 232, 0.2)',
+                          borderColor: !isCompleted && !isActive ? '#00BCD4' : undefined,
+                        },
+                        '& .stepper-label': {
+                          color: isCompleted ? '#0097A7' : '#0F172A',
+                          fontWeight: 700,
+                        },
+                      }
+                    : {},
                 }}
               >
-                {isCompleted ? <CheckCircleIcon sx={{ fontSize: isCompact ? 16 : 20 }} /> : <Typography variant="caption" fontWeight={700} sx={{ fontSize: isCompact ? '0.75rem' : '0.85rem' }}>{index + 1}</Typography>}
+                <Box
+                  className="stepper-circle"
+                  sx={{
+                    width: isCompact ? 28 : 32,
+                    height: isCompact ? 28 : 32,
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    bgcolor: isCompleted ? '#00BCD4' : (isActive ? '#0F172A' : '#fff'),
+                    color: isCompleted || isActive ? '#fff' : (isReachable ? '#1A1FE8' : '#64748B'),
+                    border: isCompleted || isActive ? 'none' : (isReachable ? '2px solid #1A1FE8' : '2px solid #E2E8F0'),
+                    mb: 1,
+                    transition: 'all 0.25s ease',
+                  }}
+                >
+                  {isCompleted ? (
+                    <CheckCircleIcon sx={{ fontSize: isCompact ? 16 : 20 }} />
+                  ) : (
+                    <Typography variant="caption" fontWeight={700} sx={{ fontSize: isCompact ? '0.75rem' : '0.85rem' }}>
+                      {index + 1}
+                    </Typography>
+                  )}
+                </Box>
+                <Typography
+                  className="stepper-label"
+                  variant="caption"
+                  sx={{
+                    color: isActive ? '#0F172A' : (isCompleted ? '#334155' : isReachable ? '#1A1FE8' : '#64748B'),
+                    fontWeight: isActive ? 700 : (isCompleted ? 600 : 500),
+                    fontSize: isCompact ? { xs: '0.55rem', sm: '0.65rem' } : { xs: '0.65rem', sm: '0.7rem' },
+                    textTransform: 'capitalize',
+                    textAlign: 'center',
+                    lineHeight: 1.1,
+                    transition: 'color 0.2s ease',
+                  }}
+                >
+                  {label}
+                </Typography>
               </Box>
-              <Typography variant="caption" sx={{ color: isActive ? '#0F172A' : '#64748B', fontWeight: isActive ? 700 : 500, fontSize: isCompact ? { xs: '0.55rem', sm: '0.65rem' } : { xs: '0.65rem', sm: '0.7rem' }, textTransform: 'capitalize', textAlign: 'center', lineHeight: 1.1 }}>
-                {label}
-              </Typography>
-            </Box>
+            </Tooltip>
           );
         })}
       </Box>
@@ -584,7 +789,52 @@ export default function RegisterPage() {
       <TextField fullWidth value={fullNameInput} onChange={handleFullNameChange} placeholder="e.g., Sarah Chen" sx={{ mb: 3 }} InputProps={{ sx: { borderRadius: 2 } }} />
 
       <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} display="block">Email Address <Box component="span" sx={{ color: '#EF4444' }}>*</Box></Typography>
-      <TextField fullWidth type="email" value={form.email} onChange={(e) => set('email', e.target.value)} placeholder="sarah@example.com" sx={{ mb: 3 }} InputProps={{ sx: { borderRadius: 2 } }} />
+      <TextField
+        fullWidth
+        type="email"
+        value={form.email}
+        onChange={(e) => set('email', e.target.value)}
+        placeholder="sarah@example.com"
+        error={emailStatus === 'taken'}
+        helperText={
+          emailStatus === 'taken' ? (
+            <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75, color: '#EF4444', mt: 0.5, flexWrap: 'wrap' }}>
+              <span>{emailErrorMsg || 'This email is already registered.'}</span>
+              <Link to="/login" style={{ color: '#1A1FE8', fontWeight: 600, textDecoration: 'underline' }}>
+                Log in instead?
+              </Link>
+            </Box>
+          ) : emailStatus === 'available' ? (
+            <Box component="span" sx={{ color: '#10B981', mt: 0.5, display: 'inline-block', fontWeight: 600 }}>
+              ✓ Email is available
+            </Box>
+          ) : undefined
+        }
+        FormHelperTextProps={{
+          component: 'div',
+        }}
+        sx={{ mb: 3 }}
+        InputProps={{
+          sx: { borderRadius: 2 },
+          endAdornment: (
+            <InputAdornment position="end">
+              {emailStatus === 'checking' && (
+                <CircularProgress size={18} sx={{ color: '#64748B' }} />
+              )}
+              {emailStatus === 'available' && (
+                <Tooltip title="Email is available" arrow>
+                  <CheckCircleIcon sx={{ color: '#10B981', fontSize: 20 }} />
+                </Tooltip>
+              )}
+              {emailStatus === 'taken' && (
+                <Tooltip title="Email is already registered" arrow>
+                  <WarningAmberIcon sx={{ color: '#EF4444', fontSize: 20 }} />
+                </Tooltip>
+              )}
+            </InputAdornment>
+          ),
+        }}
+      />
 
       <Typography variant="caption" fontWeight={700} color="#0F172A" mb={1} display="block">Phone Number <Box component="span" sx={{ color: '#EF4444' }}>*</Box></Typography>
       <Stack direction="row" spacing={1} mb={4}>

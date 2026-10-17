@@ -38,3 +38,11 @@ export const updateUserProfile = async (id: number, payload: Partial<User>): Pro
   const { data } = await api.put<{ message: string }>(`/users/${id}`, payload);
   return data;
 };
+
+export const checkEmailAvailability = async (email: string): Promise<{ available: boolean; message: string }> => {
+  const { data } = await api.get<{ available: boolean; message: string }>('/users/check-email', {
+    params: { email },
+  });
+  return data;
+};
+
