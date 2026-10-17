@@ -605,6 +605,36 @@ const resetPassword = async (req, res) => {
     }
 };
 
+// @desc    Check if email is already taken
+// @route   GET /api/users/check-email
+// @access  Public
+const checkEmailAvailability = async (req, res) => {
+    try {
+        const { email } = req.query;
+
+        if (!email || typeof email !== 'string') {
+            return res.status(400).json({ message: 'Email query parameter is required', available: false });
+        }
+
+        const normalizedEmail = email.trim().toLowerCase();
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(normalizedEmail)) {
+            return res.status(400).json({ message: 'Invalid email format', available: false });
+        }
+
+        const [existing] = await pool.query('SELECT id FROM users WHERE LOWER(email) = ? LIMIT 1', [normalizedEmail]);
+
+        if (existing.length > 0) {
+            return res.status(200).json({ available: false, message: 'This email is already registered.' });
+        }
+
+        return res.status(200).json({ available: true, message: 'Email is available.' });
+    } catch (error) {
+        logger.error('Check Email Availability Error', { error });
+        return res.status(500).json({ message: 'Server error checking email availability' });
+    }
+};
+
 module.exports = {
     registerUser,
     loginUser,
@@ -617,4 +647,6 @@ module.exports = {
     uploadProfilePicture,
     forgotPassword,
     resetPassword,
+    checkEmailAvailability,
 };
+
