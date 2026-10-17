@@ -192,6 +192,7 @@ export default function RegisterPage() {
 
   const [activeStep, setActiveStep] = useState(0);
   const [maxStepReached, setMaxStepReached] = useState(0);
+  const [form, setForm] = useState<FormData>(initialData);
 
   useEffect(() => {
     setMaxStepReached((prev) => Math.max(prev, activeStep));
@@ -200,8 +201,6 @@ export default function RegisterPage() {
   useEffect(() => {
     setMaxStepReached((prev) => Math.min(prev, activeStep));
   }, [form.account_type, activeStep]);
-
-  const [form, setForm] = useState<FormData>(initialData);
   const [loading, setLoading] = useState(false);
   const [registeredUser, setRegisteredUser] = useState<any>(null);
   const [showPassword, setShowPassword] = useState(false);
